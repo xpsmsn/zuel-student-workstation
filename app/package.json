@@ -1,0 +1,14 @@
+{
+  "name": "zuel-student-workstation",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "tauri": "tauri",
+    "sync": "node ../.build/build-desktop.js",
+    "build": "node ../.build/build-desktop.js && tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

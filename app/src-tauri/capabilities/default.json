@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "中南大学生工作台主窗口权限：只放行核心能力与外链打开",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "opener:default",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled"
+  ]
+}

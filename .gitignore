@@ -1,0 +1,41 @@
+# ============================================================
+# 中南大学生工作台 · Git 忽略清单
+# 原则：只把「人写的东西」进版本库；能重新生成的、体积大的、二进制的都不进。
+# ============================================================
+
+# ---- 依赖与构建产物（可重新生成，体积巨大）----
+node_modules/
+app/src-tauri/target/
+app/src-tauri/gen/
+target/
+# 下面这个由 node .build/build-desktop.js 从原型生成，不进库
+app/src/index.html
+
+# ---- Rust 工具链与早期实验工程（本机另有 D:\Rust，与项目无关）----
+.build/tauri-probe/
+.build/rust-1.98.1-x86_64-pc-windows-msvc/
+.build/rust.tar.xz
+.build/rustup-init.exe
+
+# ---- .build：只保留脚本 / 素材源 / 手册章节，其余全是中间产物 ----
+.build/*
+!.build/*.js
+!.build/*.py
+!.build/*.ps1
+!.build/*.md
+!.build/sites.json
+!.build/cal-1.gif
+!.build/cal-2.gif
+!.build/logo-base64.txt
+
+# ---- 安装包：走 GitHub Release，不进仓库（二进制会让仓库迅速膨胀）----
+发布/*.exe
+发布/*.msi
+
+# ---- 本机会话数据 ----
+.workbuddy/
+
+# ---- 系统垃圾 ----
+Thumbs.db
+desktop.ini
+*.tmp
