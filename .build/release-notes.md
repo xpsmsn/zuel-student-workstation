@@ -1,18 +1,27 @@
-## v1.9 首发
+## v1.9.1 —— 修「会开出第二个窗口」
 
 面向高校辅导员的**本机学生工作台**：把系统里导出的学生信息表 + 成绩单放进来，自动拼出每个人的画像、成绩、宿舍与预警。**数据只存本机，全程不联网、不上传服务器。**
+
+### 🐞 这个版本修了什么
+
+程序缩到系统托盘后，**再双击桌面图标会又弹一个窗口** —— 变成两个程序同时跑。
+这不只是"多一个窗口"的麻烦：两个窗口各存一份数据，**后保存的那份会把先保存的盖掉**。
+
+现在程序**只允许运行一个**：已经在后台时，再双击图标只会把原来那个窗口叫回前台，不会新开。
+（顺带保住了开机自启的那次安静启动：它不会把窗口弹出来打扰你。）
 
 ### 📥 下载哪个？（三个文件内容一样，只是安装方式不同）
 
 | Assets 里的文件名 | 对应本机文件 | 适合谁 |
 | --- | --- | --- |
-| `ZUEL-StudentWorkstation-Portable-v1.9.exe` | 中南大学生工作台-绿色版.exe | 想直接用：复制到任意文件夹双击即可，**不用安装** |
-| `ZUEL-StudentWorkstation-Setup-v1.9.exe` | 中南大学生工作台-安装程序.exe | 日常使用：装到开始菜单/桌面。默认按当前用户安装，**不需要管理员权限** |
-| `ZUEL-StudentWorkstation-v1.9.msi` | 中南大学生工作台-单位部署.msi | 学校统一部署用，通常需要管理员权限 |
+| `ZUEL-StudentWorkstation-v1.9.1-Portable.exe` | 中南大学生工作台-v1.9.1-绿色版.exe | 想直接用：复制到任意文件夹双击即可，**不用安装** |
+| `ZUEL-StudentWorkstation-v1.9.1-Setup.exe` | 中南大学生工作台-v1.9.1-安装程序.exe | 日常使用：装到开始菜单/桌面。默认按当前用户安装，**不需要管理员权限** |
+| `ZUEL-StudentWorkstation-v1.9.1-Deploy.msi` | 中南大学生工作台-v1.9.1-单位部署.msi | 学校统一部署用，通常需要管理员权限 |
 
 > 文件名是英文的，是因为 GitHub 的 Release 附件不支持中文名（会被清成 `-.exe`）；下载后建议改回中文名再分发。
+> **文件名里都带版本号**（`v1.9.1`），拿到手就知道是哪一版，不会和旧版搞混。
 
-### ✨ 本次更新（v1.9）
+### ✨ 上一版（v1.9）带来的功能
 
 - **新手引导重做为"跟着点一遍就能完成"的分步实操向导**：6 步，每步都配可执行按钮
   （打开智慧学工 / 打开综合教务 / 直达导入框），并带两份文件的进度清单，随时知道还差哪份。
@@ -32,7 +41,11 @@ Windows 10/11 64 位，需要 Microsoft Edge WebView2 运行时（Win11 与多�
 
 ### 🔧 开发者说明
 
+- 单实例用的是官方 `tauri-plugin-single-instance`；Windows 侧靠**命名互斥量 + 隐藏窗口消息**
+  实现，**不监听任何网络端口**，不会被防火墙 / 安全软件拦。
 - 仓库里**不含**安装包本体与构建产物（`node_modules`、`src-tauri/target`、`app/src/index.html` 均已 gitignore）。
 - clone 后要先跑 `node .build/build-desktop.js` 生成 `app/src/index.html`，再 `cd app && npm install && npx tauri build`。
+- 出包后跑 `python .build/pack-release.py`：按 `中南大学生工作台-v<版本>-<用途>.<扩展名>`
+  的统一规则把三个产物放进「发布」目录，并同步安装说明 / README 里的文件名。
 - 回归测试：`node .build/check-syntax.js <原型.html>`、`test-library.js`、`test-delete-backup.js`、
   `test-desktop.js app/src/index.html`（共 128+ 条断言）。

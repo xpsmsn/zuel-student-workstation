@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "中南大学生工作台主窗口权限：只放行核心能力与外链打开",
+  "description": "中南大学生工作台主窗口权限：核心能力 + 外链打开 + 开机启动开关",
   "windows": ["main"],
   "permissions": [
     "core:default",

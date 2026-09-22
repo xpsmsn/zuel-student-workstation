@@ -1,6 +1,6 @@
 [package]
 name = "zuel-student-workstation"
-version = "1.0.0"
+version = "1.9.1"
 description = "中南大学生工作台 —— 本地运行、数据不外传的辅导员工作台"
 authors = ["吴章凡 <wuzhangfan110@163.com>"]
 edition = "2021"
@@ -19,6 +19,8 @@ tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-opener = "2"
 # 开机启动（Windows 下写「启动」目录，不需要管理员权限）
 tauri-plugin-autostart = "2"
+# 单实例：已经在跑的时候再双击一次，只把原来的窗口叫回来，不开第二个（v1.9.1）
+tauri-plugin-single-instance = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

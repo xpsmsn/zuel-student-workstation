@@ -228,7 +228,24 @@ fn quit_app(app: tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+
+    // 单实例（v1.9.1）：程序已经在跑时，再双击一次图标不会再开一个窗口，
+    // 而是把原来那个叫回前台。必须**第一个**注册，否则可能被别的插件抢先。
+    //
+    // 顺带挡掉一个隐患：两个实例会同时读写同一份本地数据，后写的会把先写的盖掉。
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            // 开机自启拉起的那一次，本来就该安安静静待在托盘，不去打扰辅导员
+            if args.iter().any(|a| a == "--autostart") {
+                return;
+            }
+            show_main(app);
+        }));
+    }
+
+    builder
         // 关掉插件自带的"点击 _blank 自动开浏览器"注入脚本：
         // 外链统一走下面自己的 open_external，避免同一次点击被处理两遍（开两个标签页）。
         .plugin(
