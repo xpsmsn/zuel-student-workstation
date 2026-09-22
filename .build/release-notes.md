@@ -32,6 +32,14 @@
 - **演示数据更真实**：80 名学生按性别编组为 25 间 2~4 人寝室、床位连续编号、男女不混寝，
   「室友」列不再全空。
 
+### 🙏 致谢
+
+特别鸣谢 [辅导员 AI 工作台 · counselor-ai-workbench v1.1.0](https://github.com/L-uo/counselor-ai-workbench/releases/tag/v1.1.0)
+提供的产品思路（免费使用 · 本地数据优先 · 无需注册账号，以及校务导航 / 常用模板 / 制度库 /
+批量导入向导 / 备份恢复这类"把零散事务收进一个工作台"的组织方式）。本项目为独立实现，非其 fork。
+
+完整版本历史见仓库内的 `CHANGELOG.md`。
+
 ### 🖥 运行环境
 
 Windows 10/11 64 位，需要 Microsoft Edge WebView2 运行时（Win11 与多数装过 Edge 的 Win10 已有；

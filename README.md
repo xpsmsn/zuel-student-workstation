@@ -5,6 +5,8 @@
 >
 > **数据只存本机，全程不联网、不上传服务器。**
 
+📜 **完整版本历史见 [CHANGELOG.md](CHANGELOG.md)** —— 从原型阶段到 v1.9.1 的每一步都记在里面。
+
 ## 📥 下载使用（只想用软件，不想看代码）
 
 到 [Releases](https://github.com/xpsmsn/zuel-student-workstation/releases) 页面，挑最新版本的一个下载：
@@ -205,6 +207,16 @@ ZUEL-StudentWorkstation-v<版本>-Portable.exe    # GitHub 附件用英文名（
 | `app/` | Tauri 2 桌面工程（Rust 壳 + 打包配置） |
 | `.build/` | 构建、回归测试、出包命名脚本 |
 | `发布/` | 安装说明（exe/msi 本体已 gitignore） |
+
+## 🙏 致谢
+
+特别鸣谢 **[辅导员 AI 工作台 · counselor-ai-workbench v1.1.0](https://github.com/L-uo/counselor-ai-workbench/releases/tag/v1.1.0)**
+为本项目的产品思路提供的启发 —— 尤其是"**免费使用 · 本地数据优先 · 无需注册账号**"这三条立场，
+以及把校务导航、常用模板、制度库、批量导入向导、备份恢复这些零散事务收进一个工作台的组织方式。
+
+需要说明：对方项目当前**未开放源代码**，本项目是**独立实现**，不是它的 fork 或二次分发；
+技术路线也不同（本项目＝单文件 HTML 原型 + 很薄的 Tauri 2 桌面壳，且完全不含 AI 功能）。
+更详细的对照写在 [CHANGELOG.md](CHANGELOG.md) 的「特别鸣谢」一节。
 
 ## 📄 License
 
