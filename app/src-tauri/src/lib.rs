@@ -122,22 +122,105 @@ fn open_downloads_dir(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 /// 用系统默认程序打开一个本地文件（v1.9：查寝打分表生成后直接打开打印页）。
-/// 只接受「下载」目录与「应用数据」目录下的文件，避免被拿去打开任意路径。
+/// 只接受「下载」目录、「应用数据」目录，以及**用户在「常用模板 · 我的模板文件」里
+/// 亲自登记的文件**（v1.9.6：extra_allowed 由前端把登记清单传过来）。
+/// 白名单的意义是挡住"被拼出来的任意路径"；登记清单本身也是本机用户数据，同一信任级别。
 #[tauri::command]
-fn open_local_file(app: tauri::AppHandle, path: String) -> Result<(), String> {
+fn open_local_file(
+    app: tauri::AppHandle,
+    path: String,
+    extra_allowed: Option<Vec<String>>,
+) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
     let p = PathBuf::from(path.trim());
     if !p.is_file() {
-        return Err("文件不存在".into());
+        return Err("文件不存在（是不是挪位置或改名了？可在「我的模板文件」里移除后重新添加）".into());
     }
     let data = data_dir(&app)?;
-    let allowed = p.starts_with(downloads_dir(Some(&app))) || p.starts_with(&data);
-    if !allowed {
-        return Err("只允许打开本应用导出的文件".into());
+    let mut allowed = vec![downloads_dir(Some(&app)), data];
+    if let Some(list) = extra_allowed {
+        for a in list {
+            let bp = PathBuf::from(a.trim());
+            if bp.is_dir() {
+                allowed.push(bp);
+            }
+        }
+    }
+    let ok = allowed.iter().any(|base| p.starts_with(base));
+    if !ok {
+        return Err("只允许打开本应用导出的文件或已登记的模板文件".into());
     }
     app.opener()
         .open_path(p.to_string_lossy().to_string(), None::<&str>)
         .map_err(|e| format!("打开失败：{e}"))
+}
+
+/// 「我的模板文件」登记时要打开的文件：一个文档。
+#[derive(serde::Serialize)]
+struct DocFile {
+    /// 展示名（含扩展名）
+    name: String,
+    /// 相对所选文件夹的路径（含子文件夹，如 `报销\报账签收表.xlsx`）
+    rel: String,
+    /// 绝对路径（登记与打开都用它）
+    path: String,
+}
+
+/// 列出一个文件夹里的常用文档文件（递归，深度 ≤ 3，最多 200 个），
+/// 供「常用模板 · 我的模板文件」登记。只列文档类扩展名；
+/// 跳过隐藏文件与 Office 锁文件（`~$xxx.docx`）。
+#[tauri::command]
+fn list_doc_files(dir: String) -> Result<Vec<DocFile>, String> {
+    const EXTS: [&str; 8] = ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "wps"];
+    let root = PathBuf::from(dir.trim());
+    if !root.is_dir() {
+        return Err(format!("文件夹不存在：{}", root.to_string_lossy()));
+    }
+    let mut out: Vec<DocFile> = Vec::new();
+    walk_docs(&root, &root, 0, &EXTS, &mut out);
+    if out.is_empty() {
+        return Err("这个文件夹里没有找到 PDF / Word / Excel 文件".into());
+    }
+    Ok(out)
+}
+
+fn walk_docs(root: &std::path::Path, dir: &std::path::Path, depth: u32, exts: &[&str], out: &mut Vec<DocFile>) {
+    if depth > 3 || out.len() >= 200 {
+        return;
+    }
+    let rd = match std::fs::read_dir(dir) {
+        Ok(r) => r,
+        Err(_) => return,    // 没权限的子目录直接跳过，不整体失败
+    };
+    let mut entries: Vec<_> = rd.filter_map(|e| e.ok()).collect();
+    entries.sort_by_key(|e| e.file_name());
+    for e in entries {
+        let p = e.path();
+        let name = e.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') || name.starts_with('~') || name.starts_with('$') {
+            continue;
+        }
+        if p.is_dir() {
+            walk_docs(root, &p, depth + 1, exts, out);
+            continue;
+        }
+        let ext = p
+            .extension()
+            .map(|x| x.to_string_lossy().to_lowercase())
+            .unwrap_or_default();
+        if !exts.contains(&ext.as_str()) {
+            continue;
+        }
+        let rel = p
+            .strip_prefix(root)
+            .map(|x| x.to_string_lossy().to_string())
+            .unwrap_or_else(|_| name.clone());
+        out.push(DocFile {
+            name,
+            rel,
+            path: p.to_string_lossy().to_string(),
+        });
+    }
 }
 
 /// 应用数据目录（%APPDATA%/<identifier>）：清浏览器缓存不会动到这里。
@@ -282,6 +365,7 @@ pub fn run() {
             load_data_file,
             delete_data_file,
             open_local_file,
+            list_doc_files,
             set_tray_minimize,
             hide_to_tray,
             set_autostart,

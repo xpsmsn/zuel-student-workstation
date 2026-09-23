@@ -1,6 +1,6 @@
 [package]
 name = "zuel-student-workstation"
-version = "1.9.5"
+version = "1.9.6"
 description = "中南大学生工作台 —— 本地运行、数据不外传的辅导员工作台"
 authors = ["吴章凡 <wuzhangfan110@163.com>"]
 edition = "2021"

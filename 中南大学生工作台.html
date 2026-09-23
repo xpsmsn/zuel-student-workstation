@@ -1256,7 +1256,8 @@ thead th{font-weight:600}
     </div>
     <button class="tb-btn primary" id="importTopBtn" data-tour="import" onclick="openImport()">
       <span class="tb-plus">+</span><span class="tb-text">导入数据</span></button>
-    <button class="tb-btn topbar-opt" onclick="exportData()">导出当前结果</button>
+    <button class="tb-btn topbar-opt" onclick="exportData()">导出 CSV</button>
+    <button class="tb-btn topbar-opt" onclick="exportDataXlsx()" title="两个工作表：学生信息 / 成绩，可在 Excel 里大范围改完再导回">导出 Excel</button>
     <div class="user-chip" data-tour="profile" onclick="gotoProfile()" title="个人中心">
       <div class="avatar" id="chipAvatar">辅</div><span class="chip-text" id="chipName">辅导员</span>
     </div>
@@ -1296,7 +1297,7 @@ thead th{font-weight:600}
 const STORE_KEY    = 'counselor_workstation_v2';
 const STORE_KEY_V1 = 'counselor_workstation_v1';
 /* 版本号：出现在「取数指引」页脚与设置里，方便辅导员反馈时报给你 */
-const APP_VER = 'v1.9.5 · 2026-09-23';
+const APP_VER = 'v1.9.6 · 2026-09-23';
 /* localStorage 通常上限 5MB，单批次（260 人 × 32 字段）约 250KB
    → 取 20 为保守上限，超限时提示用户先删历史批次 */
 const MAX_BATCHES = 20;
@@ -1565,6 +1566,7 @@ let S = {
   /* ---- 内容库（v1.2）：null = 从未用过，灌预置；工作笔记是纯文本 ---- */
   navLinks: null,        // 校务导航 [{id,name,cat,url,desc}]
   templates: null,       // 常用模板 [{id,title,tag,body}]
+  templateFiles: [],     // v1.9.6：我的模板文件 [{id,name,relText,path,addedAt}]（只登记路径）
   todos: null,           // 备忘清单（v1.4）[{id,text,done,created}]，null = 首次，_seedLibraries 灌 []
   backupRemind: true,    // 数据安全提醒：导入过数据且未导出备份时弹（导出备份后置 false）
   backupRemindEnabled: true,     // v1.9.6：备份提醒总开关（系统设置 → 数据管理 里切换）
@@ -1721,6 +1723,7 @@ function buildSavePayload(){
     /* 内容库（v1.2）：null 照存 —— load 后由 _seedLibraries 灌预置，不清用户数据 */
     navLinks: Array.isArray(S.navLinks) ? S.navLinks : null,
     templates: Array.isArray(S.templates) ? S.templates : null,
+    templateFiles: Array.isArray(S.templateFiles) ? S.templateFiles : [],
     todos: Array.isArray(S.todos) ? S.todos : null,
     notes: typeof S.notes === 'string' ? S.notes : '',
     backupRemind: S.backupRemind !== false,
@@ -1830,6 +1833,7 @@ function load(){
       // 内容库（v1.2）：老数据没有这几项 → 保持 null，由 _seedLibraries 灌预置
       S.navLinks  = Array.isArray(d.navLinks)  ? d.navLinks.filter(x=>x && x.id) : null;
       S.templates = Array.isArray(d.templates) ? d.templates.filter(x=>x && x.id) : null;
+      S.templateFiles = Array.isArray(d.templateFiles) ? d.templateFiles.filter(x=>x && x.path) : [];
       S.todos     = Array.isArray(d.todos)     ? d.todos.filter(x=>x && x.id) : null;
       S.notes = typeof d.notes === 'string' ? d.notes : '';
       S.backupRemind = d.backupRemind !== false;
@@ -2472,7 +2476,112 @@ function renderLibPage(key){
         <div style="font-size:13px;color:var(--text-3)">换个关键词 / 标签，或点右上角「恢复预置」</div>
       </div>`}
   </div></div>
+  ${isTpl ? tplFilesSection() : ''}
   ${refocus ? '' : ''}`;
+}
+
+/* ======== v1.9.6：常用模板 · 我的模板文件（桌面版） ========
+   PDF / Word / Excel 这类模板文件的价值在「格式与表格」本身，复制文字没有意义，
+   所以这里登记的是文件路径、点一下用系统默认程序打开；不复制内容、不上传。
+   浏览器版没有本机路径与打开能力，明确提示（不静默）。 */
+function tplFiles(){ return Array.isArray(S.templateFiles) ? S.templateFiles : []; }
+function tplFilesSection(){
+  const files = tplFiles();
+  if(!isDesktopApp()) return '';
+  return `
+  <div class="card" style="margin-top:16px"><div class="card-body">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:${files.length?'12px':'0'}">
+      <div style="font-weight:660;font-size:14.5px;flex:1">📁 我的模板文件
+        <span style="font-weight:400;font-size:12.5px;color:var(--text-3)">（登记本机的 PDF / Word / Excel，点一下就用对应程序打开）</span></div>
+      <button class="btn pri" style="padding:5px 14px;font-size:12.5px" onclick="openTplFolderModal()">从文件夹添加</button>
+    </div>
+    ${files.length ? `
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px">
+      ${files.map(f=>`
+        <div class="lib-item" style="padding:9px 12px;display:flex;gap:8px;align-items:center">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(f.name)}">${esc(f.name)}</div>
+            <div style="font-size:11.5px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(f.path)}">${esc(f.relText || f.path)}</div>
+          </div>
+          <button class="btn" style="padding:3px 10px;font-size:12px;flex-shrink:0" onclick="openTplFile('${f.id}')">打开</button>
+          <button class="btn" style="padding:3px 10px;font-size:12px;color:var(--danger);border-color:var(--danger-line);flex-shrink:0"
+            onclick="removeTplFile('${f.id}')" title="只移除登记，不动文件本身">移除</button>
+        </div>`).join('')}
+      </div>`
+    : `<div style="font-size:13px;color:var(--text-2);line-height:1.9">
+        还没有登记。点右上角「从文件夹添加」→ 粘贴存放模板的文件夹路径 → 勾选要登记的文件。<br>
+        登记后点一下就用系统默认程序打开（PDF 用阅读器、Word 用 Word），文件本身不会被复制或移动。
+      </div>`}
+  </div></div>`;
+}
+function openTplFolderModal(){
+  if(!isDesktopApp()){ toast('登记本机模板文件需要桌面版（浏览器版拿不到文件路径）'); return; }
+  $('modalRoot').innerHTML = `
+  <div class="mask" onclick="if(event.target===this)closeModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-head"><div class="modal-title">从文件夹登记模板文件</div>
+        <div class="modal-close" onclick="closeModal()">×</div></div>
+      <div class="modal-body">
+        <div class="hint">把存放模板的<b>文件夹路径</b>粘贴到下面（整个文件夹含子文件夹都会列出来，PDF / Word / Excel 都算），
+        勾选要登记的文件后点确认。登记后点一下就能用系统默认程序打开；<b>只记路径，不复制内容、不上传</b>。</div>
+        <div style="display:flex;gap:8px;margin:12px 0">
+          <input class="input" id="tplDir" style="flex:1" placeholder="例如 C:\\Users\\我\\Desktop\\常用模板" onkeydown="if(event.key==='Enter'){event.preventDefault();listTplDir();}">
+          <button class="btn pri" style="flex-shrink:0" onclick="listTplDir()">列出文件</button>
+        </div>
+        <div id="tplDirList"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" onclick="closeModal()">取消</button>
+        <button class="btn pri" id="tplRegOk" style="display:none" onclick="registerTplFiles()">登记勾选的文件</button>
+      </div>
+    </div>
+  </div>`;
+  setTimeout(()=>{ const i=$('tplDir'); if(i&&i.focus) i.focus(); }, 60);
+}
+function listTplDir(){
+  const dir = ($('tplDir').value||'').trim().replace(/^"+|"+$/g,'');
+  if(!dir){ toast('先粘贴文件夹路径'); return; }
+  const box = $('tplDirList');
+  box.innerHTML = '<div style="color:var(--text-3);font-size:13px;padding:8px 2px">正在读取文件夹…</div>';
+  Promise.resolve(tauriInvoke('list_doc_files', { dir })).then(files=>{
+    if(!files || !files.length){ box.innerHTML = '<div class="hint">这个文件夹里没有找到 PDF / Word / Excel 文件</div>'; return; }
+    window.__tplCandidates = files;
+    const okBtn = $('tplRegOk'); if(okBtn) okBtn.style.display='';
+    box.innerHTML = `
+      <div style="max-height:280px;overflow:auto;border:1px solid var(--line-2);border-radius:9px;padding:6px 10px">
+      ${files.map((f,i)=>`
+        <label style="display:flex;gap:8px;align-items:center;padding:6px 2px;font-size:13px;cursor:pointer">
+          <input type="checkbox" class="tpl-cand" data-i="${i}" checked>
+          <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(f.path)}">${esc(f.rel)}</span>
+        </label>`).join('')}
+      </div>
+      <div style="font-size:12px;color:var(--text-3);margin-top:6px">共 ${files.length} 个文件（含子文件夹）</div>`;
+  }).catch(e=>{ box.innerHTML = `<div class="hint" style="border-color:var(--warn)">${esc((e && e.message) || String(e))}</div>`; });
+}
+function registerTplFiles(){
+  const cands = window.__tplCandidates || [];
+  const sel = [...document.querySelectorAll('.tpl-cand')].filter(x=>x.checked).map(x=>cands[Number(x.dataset.i)]);
+  if(!sel.length){ toast('先勾选要登记的文件'); return; }
+  const have = new Set(tplFiles().map(x=>x.path));
+  let added = 0;
+  S.templateFiles = tplFiles();
+  sel.forEach(f=>{
+    if(have.has(f.path)) return;
+    S.templateFiles.push({ id:_libId(), name:f.name, relText:f.rel, path:f.path, addedAt: todayStr() });
+    added++;
+  });
+  save(); renderTpl(); closeModal();
+  toast(added ? `已登记 ${added} 个模板文件` : '这些文件都已经登记过了');
+}
+function openTplFile(id){
+  const f = tplFiles().find(x=>x.id===id);
+  if(!f) return;
+  const p = tauriInvoke('open_local_file', { path: f.path, extraAllowed: tplFiles().map(x=>x.path) });
+  Promise.resolve(p).catch(e=>toast((e && e.message) || '打开失败'));
+}
+function removeTplFile(id){
+  S.templateFiles = tplFiles().filter(x=>x.id!==id);
+  save(); renderTpl(); toast('已移除登记（文件本身没有动）');
 }
 
 function toggleLibOpen(key, id){
@@ -2872,6 +2981,7 @@ function renderSettings(){
       <button class="op" onclick="${hasGrade()?'openGradeImport()':"toast('请先导入学生数据批次')"}"><span class="op-i">📑</span><span class="op-t">导入成绩</span><span class="op-d">${hasGrade()?('当前 ' + S.grades.length + ' 条'):'需先有学生批次'}</span></button>
       <button class="op" onclick="gotoImportLog()"><span class="op-i">🕘</span><span class="op-t">导入历史</span><span class="op-d">${(S.importHistory||[]).length || 0} 条 · 可复原</span></button>
       <button class="op" onclick="openBackupRestore()"><span class="op-i">💾</span><span class="op-t">备份与恢复</span><span class="op-d">导出 / 导入完整备份</span></button>
+      <button class="op" onclick="exportBatchXlsx(activeBatch())"><span class="op-i">📊</span><span class="op-t">导出 Excel（维护用）</span><span class="op-d">整批导出两张表，改完可导回</span></button>
       <button class="op" onclick="openDownloadsFolder()"><span class="op-i">📂</span><span class="op-t">打开备份文件夹</span><span class="op-d">导出与备份文件都在这里</span></button>
     </div>
     <div style="margin-top:12px;font-size:13px;color:var(--text-2)">
@@ -4336,7 +4446,8 @@ function openBatchManager(){
             <div class="batch-acts">
               ${b.id===activeId?'':`<button class="btn" onclick="switchBatch('${b.id}');openBatchManager();">切换</button>`}
               ${b.id===activeId?`<button class="btn" onclick="closeModal();openGradeImport()">导入成绩</button>`:''}
-              <button class="btn" onclick="exportBatchCsv(findBatch('${b.id}'))">导出</button>
+              <button class="btn" onclick="exportBatchCsv(findBatch('${b.id}'))">CSV</button>
+              <button class="btn" onclick="exportBatchXlsx(findBatch('${b.id}'))">Excel</button>
               <button class="btn"${renaming?' disabled':''} onclick="renameBatch('${b.id}')">重命名</button>
               <button class="btn" style="color:var(--danger);border-color:var(--danger-line)"
                       onclick="deleteBatch('${b.id}')">删除</button>
@@ -7775,6 +7886,78 @@ function exportData(){
   const rows = mergedRows(list, S.grades);
   downloadCsv(csvOf(rows), `学生数据_${todayStr()}.csv`);
   toast(`已导出 ${rows.length} 条${hasGrade()?'（含成绩）':''}`);
+}
+
+/* ---------- v1.9.6：导出 Excel（维护用） ----------
+   为什么要有它：CSV 在 Excel 里要对付编码/引号，长学号还会变科学计数；
+   而且改完再存容易把"文本型数字"改坏。导出成 .xlsx（两个工作表）：
+     · 「学生信息」→ 「导入学生数据」直接吃回去
+     · 「成绩」    → 「导入成绩」直接吃回去
+   形成 导出 → 在 Excel 里大范围改 → 导回 的闭环。学号一律按文本写，不会变 2.02E+11。 */
+function fieldOrderOf(list){
+  /* 列顺序：主键与常用列在前 → 已知字段按 FIELD_GROUPS 顺序 → 其余字段按出现顺序。
+     只导"至少有一个人填了"的列，不给维护表塞几十个全空列。 */
+  const known = [].concat(...FIELD_GROUPS.map(g=>g.keys));
+  const has = k => list.some(r=> r[k] != null && r[k] !== '');
+  const out = [], seen = new Set();
+  const push = k => { if(k && !seen.has(k)){ seen.add(k); out.push(k); } };
+  ['学号','姓名','班级','性别'].forEach(push);
+  known.forEach(k=>{ if(has(k)) push(k); });
+  list.forEach(r=>Object.keys(r).forEach(push));
+  return out;
+}
+function xlsxSheet(wb, list, title, extraOrder){
+  if(!list.length) return;
+  const order = (extraOrder || fieldOrderOf(list)).filter(k=> list.some(r=> r[k]!=null && r[k]!=='') || k==='学号');
+  const aoa = [order, ...list.map(r=> order.map(k=> (r[k]==null?'':String(r[k]))))];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = order.map(k=>({ wch: Math.min(30, Math.max(9, k.length*2.2+4)) }));
+  XLSX.utils.book_append_sheet(wb, ws, title);
+}
+function exportBatchXlsx(batch, silent){
+  if(typeof XLSX === 'undefined'){ toast('表格组件没加载起来，导不了 Excel'); return; }
+  if(!batch || !(batch.students||[]).length){ if(!silent) toast('该批次没有可导出的数据'); return; }
+  const wb = XLSX.utils.book_new();
+  xlsxSheet(wb, batch.students, '学生信息');
+  const grades = batch.grades || [];
+  if(grades.length){
+    const gOrder = ['学号','姓名','班级'].concat(GRADE_FIELDS);
+    xlsxSheet(wb, grades, '成绩', gOrder);
+  }
+  const bytes = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+  const file = `学生数据_${safeName(batch.name)}_${todayStr()}.xlsx`;
+  saveExportFile(file, bytes, `已导出 Excel：${batch.students.length} 人${
+    grades.length?`、${grades.length} 条成绩`:''}（工作表：学生信息${grades.length?' / 成绩':''}）`);
+}
+/* 列表页顶栏：导出当前筛选结果 —— 学生信息按筛选结果，成绩也只带筛选里这些人的，
+   两张表各自都能直接导回 */
+function exportDataXlsx(){
+  const list = currentList();
+  if(!list.length){ toast('当前没有可导出的数据'); return; }
+  const ids = new Set(list.map(s=>String(s['学号']==null?'':s['学号']).trim()));
+  const grades = (S.grades||[]).filter(g=> ids.has(String(g['学号']==null?'':g['学号']).trim()));
+  exportBatchXlsx({ name: todayStr() + ' 筛选结果', students: list, grades }, true);
+}
+/* xlsx 落盘：桌面版进「下载」文件夹；浏览器版走浏览器下载。
+   ⚠️ XLSX.write({type:'array'}) 返回的是 ArrayBuffer（不是 Uint8Array）：
+   Array.from(ArrayBuffer) 会得到空数组 —— 直接传给 save_to_downloads 会写出 0 字节的文件。
+   所以这里统一先包一层 Uint8Array 再取字节。 */
+function saveExportFile(file, bytes, okMsg){
+  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  if(!u8.length){ toast('导出失败：生成的文件是空的'); return; }
+  if(isDesktopApp()){
+    const p = tauriInvoke('save_to_downloads', { name: file, data: Array.from(u8) });
+    Promise.resolve(p).then(()=>toast(okMsg)).catch(e=>toast('导出失败：' + ((e && e.message) || e)));
+    return;
+  }
+  try{
+    const blob = new Blob([u8], {type:'application/octet-stream'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = file;
+    a.click();
+    toast(okMsg);
+  }catch(e){ toast('导出失败：' + ((e && e.message) || e)); }
 }
 
 /* ---------- 自定义筛选 & 保存 ---------- */

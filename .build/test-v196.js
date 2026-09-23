@@ -198,5 +198,96 @@ ok(!/modeCard\('append'[\s\S]{0,80}<b>/.test(html), '卡片里不再塞长说明
 const mHint = R(`modeHint('append')`);
 ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧卡片里的关键规则在 modeHint 里都还在');
 
-console.log(failN ? `\n共 ${failN} 项问题` : '\n全部通过 ✅');
-process.exit(failN ? 1 : 0);
+/* ════════ [5][6] 需要内联 SheetJS 与 tauriInvoke 桩，放异步段 ════════ */
+(async () => {
+  /* ── [5] 导出 Excel（维护用）：真解析回读，验证两张表与"学号是文本" ── */
+  console.log('\n[5] 导出 Excel（维护用）');
+  const libSrc = blocks.filter(s => s.length > 100000 && !s.includes('function doImport'))
+                       .sort((a,b)=>b.length-a.length)[0];
+  if(!libSrc){ fail('找不到内联 SheetJS 块'); finish(); return; }
+  try{ vm.runInContext(libSrc, sandbox, { filename:'xlsx.js' }); pass('内联 SheetJS 在沙盒里加载成功'); }
+  catch(e){ fail('SheetJS 加载失败：' + e.message); finish(); return; }
+
+  R(`
+    window.__saved = null;
+    saveExportFile = (file, bytes) => { window.__saved = { file, bytes }; };
+    S.batches = []; S.activeBatchId = null; S.students = [];
+    S.batches.push(makeBatch('维护测试批次', 'demo', [
+      { '学号':'2026001', '姓名':'张三', '性别':'男', '班级':'法语2401', '宿舍':'滨湖1栋101-01', '民族':'汉族' },
+      { '学号':'2026002', '姓名':'李四', '性别':'女', '班级':'法语2401', '宿舍':'滨湖1栋101-02', '民族':'回族' }
+    ], 'test.xlsx', [
+      { '学号':'2026001', '姓名':'张三', '加权平均成绩':'88.5', '不及格门数':'0' }
+    ]));
+    attachBatch(S.batches[0].id);
+  `);
+  R(`exportBatchXlsx(activeBatch());`);
+  const saved = R('window.__saved');
+  ok(saved && /\.xlsx$/.test(saved.file), '导出文件名以 .xlsx 结尾：' + (saved && saved.file));
+  const blen = saved && saved.bytes ? (saved.bytes.length ?? saved.bytes.byteLength) : 0;
+  ok(blen > 1000, `字节非空（${blen} B，类型 ${saved && saved.bytes && saved.bytes.constructor.name}）`);
+  ok(R(`new Uint8Array(window.__saved.bytes).length`) > 1000,
+     '★ 落盘字节非空（ArrayBuffer 会被包成 Uint8Array，不会写出 0 字节文件）');
+  R(`window.__wb = XLSX.read(window.__saved.bytes, { type:'array' });`);
+  eq(R('window.__wb.SheetNames.join(",")'), '学生信息,成绩', '两个工作表：学生信息 / 成绩');
+  const first = R(`XLSX.utils.sheet_to_json(window.__wb.Sheets['学生信息'])[0]`);
+  ok(first && first['学号'] === '2026001', '回读第一行学号正确');
+  eq(R(`typeof XLSX.utils.sheet_to_json(window.__wb.Sheets['学生信息'])[0]['学号']`), 'string',
+     '★ 学号导出为文本（不会变 2.02E+11）');
+  ok(first && first['宿舍'] === '滨湖1栋101-01', '宿舍列完整');
+  ok(R(`Object.keys(window.__wb.Sheets['成绩']).length`) > 5, '成绩表有内容');
+  ok(R(`XLSX.utils.sheet_to_json(window.__wb.Sheets['成绩'])[0]['加权平均成绩']`) === '88.5',
+     '成绩表数值正确');
+
+  /* ── [6] 常用模板 · 我的模板文件 ── */
+  console.log('\n[6] 常用模板 · 我的模板文件');
+  sandbox.__stubFiles = [
+    { name:'a.pdf', rel:'a.pdf', path:'C:\\tpl\\a.pdf' },
+    { name:'证明.docx', rel:'子\\证明.docx', path:'C:\\tpl\\子\\证明.docx' },
+  ];
+  R(`window.__invoked = [];
+     window.__TAURI__ = { core: { invoke: (cmd, args) => {
+        window.__invoked.push({ cmd, args });
+        if(cmd === 'list_doc_files') return Promise.resolve(window.__stubFiles);
+        return Promise.resolve('/fake/path');
+     } } };`);
+  eq(R('isDesktopApp()'), true, '打桩后按桌面版工作');
+
+  R(`S.view='tpl'; renderLibPage('templates');`);
+  ok(R(`document.getElementById('mainArea').innerHTML`).indexOf('我的模板文件') >= 0,
+     '常用模板页出现「我的模板文件」区块');
+
+  R(`openTplFolderModal();`);
+  ok(R(`document.getElementById('modalRoot').innerHTML`).indexOf('tplDir') >= 0, '登记弹窗已打开');
+
+  R(`document.getElementById('tplDir').value = 'C:\\tpl';`);   // 沙盒不解析 HTML，输入框得手动赋值
+  R(`listTplDir();`);
+  await new Promise(r => setImmediate(r));    // 冲掉微任务，让桩的 Promise 落地
+  ok(R(`document.getElementById('tplDirList').innerHTML`).indexOf('证明') >= 0,
+     '列出文件夹里的文档文件（含子文件夹）');
+
+  sandbox.document.querySelectorAll = sel => sel === '.tpl-cand'
+    ? [ { checked:true, dataset:{ i:'0' } }, { checked:true, dataset:{ i:'1' } } ]
+    : [];
+  R(`registerTplFiles();`);
+  eq(R('tplFiles().length'), 2, '勾选后登记 2 个文件');
+  ok(R(`tplFiles()[1].relText`) === '子\\证明.docx', '登记了相对路径（用于展示）');
+
+  R(`openTplFile(tplFiles()[0].id);`);
+  await new Promise(r => setImmediate(r));
+  const inv = R('window.__invoked').filter(x => x.cmd === 'open_local_file');
+  ok(inv.length >= 1 && inv[inv.length-1].args.path === 'C:\\tpl\\a.pdf', '打开时传的是登记的路径');
+  ok(inv.length >= 1 && Array.isArray(inv[inv.length-1].args.extraAllowed)
+     && inv[inv.length-1].args.extraAllowed.length === 2,
+     '同时把整份登记清单传给白名单（extraAllowed）');
+
+  R(`removeTplFile(tplFiles()[0].id);`);
+  eq(R('tplFiles().length'), 1, '移除登记后剩 1 个');
+  ok(R('buildSavePayload().templateFiles.length') === 1, '登记清单进了存档载荷');
+
+  finish();
+})().catch(e => { console.error('测试执行出错：' + (e && e.stack || e)); process.exit(1); });
+
+function finish(){
+  console.log(failN ? `\n共 ${failN} 项问题` : '\n全部通过 ✅');
+  process.exit(failN ? 1 : 0);
+}
