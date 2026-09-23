@@ -39,9 +39,9 @@ Rust 外壳里打开外链、打开本地文件、数据读写、系统托盘本
 
 | Assets 里的文件名 | 对应本机文件 | 适合谁 |
 | --- | --- | --- |
-| `ZUEL-StudentWorkstation-v1.9.5-Portable.exe` | 中南大学生工作台-v1.9.5-绿色版.exe | 想直接用：复制到任意文件夹双击即可，**不用安装** |
-| `ZUEL-StudentWorkstation-v1.9.5-Setup.exe` | 中南大学生工作台-v1.9.5-安装程序.exe | 日常使用：装到开始菜单/桌面。默认按当前用户安装，**不需要管理员权限** |
-| `ZUEL-StudentWorkstation-v1.9.5-Deploy.msi` | 中南大学生工作台-v1.9.5-单位部署.msi | 学校统一部署用，通常需要管理员权限 |
+| `ZUEL-StudentWorkstation-v1.9.6-Portable.exe` | 中南大学生工作台-v1.9.6-绿色版.exe | 想直接用：复制到任意文件夹双击即可，**不用安装** |
+| `ZUEL-StudentWorkstation-v1.9.6-Setup.exe` | 中南大学生工作台-v1.9.6-安装程序.exe | 日常使用：装到开始菜单/桌面。默认按当前用户安装，**不需要管理员权限** |
+| `ZUEL-StudentWorkstation-v1.9.6-Deploy.msi` | 中南大学生工作台-v1.9.6-单位部署.msi | 学校统一部署用，通常需要管理员权限 |
 | `ZUEL-StudentWorkstation-v1.9.5-macOS.dmg` | 中南大学生工作台-v1.9.5-macOS.dmg | **苹果电脑**：Intel 与 Apple 芯片（M 系列）通用。装法见上「新增 macOS 版」 |
 
 > 文件名是英文的，是因为 GitHub 的 Release 附件不支持中文名（会被清成 `-.exe`）；下载后建议改回中文名再分发。
