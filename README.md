@@ -16,7 +16,7 @@
 | `ZUEL-StudentWorkstation-v1.9.8-Portable.exe` | 绿色版 | 复制到任意文件夹双击就跑，**不用安装** |
 | `ZUEL-StudentWorkstation-v1.9.8-Setup.exe` | 安装程序 | 日常使用，装到开始菜单/桌面，**不需要管理员权限** |
 | `ZUEL-StudentWorkstation-v1.9.8-Deploy.msi` | 单位部署 | 学校统一部署（域策略下发），通常需管理员权限 |
-| `ZUEL-StudentWorkstation-v1.9.5-macOS.dmg` | **macOS 版** | 苹果电脑用；Intel 与 Apple 芯片（M 系列）通用，**首次打开需右键 →「打开」**放行一次 |
+| `ZUEL-StudentWorkstation-v1.9.8-macOS.dmg` | **macOS 版** | 苹果电脑用；Intel 与 Apple 芯片（M 系列）通用，**首次打开需右键 →「打开」**放行一次 |
 
 四个文件里的程序完全一样，只是**平台与安装方式**不同。
 
