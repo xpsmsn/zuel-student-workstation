@@ -69,11 +69,8 @@
 
 ### 🙏 致谢
 
-特别鸣谢 [辅导员 AI 工作台 · counselor-ai-workbench v1.1.0](https://github.com/L-uo/counselor-ai-workbench/releases/tag/v1.1.0)
-提供的产品思路（免费使用 · 本地数据优先 · 无需注册账号，以及校务导航 / 常用模板 / 制度库 /
-批量导入向导 / 备份恢复这类"把零散事务收进一个工作台"的组织方式）。本项目为独立实现，非其 fork。
+**鸣谢**：产品思路受 [辅导员 AI 工作台](https://github.com/L-uo/counselor-ai-workbench/releases/tag/v1.1.0) 启发；本项目为独立实现，非其 fork。每一版改了什么，见仓库里的 `CHANGELOG.md`。
 
-上一版（v1.9.2）修的是"二次导入名册一个人都进不来"的两个根因（内置表格库是精简版读不了 `.xls` + 写死表头在第 1 行），修法与细节见完整版本历史 `CHANGELOG.md`。
 
 ### 🖥 运行环境
 
