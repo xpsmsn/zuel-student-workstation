@@ -6,7 +6,7 @@
     中南大学生工作台-v<版本>-<用途>.<扩展名>
 
     <用途> 只有三个：绿色版 / 安装程序 / 单位部署
-    例：中南大学生工作台-v1.9.1-绿色版.exe
+    例：中南大学生工作台-v1.9.2-绿色版.exe
 
 GitHub Release 附件不支持中文名（会被清成 `-.exe`），所以那边用英文名：
 
@@ -20,6 +20,7 @@ GitHub Release 附件不支持中文名（会被清成 `-.exe`），所以那边
 用法：
     python .build/pack-release.py            # 复制 + 改名 + 清理旧名 + 同步文档
     python .build/pack-release.py --dry      # 只看会做什么，不真动文件
+    python .build/pack-release.py --selftest # 只验"同步文档"的正则（两处写法都认不认）
 """
 import glob
 import json
@@ -108,13 +109,18 @@ def put(src, dst):
     return False
 
 
-def sync_doc(path, cn_names, en_names):
-    """把文档里旧版本号的文件名一律换成当前版本的写法。"""
-    if not os.path.isfile(path):
-        return False
-    with open(path, encoding="utf-8") as f:
-        text = f.read()
+def build_names(ver):
+    """按当前版本号生成中英文两套文件名。"""
+    tag = f"v{ver}"
+    cn_names, en_names = {}, {}
+    for cn, en, ext, _pat in KINDS:
+        cn_names[(cn, ext)] = f"中南大学生工作台-{tag}-{cn}.{ext}"
+        en_names[(en, ext)] = f"ZUEL-StudentWorkstation-{tag}-{en}.{ext}"
+    return cn_names, en_names
 
+
+def rewrite(text, cn_names, en_names):
+    """把文档里任何版本号的文件名一律换成当前版本的写法。"""
     def cn_repl(m):
         return cn_names[(m.group(1), m.group(2))]
 
@@ -126,12 +132,24 @@ def sync_doc(path, cn_names, en_names):
     new = re.sub(
         r"中南大学生工作台(?:-v[\d.]+)?-(绿色版|安装程序|单位部署)\.(exe|msi)", cn_repl, text
     )
-    # 兼容历史写法：`...-Portable-v1.9.exe`（版本在末尾）与 `...-v1.9.1-Portable.exe`（现行）
-    new = re.sub(
-        r"ZUEL-StudentWorkstation(?:-(Portable|Setup|Deploy))?(?:-v[\d.]+)?\.(exe|msi)",
-        en_repl,
-        new,
-    )
+    # 英文名有两种写法，都要认（曾经只认后者，导致 README 里的文件名一直没被同步）：
+    #   现行  ZUEL-StudentWorkstation-v1.9.2-Portable.exe   ← 版本在用途前面
+    #   早期  ZUEL-StudentWorkstation-Portable-v1.9.exe  /  ...-Portable.exe
+    for pat in (
+        r"ZUEL-StudentWorkstation-(?:v[\d.]+-)?(Portable|Setup|Deploy)\.(exe|msi)",
+        r"ZUEL-StudentWorkstation-(Portable|Setup|Deploy)(?:-v[\d.]+)?\.(exe|msi)",
+    ):
+        new = re.sub(pat, en_repl, new)
+    return new
+
+
+def sync_doc(path, cn_names, en_names):
+    """把文档里旧版本号的文件名一律换成当前版本的写法。"""
+    if not os.path.isfile(path):
+        return False
+    with open(path, encoding="utf-8") as f:
+        text = f.read()
+    new = rewrite(text, cn_names, en_names)
     if new == text:
         return False
     if not DRY:
@@ -140,15 +158,57 @@ def sync_doc(path, cn_names, en_names):
     return True
 
 
+def selftest(ver):
+    """守住"同步文档"这一步：中英文两套、新老两种写法，都得认。
+
+    ⚠️ 真出过事：英文名正则原先只认 `...-Portable-v1.9.exe`，认不出现行的
+    `...-v1.9.2-Portable.exe`，于是 README 里的文件名连着几版都没被同步，
+    而脚本一声不吭（`new == text` 就当"没什么要改"）。这类"静默漏改"必须自检兜住。
+    """
+    cn_names, en_names = build_names(ver)
+    tag = f"v{ver}"
+    cases = [
+        # 中文名：带版本 / 不带版本
+        (f"中南大学生工作台-{tag}-绿色版.exe", f"中南大学生工作台-{tag}-绿色版.exe"),
+        ("中南大学生工作台-绿色版.exe", f"中南大学生工作台-{tag}-绿色版.exe"),
+        ("中南大学生工作台-v1.0.0-安装程序.exe", f"中南大学生工作台-{tag}-安装程序.exe"),
+        ("中南大学生工作台-单位部署.msi", f"中南大学生工作台-{tag}-单位部署.msi"),
+        # 英文名：现行写法（版本在用途前）
+        (f"ZUEL-StudentWorkstation-{tag}-Portable.exe", f"ZUEL-StudentWorkstation-{tag}-Portable.exe"),
+        ("ZUEL-StudentWorkstation-v1.9.1-Portable.exe", f"ZUEL-StudentWorkstation-{tag}-Portable.exe"),
+        ("ZUEL-StudentWorkstation-v1.9.1-Setup.exe", f"ZUEL-StudentWorkstation-{tag}-Setup.exe"),
+        ("ZUEL-StudentWorkstation-v1.9.1-Deploy.msi", f"ZUEL-StudentWorkstation-{tag}-Deploy.msi"),
+        # 英文名：早期写法（版本在用途后 / 没有版本）
+        ("ZUEL-StudentWorkstation-Portable-v1.9.exe", f"ZUEL-StudentWorkstation-{tag}-Portable.exe"),
+        ("ZUEL-StudentWorkstation-Portable.exe", f"ZUEL-StudentWorkstation-{tag}-Portable.exe"),
+        ("ZUEL-StudentWorkstation-Deploy.msi", f"ZUEL-StudentWorkstation-{tag}-Deploy.msi"),
+        # 不该被动的：产品名本身、其它文件
+        ("中南大学生工作台.html", "中南大学生工作台.html"),
+        ("ZUEL-StudentWorkstation-源码.zip", "ZUEL-StudentWorkstation-源码.zip"),
+    ]
+    bad = 0
+    print(f"自检「同步文档」的正则（目标版本 {tag}）：")
+    for src, want in cases:
+        got = rewrite(src, cn_names, en_names)
+        if got == want:
+            print(f"  ✓ {src}")
+        else:
+            bad += 1
+            print(f"  ✗ {src}  →  {got}（应为 {want}）")
+    print("全部通过 ✅" if not bad else f"共 {bad} 项不通过")
+    return bad
+
+
 def main():
     ver = read_version()
     tag = f"v{ver}"
     print(f"当前版本：{ver}（取自 tauri.conf.json）")
 
-    cn_names, en_names = {}, {}
-    for cn, en, ext, _pat in KINDS:
-        cn_names[(cn, ext)] = f"中南大学生工作台-{tag}-{cn}.{ext}"
-        en_names[(en, ext)] = f"ZUEL-StudentWorkstation-{tag}-{en}.{ext}"
+    if "--selftest" in sys.argv:
+        print()
+        sys.exit(1 if selftest(ver) else 0)
+
+    cn_names, en_names = build_names(ver)
 
     # 1) 复制 / 改名进「发布」
     for cn, en, ext, pattern in KINDS:
