@@ -235,6 +235,52 @@ console.log('\n[8] 勾选列渲染（表头/行内都有 checkbox）');
   if(ok) pass(cap); else fail(cap);
 }
 
+console.log('\n[9] 筛选：复选框面板（v1.9.3，替代"点一个就收起"的原生 select）');
+{
+  /* 渲染列表页到一个可读容器（同 [8] 的手法） */
+  const render = () => {
+    const fake = { innerHTML:'' };
+    const doc = sandbox.document, oldGet = doc.getElementById;
+    doc.getElementById = id => (id === 'mainArea' ? fake : oldGet(id));
+    R('renderList')();
+    doc.getElementById = oldGet;
+    return fake.innerHTML;
+  };
+  R('clearFilters')();
+  const h0 = render();
+  const hasDrop  = h0.includes('class="fdrop"') && h0.includes('type="checkbox"');
+  const noSelect = !h0.includes('onchange="addFilterValue');   // 原生多选下拉已全部替换
+
+  // 一次连着勾两个值 —— 这正是"一次只能点一个、还得重新点开"要解决的场景
+  R('toggleFilterValue')('性别','男');
+  R('toggleFilterValue')('性别','女');
+  const h2 = render();
+  const twoVals = (R('filterValues')('性别') || []).join() === '男,女';
+  // 选着选着面板不能自己关掉（_fdOpen 记忆 + 重绘后恢复展开）
+  const stayedOpen = /data-field="性别"[\s\S]{0,500}?fdrop-panel open/.test(h2);
+  // 按钮上直接显示已选值，不点开也知道筛了什么
+  const btnShows = h2.includes('男、女');
+  // 再点一次取消其中一个
+  R('toggleFilterValue')('性别','男');
+  const oneVal = (R('filterValues')('性别') || []).join() === '女';
+  // 「清除本组」只清本字段
+  const aCls = R('S').students.map(s => s['班级']).filter(Boolean)[0];
+  if(aCls) R('toggleFilterValue')('班级', aCls);
+  R('clearFilterField')('性别');
+  const onlyCls = (R('filterValues')('性别') || []).length === 0
+               && (aCls ? Object.keys(R('S').filters).join() === '班级' : true);
+
+  (hasDrop && noSelect)
+    ? pass('筛选栏已换成复选框面板，不再用原生 select')
+    : fail(`筛选栏结构不对（fdrop=${hasDrop} / 已无原生下拉=${noSelect}）`);
+  twoVals     ? pass('连着勾两个值都生效（不必反复点开面板）') : fail('多选没生效：' + (R('filterValues')('性别')||[]).join());
+  stayedOpen  ? pass('勾选后面板保持展开（_fdOpen 记忆生效）') : fail('勾选后面板被关掉了');
+  btnShows    ? pass('按钮上直接显示已选值（男、女）') : fail('按钮没显示已选值');
+  oneVal      ? pass('再勾一次可取消单个值') : fail('取消单个值失败');
+  onlyCls     ? pass('「清除本组」只清本字段，不动别的条件') : fail('清除本组误伤了其它字段');
+  R('clearFilters')();
+}
+
 console.log('\n─────────────────────────────');
 if(failN){ console.error(`✗ ${failN} 条断言失败`); process.exit(1); }
 console.log('✓ 全部断言通过');

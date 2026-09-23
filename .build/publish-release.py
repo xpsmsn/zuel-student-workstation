@@ -11,6 +11,7 @@
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -31,22 +32,32 @@ def token():
     """优先用环境变量 GITHUB_TOKEN。
 
     ⚠️ `git credential fill` 在本机有时会卡住十几分钟（GCM 想刷新令牌时），
-    所以能直接给令牌就别走它。
+    所以能直接给令牌就别走它 —— 中间的兜底是直接读 `~/.git-credentials`。
     """
     env = os.environ.get("GITHUB_TOKEN", "").strip()
     if env:
         return env
+    # 兜底一：直接读本机已存好的 git 凭据（本机走 GCM 会卡死，别调它）
+    cred_path = os.path.join(os.path.expanduser("~"), ".git-credentials")
+    if os.path.isfile(cred_path):
+        with open(cred_path, encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                m = re.match(r"https?://([^:@/]*):([^@]*)@github\.com/?\s*$", line.strip())
+                if m and m.group(2):
+                    return m.group(2)
+    # 兜底二：问 git（可能很慢，尽量别走到这里）
     out = subprocess.run(
         ["git", "credential", "fill"],
         input="protocol=https\nhost=github.com\n\n",
         capture_output=True,
         text=True,
         encoding="utf-8",
+        timeout=30,
     ).stdout
     for line in out.splitlines():
         if line.startswith("password="):
             return line[len("password="):].strip()
-    sys.exit("找不到 GitHub token：先确认 git credential 里已登录 github.com")
+    sys.exit("找不到 GitHub token：请设置环境变量 GITHUB_TOKEN，或确认 ~/.git-credentials 里有 github.com 的凭据")
 
 
 def api(path, method="GET", data=None, headers=None, raw=False):

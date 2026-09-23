@@ -153,9 +153,24 @@ if(!threw && tplHtml.includes('常用模板') && tplHtml.includes('我的自定�
   pass('renderTpl 渲染正常且含自定义项'); else fail('renderTpl 异常: ' + (threw && threw.message));
 try{ R(`gotoPol()`); }catch(e){ threw = e; }
 const polHtml = R(`$('mainArea').innerHTML`);
-if(!threw && polHtml.includes('鹿晓南') && polHtml.includes('data:image/png;base64')
-   && !polHtml.includes('notesArea') && polHtml.includes('什么问题适合问鹿晓南'))
-  pass('AI 辅导员页：二维码卡 + 适用说明（工作笔记已移除）'); else fail('renderAssistant 异常: ' + (threw && threw.message));
+/* v1.9.3：AI 辅导员页重排 —— 左「鹿晓南」右「综合评定答疑机器人」两卡并列，
+   两张二维码统一外框（纯码 + 白底），每张下面各有「复制链接」；
+   原「什么问题适合问鹿晓南」说明卡按要求删掉（内容并进左卡）。 */
+{
+  const nQr   = (polHtml.match(/class="qr-box"/g) || []).length;
+  const nCopy = (polHtml.match(/copyPlain\(/g) || []).length;
+  const ok = !threw
+    && polHtml.includes('鹿晓南') && polHtml.includes('综合评定答疑机器人')
+    && polHtml.includes('data:image/png;base64')
+    && !polHtml.includes('notesArea')
+    && !polHtml.includes('什么问题适合问鹿晓南')                  // 已删
+    && nQr === 2 && nCopy === 2                                   // 两张码 / 两个复制按钮
+    && polHtml.includes('24e2c0d19f4e8fee5bcfc17372ce897e8b')      // 鹿晓南链接
+    && polHtml.includes('24d1d5d6dbbc9966888e83992af4e857fc');     // 答疑机器人链接
+  ok ? pass('AI 辅导员页：两卡并列 + 两张二维码同款外框 + 各自「复制链接」')
+     : fail(`renderAssistant 落点不对（qr-box ${nQr} 个 / 复制按钮 ${nCopy} 个）`
+            + (threw ? ' 异常:' + threw.message : ''));
+}
 try{ R(`gotoCal()`); }catch(e){ threw = e; }
 const calHtml = R(`$('mainArea').innerHTML`);
 if(!threw && calHtml.includes('校历作息') && calHtml.includes('2026-2027') && calHtml.includes('data:image/gif;base64'))
