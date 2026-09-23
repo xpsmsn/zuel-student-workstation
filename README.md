@@ -5,7 +5,7 @@
 >
 > **数据只存本机，全程不联网、不上传服务器。**
 
-📜 **完整版本历史见 [CHANGELOG.md](CHANGELOG.md)** —— 从原型阶段到 v1.9.4 的每一步都记在里面。
+📜 **完整版本历史见 [CHANGELOG.md](CHANGELOG.md)** —— 从原型阶段到 v1.9.5 的每一步都记在里面。
 
 ## 📥 下载使用（只想用软件，不想看代码）
 
@@ -13,18 +13,22 @@
 
 | Assets 文件名 | 对应安装包 | 适合谁 |
 | --- | --- | --- |
-| `ZUEL-StudentWorkstation-v1.9.4-Portable.exe` | 绿色版 | 复制到任意文件夹双击就跑，**不用安装** |
-| `ZUEL-StudentWorkstation-v1.9.4-Setup.exe` | 安装程序 | 日常使用，装到开始菜单/桌面，**不需要管理员权限** |
-| `ZUEL-StudentWorkstation-v1.9.4-Deploy.msi` | 单位部署 | 学校统一部署（域策略下发），通常需管理员权限 |
+| `ZUEL-StudentWorkstation-v1.9.5-Portable.exe` | 绿色版 | 复制到任意文件夹双击就跑，**不用安装** |
+| `ZUEL-StudentWorkstation-v1.9.5-Setup.exe` | 安装程序 | 日常使用，装到开始菜单/桌面，**不需要管理员权限** |
+| `ZUEL-StudentWorkstation-v1.9.5-Deploy.msi` | 单位部署 | 学校统一部署（域策略下发），通常需管理员权限 |
+| `ZUEL-StudentWorkstation-v1.9.5-macOS.dmg` | **macOS 版** | 苹果电脑用；Intel 与 Apple 芯片（M 系列）通用，**首次打开需右键 →「打开」**放行一次 |
 
-三个文件里的程序完全一样，只是安装方式不同。
+四个文件里的程序完全一样，只是**平台与安装方式**不同。
 
 > 文件名是英文的，是因为 GitHub 的 Release 附件不支持中文名（会被清成 `-.exe`），下载后建议改回中文名再分发。
-> **文件名里都带版本号**（`v1.9.4`），拿到手就知道是哪一版，不会和旧版搞混。
+> **文件名里都带版本号**（`v1.9.5`），拿到手就知道是哪一版，不会和旧版搞混。
 
-**运行环境**：Windows 10/11 64 位 + Microsoft Edge WebView2 运行时
-（Win11 与多数装过 Edge 的 Win10 已有，缺的安装器会自动引导安装）。
-**不需要** Node.js / Rust / .NET —— 那些只在重新出包时才用得到。
+**运行环境**
+
+- **Windows**：Windows 10/11 64 位 + Microsoft Edge WebView2 运行时
+  （Win11 与多数装过 Edge 的 Win10 已有，缺的安装器会自动引导安装）。
+- **macOS**：macOS 10.15 及以上，Intel 与 Apple 芯片都可以；系统自带网页运行时，**不需要**额外安装东西。
+- 两个平台都**不需要** Node.js / Rust / .NET —— 那些只在重新出包时才用得到。
 
 详细操作见仓库内的 `中南大学生工作台-用户使用手册.docx`。
 

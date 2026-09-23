@@ -96,6 +96,13 @@ def main():
         (f"中南大学生工作台-{tag}-安装程序.exe", f"ZUEL-StudentWorkstation-{tag}-Setup.exe"),
         (f"中南大学生工作台-{tag}-单位部署.msi", f"ZUEL-StudentWorkstation-{tag}-Deploy.msi"),
     ]
+    # macOS 的 dmg 不在本机产出（Windows 编不出 Mac 程序），由 GitHub Actions 构建后下载过来。
+    # 有就一起上传，没有只提醒、不中断（免得因为这个可选项把整个发布卡住）。
+    mac = (f"中南大学生工作台-{tag}-macOS.dmg", f"ZUEL-StudentWorkstation-{tag}-macOS.dmg")
+    if os.path.isfile(os.path.join(ROOT, "发布", mac[0])):
+        files.append(mac)
+    else:
+        print(f"⚠️ 没有找到 macOS 的 dmg（发布目录里没有 {mac[0]}），这次只发 Windows 三个包")
     for cn, _en in files:
         p = os.path.join(ROOT, "发布", cn)
         if not os.path.isfile(p):

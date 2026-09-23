@@ -31,6 +31,7 @@ app/src/index.html
 # ---- 安装包：走 GitHub Release，不进仓库（二进制会让仓库迅速膨胀）----
 发布/*.exe
 发布/*.msi
+发布/*.dmg
 
 # ---- 本机会话数据 ----
 .workbuddy/
