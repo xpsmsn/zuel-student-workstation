@@ -17,7 +17,7 @@ tauri-build = { version = "2", features = [] }
 # tray-icon：v1.8 最小化到系统托盘、后台常驻
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-opener = "2"
-# 开机启动（Windows 下写「启动」目录，不需要管理员权限）
+# 开机启动（跨平台；Windows 写「启动」目录、macOS 写 LaunchAgent，均不需要管理员权限）
 tauri-plugin-autostart = "2"
 # 单实例：已经在跑的时候再双击一次，只把原来的窗口叫回来，不开第二个（v1.9.1）
 tauri-plugin-single-instance = "2"

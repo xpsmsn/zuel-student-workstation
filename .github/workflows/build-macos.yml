@@ -1,0 +1,96 @@
+# 在 GitHub 的 macOS 跑器上构建 macOS 版（.dmg）
+#
+# 为什么放 CI 而不是本机：苹果的工具链只能在 macOS 上跑，
+# Windows 上**编不出** Mac 程序（这是苹果的限制，不是配置问题）。
+# GitHub 对公开仓库提供免费的 macOS 跑器，等于借一台 Mac 来编译。
+#
+# 产物：同时支持 Intel（x86_64）与 Apple 芯片（arm64）的「通用二进制」dmg。
+#
+# 触发方式：
+#   · 手动：仓库 Actions 页 → 左侧 build-macos → Run workflow
+#   · 打 tag（v*）时自动跑一次
+#
+# ⚠️ 签名说明：本仓库没有 Apple 开发者账号（$99/年），所以只能做**临时签名**（ad-hoc）。
+# 使用者第一次打开时 macOS 会拦一下，需要「右键 → 打开」放行一次。
+# 详见仓库内《中南大学生工作台-用户使用手册.docx》的 macOS 安装一节。
+
+name: build-macos
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: 构建 macOS 通用安装包
+    runs-on: macos-latest
+
+    steps:
+      - name: 取代码
+        uses: actions/checkout@v4
+
+      - name: 装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 装 Rust（含两个目标架构）
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # 通用二进制 = Intel + Apple 芯片，两份都要装
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: 缓存 Rust 编译产物
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+
+      - name: 装前端依赖
+        working-directory: app
+        run: npm ci
+
+      - name: 生成前端页面
+        # app/src/index.html 是自动生成的、不进版本库，必须先由原型生成出来，
+        # 否则 tauri build 会把一个空的 / 旧的前端打进包里
+        working-directory: app
+        run: npm run sync
+
+      - name: 核对前端已生成
+        working-directory: app
+        run: |
+          test -s src/index.html || { echo "::error::src/index.html 没生成或为空"; exit 1; }
+          echo "前端大小：$(wc -c < src/index.html) 字节"
+          grep -o "APP_VER = '[^']*'" src/index.html || true
+
+      - name: 构建（通用二进制 + dmg）
+        working-directory: app
+        env:
+          # 没有 Apple 开发者证书 → 用 "-" 做临时签名。
+          # 不签名的话 Apple 芯片上根本起不来（arm64 要求至少有临时签名）。
+          APPLE_SIGNING_IDENTITY: '-'
+        run: npx tauri build --target universal-apple-darwin
+
+      - name: 检查产物
+        working-directory: app
+        run: |
+          set -e
+          BASE=src-tauri/target/universal-apple-darwin/release/bundle
+          ls -la "$BASE/dmg" || true
+          APP=$(find "$BASE/macos" -maxdepth 1 -name '*.app' | head -1)
+          echo "app = $APP"
+          echo "--- 架构（应为 x86_64 + arm64 两行）---"
+          lipo -archs "$APP/Contents/MacOS/"* || true
+          echo "--- 签名状态 ---"
+          codesign -dv --verbose=2 "$APP" 2>&1 | head -8 || true
+
+      - name: 上传 dmg
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          if-no-files-found: error
+          path: app/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg

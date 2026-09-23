@@ -53,16 +53,30 @@ fn open_external(app: tauri::AppHandle, url: String) -> Result<(), String> {
         .map_err(|e| format!("打开失败：{e}"))
 }
 
-/// 取「下载」文件夹；取不到就退回系统临时目录。
-fn downloads_dir() -> PathBuf {
-    let mut dir = match std::env::var_os("USERPROFILE") {
-        Some(p) => PathBuf::from(p).join("Downloads"),
-        None => std::env::temp_dir(),
-    };
-    if !dir.is_dir() {
-        dir = std::env::temp_dir();
+/// 取「下载」文件夹（**跨平台**）。
+///
+/// 顺序：Tauri 的路径解析（Windows → `%USERPROFILE%\Downloads`，
+/// macOS / Linux → `$HOME/Downloads`）→ 环境变量兜底 → 系统临时目录。
+///
+/// ⚠️ 早先这里只读 `USERPROFILE`，那是 **Windows 专有**的环境变量：
+/// 在 macOS 上取不到 → 静默退回 `/tmp` → 辅导员导出的 CSV / 备份
+/// 会落在一个他永远找不到的地方（表现为"点了导出没反应"）。
+fn downloads_dir(app: Option<&tauri::AppHandle>) -> PathBuf {
+    if let Some(a) = app {
+        if let Ok(d) = a.path().download_dir() {
+            if d.is_dir() {
+                return d;
+            }
+        }
     }
-    dir
+    let home_var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
+    if let Some(home) = std::env::var_os(home_var) {
+        let d = PathBuf::from(home).join("Downloads");
+        if d.is_dir() {
+            return d;
+        }
+    }
+    std::env::temp_dir()
 }
 
 /// 拆出「主名 + 扩展名」，用于生成不重名的副本。
@@ -78,12 +92,12 @@ fn split_ext(name: &str) -> (String, String) {
 /// 走这里而不是浏览器下载，是因为 WebView 里 `a[download]` + `createObjectURL`
 /// 往往什么都不发生（不报错、也不出文件），辅导员会以为"导出坏了"。
 #[tauri::command]
-fn save_to_downloads(name: String, data: Vec<u8>) -> Result<String, String> {
+fn save_to_downloads(app: tauri::AppHandle, name: String, data: Vec<u8>) -> Result<String, String> {
     // 只取文件名部分，挡掉路径穿越
     let raw = name.rsplit(['/', '\\']).next().unwrap_or("").trim();
     let base = if raw.is_empty() { "导出.csv" } else { raw };
 
-    let dir = downloads_dir();
+    let dir = downloads_dir(Some(&app));
     let (stem, ext) = split_ext(base);
 
     let mut target = dir.join(base);
@@ -97,11 +111,11 @@ fn save_to_downloads(name: String, data: Vec<u8>) -> Result<String, String> {
     Ok(target.to_string_lossy().to_string())
 }
 
-/// 在资源管理器里打开「下载」文件夹。
+/// 在访达（Windows 是资源管理器）里打开「下载」文件夹。
 #[tauri::command]
 fn open_downloads_dir(app: tauri::AppHandle) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
-    let dir = downloads_dir();
+    let dir = downloads_dir(Some(&app));
     app.opener()
         .open_path(dir.to_string_lossy().to_string(), None::<&str>)
         .map_err(|e| format!("打开失败：{e}"))
@@ -117,7 +131,7 @@ fn open_local_file(app: tauri::AppHandle, path: String) -> Result<(), String> {
         return Err("文件不存在".into());
     }
     let data = data_dir(&app)?;
-    let allowed = p.starts_with(downloads_dir()) || p.starts_with(&data);
+    let allowed = p.starts_with(downloads_dir(Some(&app))) || p.starts_with(&data);
     if !allowed {
         return Err("只允许打开本应用导出的文件".into());
     }
@@ -200,7 +214,9 @@ fn hide_to_tray(app: tauri::AppHandle) {
     }
 }
 
-/// 开机自动启动：写 / 删 Windows「启动」目录里的快捷方式（当前用户，不需要管理员权限）。
+/// 开机自动启动（跨平台，由 tauri-plugin-autostart 落地）。
+/// Windows：写当前用户的「启动」目录快捷方式；macOS：写 LaunchAgent plist。
+/// 两边都不需要管理员权限。
 #[tauri::command]
 fn set_autostart(app: tauri::AppHandle, enable: bool) -> Result<(), String> {
     use tauri_plugin_autostart::ManagerExt;
