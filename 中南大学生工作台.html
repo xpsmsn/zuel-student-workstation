@@ -1409,7 +1409,7 @@ const BUILTIN_TEMPLATES = [
 const STORE_KEY    = 'counselor_workstation_v2';
 const STORE_KEY_V1 = 'counselor_workstation_v1';
 /* 版本号：出现在「导入指引」页脚与设置里，方便辅导员反馈时报给你 */
-const APP_VER = 'v1.9.8 · 2026-09-23';
+const APP_VER = 'v2.0.0 · 2026-09-24';
 /* localStorage 通常上限 5MB，单批次（260 人 × 32 字段）约 250KB
    → 取 20 为保守上限，超限时提示用户先删历史批次 */
 const MAX_BATCHES = 20;
@@ -7401,7 +7401,7 @@ function saveDetailEditApply(){
           const i = S.grades.indexOf(rec);
           if(i >= 0) S.grades.splice(i, 1);   // 8 项全空 = 删除该成绩
         }
-        /* v1.9.8.1：把 S.grades 重新挂回当前批次。
+        /* v2.0.0：把 S.grades 重新挂回当前批次。
            正常路径下 S.grades 本来就是批次那一份，这一步是同值赋值、没有副作用；
            但万一它是个「孤儿数组」（旧数据迁移等场景会出现），不挂回去的话
            上面这条成绩只活在内存里 —— save() 存的是批次，重开就没了
