@@ -1286,7 +1286,7 @@ thead th{font-weight:600}
 const STORE_KEY    = 'counselor_workstation_v2';
 const STORE_KEY_V1 = 'counselor_workstation_v1';
 /* 版本号：出现在「取数指引」页脚与设置里，方便辅导员反馈时报给你 */
-const APP_VER = 'v1.9.3 · 2026-09-23';
+const APP_VER = 'v1.9.4 · 2026-09-23';
 /* localStorage 通常上限 5MB，单批次（260 人 × 32 字段）约 250KB
    → 取 20 为保守上限，超限时提示用户先删历史批次 */
 const MAX_BATCHES = 20;
@@ -3625,9 +3625,14 @@ function finishOnboarding(skipped){
 /* ============ v1.9.2：新手引导之后 · 页面浮窗批注导览 ============
    向导讲的是"数据怎么取进来"，这个导览讲的是"取进来之后，界面上的东西都在哪"。
    设计上的几条取舍：
-     · 只指路、不啰嗦 —— 全篇 7 步、每步一句话，不做功能手册（手册在「取数 · 导入指引」页）。
+     · 只指路、不啰嗦 —— 全篇 11 步、每步一句话，不做功能手册（手册在「取数 · 导入指引」页）。
+       其中「常用功能」四步（校务导航 / 常用模板 / AI 辅导员 / 校历作息）是 v1.9.4 加的：
+       这几个天天要用，但光看名字看不出好处（统一身份认证只需登一次、模板还会陆续更新、
+       AI 辅导员能拉进班级群），所以单独点出来讲一句。
      · 锚点用 data-tour 属性而不是 nth-child 之类的位置选择器：以后界面调顺序也不会指错地方。
      · 找不到锚点就自动跳过那一步（比如没数据时没有筛选条、侧栏被收起），绝不指着一片空白讲。
+       ⚠️ 但「常用工具」分组可以折叠 —— 折起来那 4 个锚点就没、会被静默跳过，
+       所以 startTour() 临时展开它、tourEnd() 再还原（不擅自改用户偏好）。
      · 每步都能「跳过」，跳过也算看过 —— 讲过的允许忘，重看入口放在个人中心和导入指引页。
      · 老数据（S.tourSeen 缺省）一律视为已看过：升级上来的老用户不会突然被糊一层浮窗。 */
 const TOUR_STEPS = [
@@ -3639,6 +3644,14 @@ const TOUR_STEPS = [
     text:'数据总览、全部学生、宿舍看板、校务导航、常用模板、AI 辅导员、校历作息 —— 都在这条侧栏里。最上面那条「取数 · 导入指引」是新用户入口。' },
   { sel:'[data-tour="guide"]', side:'right', title:'忘了怎么取数？看这儿',
     text:'不记得在哪个系统、点哪个菜单导出学生表和成绩单？「取数 · 导入指引」把系统地址和菜单路径都写死了，照着点就行。' },
+  { sel:'[data-tour="nav"]', side:'right', title:'常用功能① 校务导航：登录一次，全都能进',
+    text:'教务、学工、图书馆这些校内系统集中在一页，不用记网址。它们走的是同一套统一身份认证 —— <b>登录其中任意一个之后，在登录状态还有效的这段时间里，点开其他几个就不用再登一遍</b>，一个页面来回切很方便。' },
+  { sel:'[data-tour="tpl"]', side:'right', title:'常用功能② 常用模板：现成稿子，复制就能用',
+    text:'请假条、各类通知、谈话记录这些常用文书都有现成文案，点开「复制全文」再贴到 Word / 微信里改两个字就行。<b>内容还在陆续补</b> —— 手上有好用的模板欢迎发我，攒够了一起更新进去。' },
+  { sel:'[data-tour="pol"]', side:'right', title:'常用功能③ AI 辅导员：学生自己就能问',
+    text:'制度流程问鹿晓南，综合评定的口径问答疑机器人，都是校内的答疑好帮手。<b>私信它之后，可以把它拉进自己的班级群</b> —— 重复的问题学生自己就能问，不必再一个个回。两张码下面都有「<b>复制链接</b>」，粘进群里就行。' },
+  { sel:'[data-tour="cal"]', side:'right', title:'常用功能④ 校历作息：随手查，不用翻文件',
+    text:'学年校历和课堂时间表都在这一页（下课、熄灯、行政上班时间也都有），下查寝、排谈话前瞄一眼就够；点图片能放大看原图。' },
   { sel:'[data-tour="filter"]', side:'bottom', title:'筛人 与 看哪些列',
     text:'左边搜姓名/学号，中间按班级、性别、政治面貌等条件筛；右上角「<b>列设置</b>」决定这张表显示哪些列、什么顺序，还能拖动排序。' },
   { sel:'[data-tour="views"]', side:'right', title:'常查的几类人，一键筛好',
@@ -3666,12 +3679,21 @@ function tourScan(from, dir){
   }
   return i;
 }
+let _tourFoldRestore = null;   // 导览开始前「常用工具」组的折叠状态，结束时还原
 function startTour(){
   closeModal();
+  // 导览要指的「筛选条」「列设置」只在「全部学生」页才有，先切过去
+  try{ S.view = 'list'; S.classFilter = 'all'; S.quickView = 'all'; S._search = ''; }catch(e){}
+  /* 「常用工具」四个入口（校务导航/常用模板/AI 辅导员/校历作息）是导览的重点内容，
+     但那个分组可以折叠 —— 折起来锚点就不存在，那几步会被静默跳过，等于没讲。
+     所以开始前临时展开，结束时还原成用户原来的样子（不擅自改他的偏好）。 */
+  S.sideFold = S.sideFold || {};
+  _tourFoldRestore = Object.prototype.hasOwnProperty.call(S.sideFold, 'tools') ? !!S.sideFold.tools : null;
+  S.sideFold.tools = false;
+  try{ renderSidebar(); renderMain(); }catch(e){}
   tourIdx = tourScan(0, 1);
-  // 导览里要指的「筛选条」「列设置」只在「全部学生」页才有，先切过去
-  try{ S.view = 'list'; S.classFilter = 'all'; S.quickView = 'all'; S._search = ''; renderSidebar(); renderMain(); }catch(e){}
-  if(tourIdx >= TOUR_STEPS.length){ toast('当前界面没有可批注的位置'); return; }
+  // 一个可指的位置都没有：也要走一遍收尾，把上面临时展开的分组还原回去
+  if(tourIdx >= TOUR_STEPS.length){ tourEnd(false); toast('当前界面没有可批注的位置'); return; }
   renderTour();
 }
 function tourGo(dir){
@@ -3686,6 +3708,14 @@ function tourEnd(markSeen){
   if(layer && typeof layer.remove === 'function') layer.remove();
   window.removeEventListener('resize', renderTour);
   window.removeEventListener('scroll', renderTour, true);
+  /* 还原「常用工具」组的折叠状态：原来没动过就删掉这个键（别在用户数据里留脏值） */
+  if(_tourFoldRestore !== null || (S.sideFold && 'tools' in S.sideFold)){
+    if(_tourFoldRestore === null) delete S.sideFold.tools;
+    else S.sideFold.tools = _tourFoldRestore;
+    _tourFoldRestore = null;
+    try{ renderSidebar(); }catch(e){}
+    save();
+  }
   if(markSeen){ S.tourSeen = true; save(); toast('导览已结束 —— 想再看：个人中心 →「重看页面导览」'); }
 }
 
@@ -4090,13 +4120,13 @@ function renderSidebar(){
 
   h += sideLabel('tools', '常用工具');
   if(sideGroupOpen('tools')){
-    h += `<div class="side-item ${S.view==='nav'?'active':''}" onclick="gotoNav()" title="校务导航">
+    h += `<div class="side-item ${S.view==='nav'?'active':''}" data-tour="nav" onclick="gotoNav()" title="校务导航">
       ${sideIco('nav')}<span class="s-txt">校务导航</span></div>
-    <div class="side-item ${S.view==='tpl'?'active':''}" onclick="gotoTpl()" title="常用模板">
+    <div class="side-item ${S.view==='tpl'?'active':''}" data-tour="tpl" onclick="gotoTpl()" title="常用模板">
       ${sideIco('filetext')}<span class="s-txt">常用模板</span><span class="cnt">${(S.templates||[]).length||''}</span></div>
-    <div class="side-item ${S.view==='pol'?'active':''}" onclick="gotoPol()" title="AI 辅导员 · 鹿晓南">
+    <div class="side-item ${S.view==='pol'?'active':''}" data-tour="pol" onclick="gotoPol()" title="AI 辅导员 · 鹿晓南">
       ${sideIco('chat')}<span class="s-txt">AI 辅导员</span></div>
-    <div class="side-item ${S.view==='cal'?'active':''}" onclick="gotoCal()" title="校历作息">
+    <div class="side-item ${S.view==='cal'?'active':''}" data-tour="cal" onclick="gotoCal()" title="校历作息">
       ${sideIco('calendar')}<span class="s-txt">校历作息</span></div>`;
   }
 

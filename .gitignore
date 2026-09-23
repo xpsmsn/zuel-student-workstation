@@ -35,6 +35,9 @@ app/src/index.html
 # ---- 本机会话数据 ----
 .workbuddy/
 
+# ---- 文档生成流水线的中间产物（可重新生成，且数量庞大）----
+output/
+
 # ---- 系统垃圾 ----
 Thumbs.db
 desktop.ini
