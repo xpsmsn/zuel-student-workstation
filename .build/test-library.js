@@ -386,21 +386,50 @@ R('toast = _oldToast;');
 });
 
 console.log('\n[6.9] v1.9：新手引导可再进入 + 分步实操');
-// ① 回归：v1.6 删「数据管理」分组时连唯一入口一起删了 → 侧栏必须常驻「取数 · 导入指引」
+// ① 回归：v1.6 删「数据管理」分组时连唯一入口一起删了 → 侧栏必须常驻导入指引入口
+//    v1.9.7.2：名称从「取数 · 导入指引」简化为「导入指引」（太长会换行，用户反馈）
 R(`S.sideCollapsed = false; renderSidebar();`);
 const sb19 = R(`$('sidebar').innerHTML`);
-if(sb19.includes('gotoGuide()') && sb19.includes('取数 · 导入指引'))
-  pass('侧栏常驻「取数 · 导入指引」入口（防再次被删）');
-else fail('侧栏缺「取数 · 导入指引」入口');
-// ② 入口页两个按钮：从头看 / 继续第 ④ 步
+if(sb19.includes('gotoGuide()') && sb19.includes('导入指引'))
+  pass('侧栏常驻「导入指引」入口（防再次被删）');
+else fail('侧栏缺「导入指引」入口');
+// ② 入口页按钮：重看引导 / 页面导览
 R(`gotoGuide();`);
 const g19 = R(`$('mainArea').innerHTML`);
-if(g19.includes('openOnboarding(0)') && g19.includes('从头看一遍新手引导'))
+if(g19.includes('openOnboarding(0)') && g19.includes('新手引导'))
   pass('指引页：可从第 0 步重看整份引导');
-else fail('指引页缺「从头看一遍新手引导」');
-if(g19.includes('openOnboarding(4)') && g19.includes('继续第 ④ 步'))
-  pass('指引页：导完学生表可一键「继续第 ④ 步」');
-else fail('指引页缺「继续第 ④ 步」续看按钮');
+else fail('指引页缺「新手引导」按钮');
+if(g19.includes('startTour()'))
+  pass('指引页：可重看页面导览');
+else fail('指引页缺「页面导览」按钮');
+/* ③ v1.9.7.2 关键回归：原来「继续第 ④ 步 · 导入成绩」只要"有学生"就一直挂着
+   （哪怕成绩早导完了），而且编号与页面卡片对不上，用户以为是 bug。
+   现在必须满足两个条件才出现：有学生、且还没有成绩。 */
+/* ⚠️ 下面几条要临时改 S 的状态来渲染不同场景 —— 必须先存后还。
+   否则会把学生清空，污染后面【宿舍】等分段（踩过一次：宿舍断言 rows=0 all=0）。 */
+R(`window.__libKeep = JSON.stringify({b:S.batches, a:S.activeBatchId, s:S.students, g:S.grades});
+   S.batches=[]; S.activeBatchId=null; S.students=[]; S.grades=[]; renderGuide();`);
+const gNoStu = R(`$('mainArea').innerHTML`);
+if(!gNoStu.includes('继续：导入成绩单'))
+  pass('没学生时不出现「继续：导入成绩单」');
+else fail('没学生时仍出现续看按钮');
+R(`S.batches.push(makeBatch('测试批次','demo',[])); attachBatch(S.batches[0].id);`);
+const gStuNoGrade = (()=>{ R(`setStudents([{'学号':'2026001','姓名':'张三'}]); renderGuide();`);
+  return R(`$('mainArea').innerHTML`); })();
+if(gStuNoGrade.includes('继续：导入成绩单'))
+  pass('★ 有学生但没成绩时，才出现「继续：导入成绩单」');
+else fail('有学生没成绩时缺续看按钮');
+const gBoth = (()=>{ R(`S.grades=[{'学号':'2026001','加权平均成绩':'88'}]; renderGuide();`);
+  return R(`$('mainArea').innerHTML`); })();
+if(!gBoth.includes('继续：导入成绩单'))
+  pass('★ 成绩已导入后按钮消失（旧版会一直挂着，被当成 bug）');
+else fail('成绩已导入仍显示续看按钮');
+if(!gBoth.includes('数据固化（防清缓存丢失）') && !gBoth.includes('about-box'))
+  pass('指引页不再重复页脚的「关于」块（与系统设置重复）');
+else fail('指引页仍有重复的关于块');
+// 还原现场
+R(`(function(){ var k=JSON.parse(window.__libKeep); S.batches=k.b; S.activeBatchId=k.a;
+     S.students=k.s; S.grades=k.g; if(k.a) attachBatch(k.a); delete window.__libKeep; })();`);
 // ③ 个人中心也留一个重看入口（用户最容易找不到的地方）
 R(`gotoProfile();`);
 if(R(`$('mainArea').innerHTML`).includes('openOnboarding(0)'))

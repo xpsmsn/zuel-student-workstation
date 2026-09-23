@@ -55,6 +55,11 @@ function fresh(){
     location:{ reload(){} },
     Blob:function(parts, opts){ this.parts = parts; this.type = (opts && opts.type) || ''; },
     URL:{ createObjectURL:()=> 'blob:test', revokeObjectURL(){} },
+    /* ⚠️ 浏览器天然有、vm 沙盒没有的全局对象要按需补齐（TextEncoder / atob / btoa …）。
+       缺了不会"报错给测试看"：函数内部若包了 try/catch，报错会被吞掉，
+       测试只看到"文件头不对 / 字节为 0"这类与真因无关的现象。 */
+    atob: s => Buffer.from(String(s), 'base64').toString('binary'),
+    btoa: s => Buffer.from(String(s), 'binary').toString('base64'),
     confirm:()=>{ throw new Error('系统 confirm() 被调用 —— 应使用 askConfirm'); },
     prompt:()=>{ throw new Error('系统 prompt() 被调用'); },
     alert:()=>{},
@@ -325,6 +330,119 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
   ok(/@media \(max-width:640px\)\{ ?\.stats\.stats-dorm\{grid-template-columns:repeat\(2/.test(html),
      '★ 窄屏两列用的是 .stats.stats-dorm（更高优先级，压得住后段给总览页写死的 4 列）');
   ok(html.includes('stat-unit') && html.includes('stat-ico'), '数字带单位、标签带图标');
+
+  /* ── [8] AI 辅导员页：去掉「在浏览器打开」 ── */
+  console.log('\n[8] AI 辅导员页（企微专用链接）');
+  R(`S.view='pol'; renderMain();`);
+  const polHtml = R(`$('mainArea').innerHTML`);
+  ok(polHtml.indexOf('在浏览器打开') < 0, '★ 不再出现「在浏览器打开」（这些链接只能在企微里打开）');
+  ok(polHtml.indexOf('复制链接') >= 0, '保留「复制链接」（粘进班级群这条路径仍然在）');
+  ok(polHtml.indexOf('qr-box') >= 0 && polHtml.indexOf('二维码') >= 0, '两张二维码仍在');
+  ok(!/openLinkExternal\(\s*(LU_URL|BOT_URL)/.test(html.replace(/\s+/g, ' ')),
+     '源码里不再用 openLinkExternal 打开这两个企微链接');
+
+  /* ── [9] 导入指引页：改名 + 去冗余 + 修「第 ④ 步」── */
+  console.log('\n[9] 导入指引页');
+  /* ⚠️ 断言"某段文案不存在"只能看渲染结果：整份 HTML 里连注释都算，
+     而注释里恰好会写"原先把「取数 · 导入指引」…"（自我指涉）。 */
+  R(`S.sideCollapsed=false; renderSidebar(); S.batches=[]; S.activeBatchId=null; gotoGuide();`);
+  const rendered9 = R(`$('sidebar').innerHTML + $('mainArea').innerHTML`);
+  ok(rendered9.indexOf('取数') < 0, '渲染出来的界面上不再有"取数"字样（侧栏 + 指引页）');
+  ok(rendered9.indexOf('导入指引') >= 0, '界面上叫「导入指引」');
+  ok(html.indexOf('<span class="s-txt">导入指引</span>') >= 0, '侧栏条目叫「导入指引」');
+  R(`S.batches=[]; S.activeBatchId=null; S.students=[]; S.grades=[]; gotoGuide();`);
+  const gEmpty = R(`$('mainArea').innerHTML`);
+  ok(gEmpty.indexOf('导入指引') >= 0, '页面标题是「导入指引」');
+  ok(gEmpty.indexOf('class="flow"') < 0, '去掉了与编号卡片重复的流程条');
+  ok(gEmpty.indexOf('about-box') < 0, '去掉了与系统设置重复的「关于」块');
+  ok(gEmpty.indexOf('继续：导入成绩单') < 0, '没数据时不显示续看按钮');
+  ok(gEmpty.indexOf('新手引导') >= 0 && gEmpty.indexOf('startTour()') >= 0, '保留「新手引导」「页面导览」两个短按钮');
+
+  /* ── [10] 关注标签（可自定义） ── */
+  console.log('\n[10] 关注标签');
+  R(`S.focusTags = null;`);                     // 回到预置三枚
+  eq(R('focusTags().length'), 3, '预置 3 个标签');
+  eq(R(`focusTags().map(t=>t.emoji).join('')`), '🎭👩‍👦⛄', '★ 预置就是用户给的 🎭心理 / 👩‍👦单亲 / ⛄人际');
+  ok(R(`focusTags().every(t=>t.label)`) === true, '每个标签都带名称（悬停时显示）');
+  // ZWJ 组合字符不能逐字符拆 —— 用单亲（👩‍👦 由 👩+ZWJ+👦 组成）验证
+  ok(R(`tagsOf({'关注标签':'👩‍👦'}).length`) === 1, '★ 👩‍👦 被当成一个标签（ZWJ 组合字符没被拆开）');
+  // 顺序按"标签表顺序"输出（不随标记先后变化），所以比集合而不是比字符串顺序
+  eq(R(`tagsOf({'关注标签':'👩‍👦🎭'}).slice().sort().join('')`), R(`['👩‍👦','🎭'].sort().join('')`),
+     '多个标签都能还原（顺序固定按标签表排，不随标记先后变）');
+  ok(R(`tagsOf({'关注标签':''}).length`) === 0 && R(`tagsOf({}).length`) === 0, '没标签时返回空');
+  eq(R(`tagTitleOf({'关注标签':'🎭⛄'})`), '🎭心理 ⛄人际', '悬停提示把 emoji 翻成名称');
+  // 关注逻辑：原来只认挂科/军训备注，现在自己标的标签也算
+  ok(R(`hasFocus({'关注标签':'🎭'})`) === true, '★ 打了标签的学生进「需重点关注」');
+  ok(R(`hasFocus({})`) === false, '没有任何信号的学生不算重点关注');
+  ok(R(`hasFocus({'军训备注':'需留意'})`) === true, '原来的军训备注规则没被改坏');
+  R(`S.batches=[]; S.activeBatchId=null; S.students=[];
+     S.batches.push(makeBatch('标签测试','demo',[])); attachBatch(S.batches[0].id);
+     setStudents([{'学号':'2026001','姓名':'张三'},{'学号':'2026002','姓名':'李四'}]);`);
+  R(`toggleStudentTag('2026001','🎭');`);
+  eq(R(`S.students[0]['关注标签']`), '🎭', '点一下给学生打上标签');
+  R(`toggleStudentTag('2026001','⛄');`);
+  eq(R(`S.students[0]['关注标签']`), '🎭⛄', '再点一个 → 两个标签');
+  R(`toggleStudentTag('2026001','🎭');`);
+  eq(R(`S.students[0]['关注标签']`), '⛄', '★ 再点同一个 → 取消该标签（不会把另一个也清掉）');
+  R(`toggleStudentTag('2026001','⛄');`);
+  ok(R(`S.students[0]['关注标签'] == null`) === true, '全部取消后存 null（不留空字符串）');
+  // 列表显示 + 筛选
+  R(`S.students[0]['关注标签']='🎭'; S.students[1]['关注标签']='👩‍👦⛄';`);
+  ok(R(`tagBadge(S.students[0])`).indexOf('🎭') >= 0, '列表姓名后带标签图标');
+  ok(R(`tagBadge(S.students[1])`).indexOf('title=') >= 0, '图标带悬停提示（名称）');
+  R(`S.quickView='all'; S.filters={'关注标签':['🎭']};`);
+  eq(R(`viewList().length`), 1, '★ 按 🎭 筛选只出 1 人（一串 emoji 也能"包含"匹配）');
+  R(`S.filters={'关注标签':['⛄']};`);
+  eq(R(`viewList().length`), 1, '按 ⛄ 筛选出的还是 1 人（含在 👩‍👦⛄ 里）');
+  R(`S.filters={}; S.quickView='tagged';`);
+  eq(R(`viewList().length`), 2, '「带标签学生」视图列出全部带标签的人');
+  R(`S.quickView='focus';`);
+  ok(R(`viewList().length`) >= 2, '「需重点关注」也把带标签的人算进去了');
+  R(`S.quickView='all'; S.filters={};`);
+  ok(R(`detailTagBlock('2026001')`).indexOf('toggleStudentTag') >= 0, '学生详情里有可点的标签行');
+  ok(R(`detailTagBlock('2026001')`).indexOf('自定义标签') >= 0, '详情里能进「自定义标签」');
+  R(`openTagManager();`);
+  ok(R(`$('modalRoot').innerHTML`).indexOf('addFocusTag') >= 0, '标签管理弹窗（增删改）可打开');
+  ok(R(`buildSavePayload().focusTags`) !== undefined, '标签表进了存档载荷（持久化）');
+
+  /* ── [11] 内置表单模板 ── */
+  console.log('\n[11] 内置表单模板（随程序打包）');
+  // 模板数据在独立的 <script> 块里（与应用块分开），沙盒里要单独加载一次
+  const tplSrc = blocks.filter(x=>x.includes('BUILTIN_TEMPLATES') && !x.includes('function doImport'))
+                       .sort((a,b)=>b.length-a.length)[0];
+  if(!tplSrc){ fail('找不到内联模板数据块'); }
+  else { vm.runInContext(tplSrc, sandbox, { filename:'templates.js' }); pass('内联模板数据块已载入沙盒'); }
+  const tplList = R('builtinTemplates()');
+  eq(tplList.length, 8, '★ 8 份模板都已内联进程序');
+  const groups11 = [...new Set(tplList.map(t=>t.group))].sort();
+  ok(groups11.length >= 3, `按 ${groups11.length} 个分组展示：${groups11.join(' / ')}`);
+  // 解码抽查：PDF 应以 %PDF 开头，docx/xlsx 是 zip（PK）
+  let magicOk = 0, sizeOk = 0;
+  for(const t of tplList){
+    const head = R(`(function(){ var u=b64ToBytes(builtinTemplates().find(x=>x.name===${JSON.stringify(t.name)}).b64);
+      return String.fromCharCode(u[0],u[1],u[2],u[3]); })()`);
+    const expectZip = /^(docx|xlsx)$/.test(t.ext);
+    if(expectZip ? head.startsWith('PK') : head.startsWith('%PDF')) magicOk++;
+    const realLen = R(`b64ToBytes(builtinTemplates().find(x=>x.name===${JSON.stringify(t.name)}).b64).length`);
+    if(realLen === t.size) sizeOk++;
+  }
+  eq(magicOk, 8, '★ 8 份解码后文件头都对（PDF=%PDF / Office=PK zip）');
+  eq(sizeOk, 8, '★ 解码后字节数与源文件完全一致（没有截断）');
+  ok(tplList.every(t=>/\.(pdf|docx|xlsx)$/.test(t.name)), '文件名都带正确扩展名（另存后能直接双击打开）');
+  R(`S.view='tpl'; renderLibPage('templates');`);
+  const tplPage = R(`$('mainArea').innerHTML`);
+  ok(tplPage.indexOf('表单模板（内置 8 份）') >= 0, '常用模板页出现「表单模板（内置 8 份）」区块');
+  ok(tplPage.indexOf('saveBuiltinTemplate(0)') >= 0, '每份都有「另存到下载」按钮');
+  ok(tplPage.indexOf('报销') >= 0, '报销那三份按分组归好');
+  /* 桌面版走的是外壳落盘命令（不是浏览器下载），所以断言的是"发出的 invoke 调用"。
+     ⚠️ 别去钩 saveExportFile —— 那条路径压根不走它（钩错了会看到 null 还以为是产品坏了）。 */
+  R(`window.__invoked = []; saveBuiltinTemplate(0);`);
+  await new Promise(r => setImmediate(r));
+  const inv11 = R('window.__invoked').filter(x=>x.cmd === 'save_to_downloads');
+  ok(inv11.length === 1, '「另存到下载」发出了一次落盘调用');
+  ok(inv11.length && inv11[0].args.name === tplList[0].name, '文件名与模板显示名一致：' + (inv11[0] && inv11[0].args.name));
+  ok(inv11.length && Array.isArray(inv11[0].args.data) && inv11[0].args.data.length > 1000,
+     `落盘字节数 ${inv11.length ? inv11[0].args.data.length : 0}（不是 0 字节文件）`);
 
   finish();
 })().catch(e => { console.error('测试执行出错：' + (e && e.stack || e)); process.exit(1); });
