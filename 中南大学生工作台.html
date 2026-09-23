@@ -6696,10 +6696,6 @@ function afterFilterChange(){
   if(S.view==='dashboard'){ renderDashBody(); renderDashMetrics(); }
   else renderMain();
 }
-function setFilter(k,v){
-  if(!v) delete S.filters[k]; else S.filters[k] = [v];
-  afterFilterChange();
-}
 function addFilterValue(k,v){
   if(!v) return;
   const cur = filterValues(k);
@@ -6850,7 +6846,6 @@ function searchList(v){
   }
   return list;
 }
-function addFilter(k,v){ addFilterValue(k,v); }
 
 /* ---------- 列表排序 ----------
    辅导员点表头即可排序：点一次降序、再点升序。
@@ -7402,11 +7397,17 @@ function saveDetailEditApply(){
         const nv = String(gIn[k] == null ? '' : gIn[k]).trim();
         rec[k] = nv;
       });
-      if(GRADE_FIELDS.every(k=>rec[k] === '')){
-        const i = S.grades.indexOf(rec);
-        if(i >= 0) S.grades.splice(i, 1);   // 8 项全空 = 删除该成绩
-      }
-      invalidateGradeMap();
+        if(GRADE_FIELDS.every(k=>rec[k] === '')){
+          const i = S.grades.indexOf(rec);
+          if(i >= 0) S.grades.splice(i, 1);   // 8 项全空 = 删除该成绩
+        }
+        /* v1.9.8.1：把 S.grades 重新挂回当前批次。
+           正常路径下 S.grades 本来就是批次那一份，这一步是同值赋值、没有副作用；
+           但万一它是个「孤儿数组」（旧数据迁移等场景会出现），不挂回去的话
+           上面这条成绩只活在内存里 —— save() 存的是批次，重开就没了
+           （与 v1.9.6 那次丢数据是同一个源头）。 */
+        setGrades(S.grades);
+        invalidateGradeMap();
       n += gChanged.length;
     }
   }
@@ -8428,60 +8429,6 @@ function doImportGrades(){
 }
 
 /* ---------- 设置 / 导出 ---------- */
-function openSettings(){
-  closeSidebar();
-  const cur = activeBatch();
-  $('modalRoot').innerHTML = `
-  <div class="mask" onclick="if(event.target===this)closeModal()">
-    <div class="modal" onclick="event.stopPropagation()">
-      <div class="modal-head"><div class="modal-title">设置</div>
-        <div class="modal-close" onclick="closeModal()">×</div></div>
-      <div class="modal-body">
-        <div class="filebox">
-          <div class="file-ico" style="background:var(--brand-soft);color:var(--brand)">DB</div>
-          <div style="flex:1">
-            <div class="file-name">本地数据存储</div>
-            <div class="file-meta">${S.batches.length} 个批次 · 当前「${esc(cur?cur.name:'无')}」${S.students.length} 人 · 全部数据仅存于本机</div>
-          </div>
-          <button class="btn" onclick="closeModal();openBatchManager()">批次管理</button>
-        </div>
-        <div style="font-weight:640;font-size:13.5px;margin-bottom:9px;color:var(--text-2)">界面主题</div>
-        <div class="seg" style="width:100%;display:flex;margin-bottom:18px">
-          ${THEMES.map(t=>`<button data-theme-btn="${t.id}" class="${S.theme===t.id?'on':''}"
-            style="flex:1;padding:9px 0" onclick="setTheme('${t.id}')">
-            ${t.icon} ${t.label}</button>`).join('')}
-        </div>
-        <div style="font-weight:640;font-size:13.5px;margin-bottom:9px;color:var(--text-2)">修改访问密码</div>
-        <div class="field"><label>原密码</label><input type="password" id="oldPw" placeholder="请输入原密码"></div>
-        <div class="field"><label>新密码</label><input type="password" id="newPw" placeholder="至少 4 位"></div>
-        <div class="login-err" id="setErr"></div>
-        <button class="btn pri" onclick="changePw()">确认修改</button>
-        <div class="hint" style="margin-top:18px"><b>关于数据安全</b><br>
-          · 全程离线运行，无任何网络请求<br>
-          · 密码经哈希处理后存储，不保存明文<br>
-          · 每次导入是一份独立「批次」，切换批次等于换一整套数据<br>
-          · 正式版将使用 SQLite 单文件存储，拷走即完整备份</div>
-        <div style="font-weight:640;font-size:13.5px;margin:18px 0 9px;color:var(--text-2)">导入指引</div>
-        <div style="display:flex;gap:9px;flex-wrap:wrap">
-          <button class="btn" onclick="closeModal();gotoGuide()">导入指引</button>
-          <button class="btn" onclick="closeModal();openOnboarding()">看一遍新手引导</button>
-        </div>
-        <div class="about-box">
-          <div class="about-row"><span class="ak">软件</span><span class="av"><b>中南大学生工作台</b> · 本地单机运行</span></div>
-          <div class="about-row"><span class="ak">作者</span><span class="av"><b>吴章凡</b></span></div>
-          <div class="about-row"><span class="ak">反馈</span><span class="av">用着有问题、或想加什么功能，<b>企业微信</b>联系我，或邮件
-            <a href="mailto:wuzhangfan110@163.com">wuzhangfan110@163.com</a></span></div>
-          <div class="about-ver">${APP_VER}</div>
-        </div>
-      </div>
-      <div class="modal-foot">
-        <button class="btn" style="color:var(--danger);border-color:var(--danger-line)"
-                title="清空后回到空白状态，不会自动生成演示数据" onclick="resetAll()">清空全部数据</button>
-        <button class="btn" onclick="closeModal()">关闭</button>
-      </div>
-    </div>
-  </div>`;
-}
 
 function changePw(){
   const o = $('oldPw').value, n = $('newPw').value;

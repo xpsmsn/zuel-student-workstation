@@ -444,6 +444,28 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
   ok(inv11.length && Array.isArray(inv11[0].args.data) && inv11[0].args.data.length > 1000,
      `落盘字节数 ${inv11.length ? inv11[0].args.data.length : 0}（不是 0 字节文件）`);
 
+  /* ── [12] 关键不变量：内存数据必须与批次是「同一份」 ──
+     v1.9.6 丢数据的根因就是这条被破坏（数据写进内存、没进批次 → 重开即丢）。
+     现在除了 setStudents/setGrades 的约定，还有 save() 里的 console.warn 兜底，
+     但那句警告用户看不见，所以这里用断言把它钉死：
+       ① 正常路径下 S.students / S.grades 必须与当前批次是同一个数组（比 ===，不是比长度）
+       ② 万一真的脱钩了（旧数据迁移等场景会造出孤儿数组），在详情页录的成绩仍必须落进批次 */
+  console.log('\n[12] 不变量：内存数据与批次必须同一份');
+  R(`S.batches = []; S.activeBatchId = null; S.students = []; S.grades = [];
+     S.batches.push(makeBatch('不变量测试', 'demo', [{'学号':'2026001','姓名':'张三'}]));
+     attachBatch(S.batches[0].id);`);
+  ok(R('S.students === activeBatch().students') === true, '正常路径：S.students 与批次是同一份（身份相等）');
+  ok(R('S.grades === activeBatch().grades') === true, '正常路径：S.grades 与批次是同一份（身份相等）');
+  ok(R('buildSavePayload().batches[0].students === S.students') === true, '存档载荷里用的就是这一份');
+
+  // ② 故意制造脱钩（S.grades 指向新建的空数组，不再指向 b.grades），再录一条成绩
+  R(`S.grades = [];
+     curStudent = S.students[0];
+     detailDraft = { fields:{'学号':'2026001'}, grade:{'加权平均成绩':'88.5'} };
+     saveDetailEditApply();`);
+  ok(R('(activeBatch().grades||[]).length') === 1,
+     '★ 脱钩状态下录的成绩仍然落进批次（不会重开就没了）');
+
   finish();
 })().catch(e => { console.error('测试执行出错：' + (e && e.stack || e)); process.exit(1); });
 
