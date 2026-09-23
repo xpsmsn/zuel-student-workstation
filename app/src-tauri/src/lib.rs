@@ -121,6 +121,67 @@ fn open_downloads_dir(app: tauri::AppHandle) -> Result<(), String> {
         .map_err(|e| format!("打开失败：{e}"))
 }
 
+/* v1.9.7：在文件资源管理器里打开「下载」目录，并选中指定文件。
+   · Windows：`explorer /select,"<path>"` —— 焦点直接落在那个文件上
+   · macOS  ：`open -R "<path>"`          —— 访达里高亮该文件
+   · Linux  ：各家桌面环境没有统一 API，fallback 到只打开目录
+   只接受「下载」目录里的文件名（挡路径穿越）。文件不存在也只打开目录、不报错。 */
+#[tauri::command]
+fn reveal_in_downloads(app: tauri::AppHandle, name: String) -> Result<(), String> {
+    let raw = name.rsplit(['/', '\\']).next().unwrap_or("").trim();
+    if raw.is_empty() { return Err("非法文件名".into()); }
+    let dir = downloads_dir(Some(&app));
+    let target = dir.join(raw);
+    // 文件被改名 / 删了也别报错 —— 把目录打开就行
+    let open_dir = || {
+        use tauri_plugin_opener::OpenerExt;
+        app.opener()
+            .open_path(dir.to_string_lossy().to_string(), None::<&str>)
+            .map_err(|e| format!("打开失败：{e}"))
+    };
+    if !target.is_file() { return open_dir(); }
+
+    #[cfg(target_os = "windows")]
+    {
+        // explorer.exe 对路径里带 & 等特殊字符要单独加引号；用 Command::new 比 shell 安全
+        let arg = format!("/select,{}", target.display());
+        std::process::Command::new("explorer.exe")
+            .arg(arg)
+            .spawn()
+            .map_err(|e| format!("启动资源管理器失败：{e}"))?;
+        return Ok(());
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg("-R")
+            .arg(&target)
+            .spawn()
+            .map_err(|e| format!("启动访达失败：{e}"))?;
+        return Ok(());
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        // 没有跨桌面统一的"选中"接口，妥协成打开目录
+        let _ = target;
+        return open_dir();
+    }
+}
+
+/// v1.9.7：删除「下载」目录里的指定备份文件。
+/// 只接受下载目录里的文件名（挡路径穿越）；文件不存在返回 Ok() 不报错。
+#[tauri::command]
+fn delete_download(app: tauri::AppHandle, name: String) -> Result<(), String> {
+    let raw = name.rsplit(['/', '\\']).next().unwrap_or("").trim();
+    if raw.is_empty() { return Err("非法文件名".into()); }
+    let dir = downloads_dir(Some(&app));
+    let target = dir.join(raw);
+    if !target.starts_with(&dir) { return Err("只能删除下载目录里的文件".into()); }
+    if !target.exists() { return Ok(()); }
+    std::fs::remove_file(&target).map_err(|e| format!("删除失败：{e}"))?;
+    Ok(())
+}
+
 /// 用系统默认程序打开一个本地文件（v1.9：查寝打分表生成后直接打开打印页）。
 /// 只接受「下载」目录、「应用数据」目录，以及**用户在「常用模板 · 我的模板文件」里
 /// 亲自登记的文件**（v1.9.6：extra_allowed 由前端把登记清单传过来）。
@@ -361,6 +422,8 @@ pub fn run() {
             open_external,
             save_to_downloads,
             open_downloads_dir,
+            reveal_in_downloads,    // v1.9.7：在文件管理器中显示并选中下载目录里的文件
+            delete_download,        // v1.9.7：删除下载目录里的指定文件（仅限下载目录内）
             save_data_file,
             load_data_file,
             delete_data_file,

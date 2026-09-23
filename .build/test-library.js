@@ -264,10 +264,21 @@ if(!sb16.includes('>数据管理<') && sb16.includes('系统设置') && sb16.inc
 // 系统设置页：外观 + 学期 + 数据管理 + 关于
 R(`gotoSettings();`);
 const set16 = R(`$('mainArea').innerHTML`);
+// v1.9.7.1：数据管理按「你要干什么」分三组；「打开备份文件夹」等四个备份类入口
+// 收进了「备份与恢复」弹窗（不再平铺在页面上），所以这里断言的是分组与入口本身，
+// 并单独校验弹窗里确实还有"打开备份文件夹"。
+const hasGroups = set16.includes('把数据取进来') && set16.includes('备份与搬运') && set16.includes('出问题回退');
+const hasAuto = set16.includes('自动保护');
 if(set16.includes('外观与主题') && set16.includes('学期与周次') && set16.includes('数据管理')
-   && set16.includes('打开备份文件夹') && set16.includes('关于') && set16.includes('openDownloadsFolder'))
-  pass('系统设置页：五区齐全（外观/学期/数据/固化/关于）');
-else fail('renderSettings v1.6 异常');
+   && hasGroups && hasAuto && set16.includes('openBackupRestore') && set16.includes('关于'))
+  pass('系统设置页：外观 / 学期 / 数据管理（三组 + 自动保护）/ 关于 齐全');
+else fail(`renderSettings 异常（分组:${hasGroups} 自动保护:${hasAuto}）`);
+R('openBackupRestore();');
+const dlg16 = R(`$('modalRoot').innerHTML`);
+if(dlg16.includes('打开备份文件夹') && dlg16.includes('openDownloadsFolder') && dlg16.includes('我导出的备份文件'))
+  pass('「备份与恢复」弹窗内含：打开备份文件夹 / 我导出的备份文件清单');
+else fail('备份弹窗里少了并入的入口');
+R(`closeModal();`);
 // 个人中心：只留个人资料与安全
 R(`gotoProfile();`);
 const pf16 = R(`$('mainArea').innerHTML`);

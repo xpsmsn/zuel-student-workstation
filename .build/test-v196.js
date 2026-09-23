@@ -284,6 +284,48 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
   eq(R('tplFiles().length'), 1, '移除登记后剩 1 个');
   ok(R('buildSavePayload().templateFiles.length') === 1, '登记清单进了存档载荷');
 
+  /* ── [7] 数据管理收敛 + 快照自动清理（v1.9.7.1） ── */
+  console.log('\n[7] 数据管理收敛 & 快照自动清理');
+  ok(html.includes('把数据取进来') && html.includes('备份与搬运') && html.includes('出问题回退'),
+     '数据管理分三组（取数 / 备份搬运 / 出问题回退）');
+  ok(html.includes('🛡 自动保护'), '「数据固化」降级为一行「自动保护」状态');
+  ok(!html.includes('🔒 数据固化（防清缓存丢失）'), '不再有并列的「数据固化」卡片（消除重复观感）');
+  ok(!/class="op"[^>]*gotoBackupHistory\(\)/.test(html), '「备份历史」不再作为平铺入口（已并入备份弹窗）');
+  ok(!/class="op"[^>]*exportBackupFile\(\)/.test(html), '「完整备份」不再平铺（并入备份与恢复弹窗）');
+  ok(html.includes('我导出的备份文件') && html.includes('打开备份文件夹'), '备份弹窗里补了「打开备份文件夹」与备份清单');
+
+  // 快照清理：造 25 条历史，prune 后应只剩 20，且超出的 5 份被要求从磁盘删除
+  R(`
+    window.__deleted = [];
+    window.__TAURI__ = { core: { invoke: (cmd, args) => {
+      window.__invoked.push({ cmd, args });
+      if(cmd === 'delete_data_file'){ window.__deleted.push(args.name); }
+      return Promise.resolve(null);
+    } } };
+    S.importHistory = [];
+    for(let i = 0; i < 25; i++){
+      importState.kind = 'student';
+      // 直接构造历史记录，模拟 recordImport 的产物（快照名带序号便于断言）
+      S.importHistory.push({ id:'h'+i, ts:'2026-09-01 10:0'+i, type:'学生数据·合并',
+        file:'f'+i+'.xlsx', batch:'', batchId:'', added:1, updated:0, skipped:0,
+        snap:'disk:snap-h'+i+'.json' });
+    }
+    pruneOldSnapshots();
+  `);
+  eq(R('S.importHistory.length'), 20, '超过上限的快照记录被裁到 20 条');
+  const deleted = R('window.__deleted');
+  eq(deleted.length, 5, '★ 超出的 5 份快照文件被要求从磁盘删除（旧版永不清理，会无限堆积）');
+  ok(deleted.every(n => /^snap-h\d+\.json$/.test(n)), '删的是快照文件名（不是别的数据文件）');
+  ok(!deleted.includes('workstation-data.json'), '★ 绝不会误删磁盘镜像本身');
+  ok(R('S.importHistory.every(r=>r.snap)') === true, '保留下来的记录快照引用完好（仍可回退）');
+
+  // 宿舍卡片：静态断言（走响应式网格 + 窄屏两列 + 图标）
+  ok(html.includes('class="stats stats-4 stats-dorm"'), '宿舍指标卡套了响应式网格（不再是单列满宽）');
+  ok(html.includes('.stats-dorm .stat-lab'), '宿舍卡片标签在上、数字在下');
+  ok(/@media \(max-width:640px\)\{ ?\.stats\.stats-dorm\{grid-template-columns:repeat\(2/.test(html),
+     '★ 窄屏两列用的是 .stats.stats-dorm（更高优先级，压得住后段给总览页写死的 4 列）');
+  ok(html.includes('stat-unit') && html.includes('stat-ico'), '数字带单位、标签带图标');
+
   finish();
 })().catch(e => { console.error('测试执行出错：' + (e && e.stack || e)); process.exit(1); });
 

@@ -54,11 +54,7 @@ function fresh(){
     __confirmYes(){ const cb = confirmCb; confirmCb = null; if(cb) cb(); },
     __setConfirmCb(cb){ confirmCb = cb; },
     __reloads: reloads,
-    __downloads: downloads,
-    /* v1.9.7：exportBackupFile 用 TextEncoder 估算备份字节数（记入备份历史）。
-       浏览器里天然有，vm 沙盒里没有 —— 不补的话它会抛错并被函数内部的 try/catch 吞掉，
-       测试只看到"文件名不对"，查半天查不出真因。 */
-    TextEncoder, TextDecoder
+    __downloads: downloads
   };
   // 拦截 askConfirm：直接把 onOk 存起来（不渲染 DOM）
   sandbox.window = sandbox;
@@ -148,7 +144,9 @@ console.log('\n[5] 备份导出 → 从文件恢复');
 {
   const S = R('S');
   const beforeB = nBatch(), beforeS = nStu();
-  R('exportBackupFile')();
+  console.log('    [调试] 导出前 downloads =', downloads.length, '最后一条 =', downloads.length?downloads[downloads.length-1].filename:'(无)');
+  try{ R('exportBackupFile')(); }catch(e){ console.log('    [调试] exportBackupFile 抛错:', e.message); }
+  console.log('    [调试] 导出后 downloads =', downloads.length, '最后一条 =', downloads.length?downloads[downloads.length-1].filename:'(无)');
   const dl = downloads[downloads.length-1];
   if(dl && /\.json$/.test(dl.filename)) pass(`备份文件名：${dl.filename}`);
   else fail('备份文件名不对');
