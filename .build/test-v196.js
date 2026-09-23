@@ -1,0 +1,202 @@
+/* v1.9.6 三处修改的回归测试（对应辅导员 2026-09-23 提的 1 / 2 / 5）
+   用法: node .build/test-v196.js 中南大学生工作台.html
+
+   [1] 备份提醒降频：总开关 / 7 天频率闸 / 30 天必要性闸，三层都要各自生效
+       （旧版只要导入过且没备份就每次导入都弹，点"稍后再说"也没用 —— 用户反馈"太频繁"）
+   [2] 无批次导入不再丢数据：批次被删光后选「新增/合并」，
+       旧版把名单只写进内存（save 存的是批次）→ 重开「全部学生」为空。
+       新版自动建批次并挂上去，结果页明说。
+   [3] 导入时勾选排除字段：取消勾选的列不参与合并，学号永远保留；
+       名册排除「政治面貌」时小结里要有醒目提醒。
+   [4] 导入方式三卡紧凑化（静态断言）：一行三卡 + 窄屏落一列，防止"新建批次"被挤出可视区。
+
+   沙盒沿用 test-import.js 的骨架。 */
+const fs = require('fs'), vm = require('vm');
+const html = fs.readFileSync(process.argv[2] || '中南大学生工作台.html', 'utf8');
+
+let failN = 0;
+const fail = m => { console.error('  ✗ ' + m); failN++; };
+const pass = m => console.log('  ✓ ' + m);
+const eq = (got, want, label) =>
+  got === want ? pass(`${label} = ${JSON.stringify(got)}`) : fail(`${label} = ${JSON.stringify(got)}，应为 ${JSON.stringify(want)}`);
+const ok = (cond, label) => cond ? pass(label) : fail(label);
+
+/* ── 沙盒骨架（同 test-import.js） ── */
+function el(){ return {
+  innerHTML:'', textContent:'', value:'', placeholder:'', checked:false, files:null,
+  offsetWidth:0, clientWidth:0, style:{}, dataset:{}, result:'', _h:null,
+  classList:{ add(){}, remove(){}, toggle(){}, contains(){ return false; } },
+  setAttribute(){}, removeAttribute(){}, getAttribute(){ return null; },
+  addEventListener(){}, removeEventListener(){},
+  appendChild(){}, removeChild(){}, click(){}, scrollTo(){}, focus(){}, select(){}, closest(){ return null; },
+  querySelector(){ return null; }, querySelectorAll(){ return []; }
+};}
+function fresh(){
+  const store = new Map();
+  const cache = new Map();
+  let confirmCb = null;
+  const mk = id => { const e = el(); e.id = id; cache.set(id, e); return e; };
+  const opened = [];
+  const sandbox = {
+    console, setTimeout, clearTimeout,
+    setInterval:(fn, ms)=>1, clearInterval(){},
+    document: {
+      getElementById: id => cache.has(id) ? cache.get(id) : mk(id),
+      querySelector: () => el(), querySelectorAll: () => [],
+      createElement: () => el(), addEventListener(){}, execCommand: () => true,
+      body: mk('__body'),
+      documentElement:{ setAttribute(){}, removeAttribute(){}, getAttribute(){ return null; } }
+    },
+    localStorage:{
+      getItem:k=>store.has(k)?store.get(k):null,
+      setItem:(k,v)=>store.set(k,String(v)),
+      removeItem:k=>store.delete(k)
+    },
+    location:{ reload(){} },
+    Blob:function(parts, opts){ this.parts = parts; this.type = (opts && opts.type) || ''; },
+    URL:{ createObjectURL:()=> 'blob:test', revokeObjectURL(){} },
+    confirm:()=>{ throw new Error('系统 confirm() 被调用 —— 应使用 askConfirm'); },
+    prompt:()=>{ throw new Error('系统 prompt() 被调用'); },
+    alert:()=>{},
+    open:(u)=>{ opened.push(u); return null; },
+    matchMedia:()=>({ matches:false, addEventListener(){}, removeEventListener(){}, addListener(){} }),
+    ResizeObserver:function(){ this.observe=()=>{}; this.disconnect=()=>{}; },
+    navigator:{ userAgent:'node' },
+    __confirmYes(){ const cb = confirmCb; confirmCb = null; if(cb) cb(); },
+    __setConfirmCb(cb){ confirmCb = cb; },
+    __opened: opened,
+    __store: store
+  };
+  sandbox.window = sandbox;
+  return { sandbox, store, opened };
+}
+
+const blocks = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]);
+const appSrc = blocks.filter(s => s.includes('function doImport')).sort((a,b)=>b.length-a.length)[0];
+if(!appSrc){ console.error('找不到应用脚本块'); process.exit(1); }
+
+const { sandbox } = fresh();
+vm.createContext(sandbox);
+try{
+  vm.runInContext(appSrc, sandbox, { filename:'app.js' });
+  pass('应用脚本编译通过');
+}catch(e){ fail('应用脚本编译失败：' + e.message); process.exit(1); }
+
+const R = k => vm.runInContext(k, sandbox);
+const DAY = 86400000;
+
+/* ════════ [1] 备份提醒降频 ════════ */
+console.log('\n[1] 备份提醒：三层闸门');
+R(`
+  S.backupRemindEnabled = true;
+  S.backupRemindSnoozeUntil = 0;
+  S.lastBackupAt = '';
+`);
+eq(R('backupRemindDue()'), true, '从没备份过 → 该提醒');
+
+R('showBackupRemind();');
+ok(R('S.backupRemindSnoozeUntil') > Date.now(), '弹出后进入 7 天静默期');
+eq(R('backupRemindDue()'), false, '静默期内不再提醒');
+
+R(`S.backupRemindSnoozeUntil = Date.now() - 8 * ${DAY};`);   // 8 天前弹过
+eq(R('backupRemindDue()'), true, '静默期过了 8 天 → 又该提醒（但最多每 7 天一次）');
+
+R(`S.lastBackupAt = new Date(Date.now() - 10 * ${DAY}).toLocaleString('zh-CN', {hour12:false});
+   S.backupRemindSnoozeUntil = 0;`);
+eq(R('backupRemindDue()'), false, '10 天前备份过 → 不提醒（30 天内都算新鲜）');
+
+R(`S.lastBackupAt = new Date(Date.now() - 40 * ${DAY}).toLocaleString('zh-CN', {hour12:false});`);
+eq(R('backupRemindDue()'), true, '40 天没备份 → 该提醒了');
+
+R('S.backupRemindEnabled = false;');
+eq(R('backupRemindDue()'), false, '总开关关掉 → 永不提醒');
+R('S.backupRemindEnabled = true;');
+eq(R('backupRemindDue()'), true, '总开关再打开 → 恢复判断');
+
+R(`S.lastBackupAt=''; S.backupRemindSnoozeUntil=0;`);
+R('toggleBackupRemind();');      // 开 → 关
+eq(R('S.backupRemindEnabled'), false, '设置页开关：第一次点 = 关');
+eq(R('backupRemindDue()'), false, '关掉后 due() 恒为 false');
+R('toggleBackupRemind();');      // 关 → 开
+eq(R('S.backupRemindEnabled'), true, '再点一次 = 开');
+
+/* ════════ [2] 无批次导入自动建批次（丢数据 bug） ════════ */
+console.log('\n[2] 无批次导入：自动建批次，数据必须落进批次');
+R(`
+  S.batches = []; S.activeBatchId = null; S.students = []; S.grades = [];
+  importState = { step:2, fileName:'2026级新生名册.xlsx', header:[], cols:[], emptyCols:[],
+    rows:[], mode:'append', headerIdx:0, rowNos:null, kind:'student', skipCols:new Set() };
+`);
+const rows2 = [
+  { '学号':'2026001', '姓名':'张三', '民族':'汉族', '政治面貌':'共青团员' },
+  { '学号':'2026002', '姓名':'李四', '民族':'回族', '政治面貌':'群众' }
+];
+sandbox.__rows2 = rows2;
+R(`doImportMerge(window.__rows2, ['学号','姓名','民族','政治面貌'], 'append', null, '', 0, null);`);
+
+eq(R('S.batches.length'), 1, '导入后自动建了 1 个批次');
+eq(R('activeBatch().students.length'), 2, '2 人都写进了批次');
+eq(R('S.students.length'), 2, '内存镜像同步');
+eq(R('importState.result.autoBatchName'), '2026级新生名册', '结果页标明自动新建的批次名（用文件名）');
+ok(R('buildSavePayload().batches[0].students.length') === 2,
+   '★ 关键回归：save 载荷里批次真的带着这 2 人（旧版这里是 0，重开即丢）');
+eq(R('buildSavePayload().activeBatchId'), R('S.activeBatchId'), '当前批次也一并持久化');
+
+/* ════════ [3] 勾选排除字段 ════════ */
+console.log('\n[3] 导入时勾选排除字段');
+R(`
+  S.batches = []; S.activeBatchId = null; S.students = [];
+  S.batches.push(makeBatch('已有批次','demo',[
+    { '学号':'2026001', '姓名':'张三', '民族':'汉族', '政治面貌':'共青团员' }
+  ]));
+  attachBatch(S.batches[0].id);
+  importState = { step:2, fileName:'补充表.xlsx', header:[], cols:[], emptyCols:[],
+    rows:[], mode:'append', headerIdx:0, rowNos:null, kind:'student', skipCols:new Set(['民族']) };
+`);
+sandbox.__rows3 = [
+  { '学号':'2026001', '姓名':'张三改', '民族':'回族', '政治面貌':'中共预备党员' },
+  { '学号':'2026003', '姓名':'王五', '民族':'壮族', '政治面貌':'群众' }
+];
+R(`doImportMerge(window.__rows3, ['学号','姓名','民族','政治面貌'], 'append', null, '', 0, null);`);
+eq(R(`S.students.find(s=>String(s['学号'])==='2026001')['民族']`), '汉族',
+   '被排除的「民族」列没有进来：张三原有民族原样保留');
+eq(R(`S.students.find(s=>String(s['学号'])==='2026001')['政治面貌']`), '中共预备党员',
+   '未排除的「政治面貌」正常更新');
+const w5 = R(`S.students.find(s=>String(s['学号'])==='2026003')`);
+ok(w5 && (w5['民族'] == null || w5['民族'] === ''), '新进的王五也没有民族（该列被排除）');
+ok(w5 && w5['姓名'] === '王五', '新进的王五其他字段正常');
+
+R(`S.batches=[]; S.activeBatchId=null; S.students=[];
+   importState.skipCols = new Set(['学号']);`);      // 直接把学号塞进排除集（模拟乱来）
+sandbox.__rows4 = [{ '学号':'2026009', '姓名':'赵六' }];
+R(`doImportMerge(window.__rows4, ['学号','姓名'], 'append', null, '', 0, null);`);
+eq(R('S.students.length'), 1, '即使有人把「学号」塞进排除集，导入仍按学号正常落库（代码里强制保留）');
+
+R(`
+  S.batches = []; S.activeBatchId = null; S.students = [];
+  importState = { step:2, fileName:'名册.xlsx', header:[], cols:['学号','姓名','政治面貌','民族'],
+    emptyCols:[], rows:[], mode:'append', headerIdx:0, rowNos:null, kind:'roster',
+    skipCols:new Set(['政治面貌']) };
+`);
+const sum = R('importFieldSummary()');
+ok(sum.includes('3 / 4 个字段'), '小结正确显示"将导入 3 / 4 个字段"');
+ok(sum.indexOf('政治面貌') >= 0, '小结列出被排除的字段');
+ok(sum.indexOf('不会把任何人同步为') >= 0, '★ 名册排除「政治面貌」时给出醒目警告');
+
+R(`importState.skipCols = new Set();`);
+const sum2 = R('importFieldSummary()');
+ok(sum2.indexOf('默认全部导入') >= 0, '全部勾选时显示"默认全部导入"');
+
+/* ════════ [4] 导入方式三卡紧凑化（静态断言） ════════ */
+console.log('\n[4] 导入方式三卡紧凑化');
+ok(html.includes('.modes{display:grid;grid-template-columns:repeat(3,1fr)'), '三卡一行排布（grid 三列）');
+ok(html.includes('@media (max-width:560px)'), '窄屏媒体查询存在');
+ok(/@media \(max-width:560px\)\{[^}]*\.modes\{grid-template-columns:1fr\}/.test(html.replace(/\n/g,'')),
+   '窄屏时落成单列（不再挤出可视区）');
+ok(html.includes('<div class="mode-tag">${tag}</div>'), '卡片改为"标题+短标签"结构');
+ok(!/modeCard\('append'[\s\S]{0,80}<b>/.test(html), '卡片里不再塞长说明（长说明由 modeHint 承担）');
+const mHint = R(`modeHint('append')`);
+ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧卡片里的关键规则在 modeHint 里都还在');
+
+console.log(failN ? `\n共 ${failN} 项问题` : '\n全部通过 ✅');
+process.exit(failN ? 1 : 0);

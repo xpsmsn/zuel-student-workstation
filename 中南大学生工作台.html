@@ -199,17 +199,27 @@ input,select,textarea{font-family:inherit;font-size:14px;outline:none}
 
 /* ============ 导入方式选择（覆盖 / 新增 / 新建） ============ */
 .modelabel{font-weight:640;font-size:13.5px;margin:18px 0 9px;color:var(--text-2)}
-.modes{display:flex;flex-direction:column;gap:9px}
-.mode-card{display:flex;gap:11px;align-items:flex-start;padding:12px 14px;
-  border:1px solid var(--line);border-radius:9px;cursor:pointer;background:var(--panel);transition:.15s}
+/* v1.9.6：三张方式卡从"竖排三大块"改成"一行三个小块" ——
+   旧版每张卡自带一段说明，竖排三行之后小屏上第三张（新建批次）被挤出可视区，
+   用户根本不知道还有第三个选项。现在卡片只留标题 + 短标签，
+   详细规则由下方 modeHint() 按选中项显示（本来就有，不丢信息）。 */
+.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.mode-card{padding:10px 12px;border:1px solid var(--line);border-radius:9px;cursor:pointer;
+  background:var(--panel);transition:.15s}
 .mode-card:hover{border-color:var(--brand);background:var(--hover)}
 .mode-card.on{border-color:var(--brand);background:var(--brand-soft);box-shadow:0 0 0 3px var(--ring)}
 .mode-card.danger:hover{border-color:var(--danger)}
 .mode-card.danger .mode-radio{color:var(--danger)}
 .mode-card.danger.on{border-color:var(--danger);background:var(--danger-soft)}
-.mode-radio{color:var(--brand);font-size:14px;line-height:1.35;flex-shrink:0}
-.mode-t{font-weight:620;font-size:13.5px}
-.mode-d{font-size:12.5px;color:var(--text-2);margin-top:3px;line-height:1.6}
+.mode-head{display:flex;gap:6px;align-items:center;min-width:0}
+.mode-radio{color:var(--brand);font-size:13px;line-height:1.2;flex-shrink:0}
+.mode-t{font-weight:620;font-size:13px;white-space:nowrap}
+.mode-tag{font-size:11.5px;color:var(--text-2);margin-top:4px;line-height:1.5}
+@media (max-width:560px){
+  .modes{grid-template-columns:1fr}
+  .mode-card{display:flex;gap:8px;align-items:center}
+  .mode-tag{margin-top:0;margin-left:auto;text-align:right;flex-shrink:0}
+}
 
 /* ============ 布局 ============ */
 .shell{display:flex;height:calc(100vh - var(--topbar-h) - var(--batch-h))}
@@ -1557,6 +1567,8 @@ let S = {
   templates: null,       // 常用模板 [{id,title,tag,body}]
   todos: null,           // 备忘清单（v1.4）[{id,text,done,created}]，null = 首次，_seedLibraries 灌 []
   backupRemind: true,    // 数据安全提醒：导入过数据且未导出备份时弹（导出备份后置 false）
+  backupRemindEnabled: true,     // v1.9.6：备份提醒总开关（系统设置 → 数据管理 里切换）
+  backupRemindSnoozeUntil: 0,    // v1.9.6：提醒静默期（毫秒时间戳），弹过一次后 7 天内不再弹
   /* ---- 系统设置（v1.5）：学期信息驱动顶栏「第 X 周」---- */
   semester: { name: '2026-2027 学年第一学期', start: '2026-08-24', weeks: 18 },
   classOrder: [],        // 侧栏「我的班级」拖拽排序结果（班级名数组，新班级自动追加）
@@ -1604,7 +1616,17 @@ function attachBatch(id){
 /* 写库的唯一入口。任何「换掉整份学生数组」的操作都必须走这里，
    否则 S.students 会与批次脱钩（界面看着对，一刷新就回滚）。 */
 function setStudents(arr){
-  const b = activeBatch();
+  let b = activeBatch();
+  /* ⚠️ 兜底（v1.9.6）：没有批次却要写入非空数据，绝不能只改内存 ——
+     save() 持久化的是「批次」，那样写等于"界面看着对、重开全没了"。
+     正常路径走不到这里（导入前会先自动建批次）；真走到就当场建一个，保住数据。 */
+  if(!b && arr.length){
+    const nb = makeBatch(newBatchName(), 'new', arr, '');
+    S.batches.push(nb);
+    attachBatch(nb.id);
+    b = activeBatch();
+    console.warn('[中南大学生工作台] 检测到「无批次写入」，已自动创建批次保住数据：', nb.name);
+  }
   if(b){ b.students = arr; b.studentCount = arr.length; }
   S.students = arr;
 }
@@ -1702,6 +1724,8 @@ function buildSavePayload(){
     todos: Array.isArray(S.todos) ? S.todos : null,
     notes: typeof S.notes === 'string' ? S.notes : '',
     backupRemind: S.backupRemind !== false,
+    backupRemindEnabled: S.backupRemindEnabled !== false,        // v1.9.6：提醒总开关
+    backupRemindSnoozeUntil: S.backupRemindSnoozeUntil || 0,     // v1.9.6：提醒静默期
     semester: S.semester && typeof S.semester === 'object' ? S.semester : { name:'2026-2027 学年第一学期', start:'2026-08-24', weeks:18 },
     classOrder: Array.isArray(S.classOrder) ? S.classOrder : [],
     importHistory: Array.isArray(S.importHistory) ? S.importHistory.slice(0, 50) : [],
@@ -1815,6 +1839,8 @@ function load(){
       S.classOrder = Array.isArray(d.classOrder) ? d.classOrder.map(String) : [];
       S.importHistory = Array.isArray(d.importHistory) ? d.importHistory.filter(x=>x && x.id).slice(0,50) : [];
       S.lastBackupAt = typeof d.lastBackupAt === 'string' ? d.lastBackupAt : '';
+      S.backupRemindEnabled = d.backupRemindEnabled !== false;                       // v1.9.6
+      S.backupRemindSnoozeUntil = Number(d.backupRemindSnoozeUntil) || 0;            // v1.9.6
       S.profile = (d.profile && typeof d.profile === 'object')
         ? { name:String(d.profile.name||''), dept:String(d.profile.dept||''), phone:String(d.profile.phone||''), avatar:String(d.profile.avatar||'') }
         : { name:'',dept:'',phone:'',avatar:'' };
@@ -2560,16 +2586,34 @@ function renderTodos(){
     </div>`).join('');
 }
 
-/* ======== 数据安全提醒（v1.4） ========
+/* ======== 数据安全提醒（v1.4 引入 · v1.9.6 重写降频） ========
    数据存在本机浏览器存储里：清浏览器缓存 / 重置应用 / 换电脑都会丢。
-   每次导入学生或成绩后，若尚未导出过备份，弹一次提醒；导出备份后不再弹。 */
+   旧版的问题：只要导入过数据且尚未备份，S.backupRemind 一直是 true，
+   于是**每次导入都弹**，点「稍后再说」也没用 —— 用户反馈"太频繁、很打扰"。
+   新版三层闸门（宁可少弹，也不打扰）：
+   ① 总开关：系统设置 → 数据管理 → 「导入后提醒备份」，关了就永不弹（"上次备份"状态行照常显示）。
+   ② 频率闸：弹过一次（含被关掉）→ 至少隔 7 天才可能再弹。
+   ③ 必要性闸：从没备份过 → 该提醒；备份过但超过 30 天 → 该再提醒一次。 */
+const BACKUP_REMIND_INTERVAL = 7 * 86400000;    // 两次提醒之间至少隔 7 天
+const BACKUP_STALE_AFTER     = 30 * 86400000;   // 距上次备份超过 30 天 = 值得再提醒一次
+
+function backupRemindDue(){
+  if(S.backupRemindEnabled === false) return false;                     // ① 总开关
+  if(Date.now() < (S.backupRemindSnoozeUntil || 0)) return false;       // ② 频率闸
+  if(!S.lastBackupAt) return true;                                      // ③ 从没备份过
+  const t = new Date(String(S.lastBackupAt).replace(/-/g, '/'));
+  return isNaN(t) || (Date.now() - t.getTime()) > BACKUP_STALE_AFTER;   //    或太久没备了
+}
 function markDataChanged(){
-  S.backupRemind = true;
+  S.backupRemind = true;   // 旧字段保留（老数据兼容）；是否弹窗由 backupRemindDue() 决定
 }
 function showBackupRemind(){
-  if(!S.backupRemind) return;
+  if(!backupRemindDue()) return;
   if(typeof document === 'undefined' || !document.body) return;   // 环境未就绪（异常调用）直接跳过
   if(_brMaskEl) return;   // 已在弹就不重复
+  // 弹出即进入 7 天静默：无论之后点"稍后再说"还是直接关掉，都不会连着几天反复弹
+  S.backupRemindSnoozeUntil = Date.now() + BACKUP_REMIND_INTERVAL;
+  save();
   const mask = document.createElement('div');
   mask.id = 'brMask';
   mask.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(15,18,26,.6);display:flex;align-items:center;justify-content:center;padding:20px';
@@ -2579,7 +2623,8 @@ function showBackupRemind(){
     <div style="font-size:13.2px;line-height:1.9;color:var(--text-2)">
       您的数据保存在<b style="color:var(--text)">本机浏览器存储</b>中——
       <b style="color:var(--warn)">清理浏览器缓存、重置应用或更换电脑，这些数据不会自动带走，可能全部丢失。</b><br>
-      刚导入了新数据，建议现在就导出一份备份文件（一个 JSON，可随时导回）保存到 U 盘或网盘。
+      刚导入了新数据，建议现在就导出一份备份文件（一个 JSON，可随时导回）保存到 U 盘或网盘。<br>
+      <span style="color:var(--text-3)">点「稍后再说」后 7 天内不会再弹；也可以在 系统设置 → 数据管理 里关掉这个提醒。</span>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">
       <button class="btn" onclick="closeBackupRemind()">稍后再说</button>
@@ -2595,10 +2640,18 @@ function closeBackupRemind(){
   if(_brMaskEl && typeof _brMaskEl.remove === 'function') _brMaskEl.remove();
   _brMaskEl = null;
 }
-/* 导入成功后延时弹提醒：给导入完成弹窗留出展示时间 */
+/* 导入成功后延时弹提醒：给导入完成弹窗留出展示时间。
+   是否真的弹由 backupRemindDue() 决定（总开关 / 7 天频率闸 / 30 天必要性闸）。 */
 function maybeBackupRemind(){
-  if(!S.backupRemind) return;
+  if(!backupRemindDue()) return;
   setTimeout(showBackupRemind, 1200);
+}
+/* 系统设置 → 数据管理：「导入后提醒备份」开关 */
+function toggleBackupRemind(){
+  S.backupRemindEnabled = S.backupRemindEnabled === false;
+  if(S.backupRemindEnabled === false) S.backupRemindSnoozeUntil = 0;   // 关了就清掉静默期，语义更直白
+  save(); renderSettings();
+  toast(S.backupRemindEnabled === false ? '已关闭备份提醒弹窗（"上次备份"状态仍会显示）' : '已开启备份提醒（最多每 7 天一次）');
 }
 
 /* ======== 系统设置 · 学期与周次（v1.5） ======== */
@@ -2824,6 +2877,11 @@ function renderSettings(){
     <div style="margin-top:12px;font-size:13px;color:var(--text-2)">
       <span style="color:${S.lastBackupAt ? 'var(--text-2)' : 'var(--warn)'}">${esc(backupAgeText())}</span>
       ${S.lastBackupAt ? '' : ' · 建议现在就导出一份，清缓存/换电脑就不怕了'}
+    </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-2)">
+      <span style="flex-shrink:0">导入后提醒备份</span>
+      <button class="btn" style="padding:3px 12px;font-size:12.5px" onclick="toggleBackupRemind()">${S.backupRemindEnabled===false?'已关闭（不再弹窗）':'已开启（最多每 7 天一次）'}</button>
+      <span style="color:var(--text-3);font-size:12px">上面这行"上次备份"状态不受影响，始终显示</span>
     </div>
   </div></div>
 
@@ -6676,15 +6734,41 @@ function newBatchName(){
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} 导入`;
 }
 
-/* 导入方式单选卡 */
-function modeCard(id, title, desc, tone){
+/* 导入方式单选卡（v1.9.6 紧凑化：标题 + 短标签；详细规则看下方 modeHint()） */
+function modeCard(id, title, tag, tone){
   const on = importState.mode === id;
   return `<div class="mode-card ${on?'on':''} ${tone||''}" onclick="setImportMode('${id}')">
-    <div class="mode-radio">${on?'●':'○'}</div>
-    <div><div class="mode-t">${title}</div><div class="mode-d">${desc}</div></div>
+    <div class="mode-head"><span class="mode-radio">${on?'●':'○'}</span><span class="mode-t">${title}</span></div>
+    <div class="mode-tag">${tag}</div>
   </div>`;
 }
 function setImportMode(id){ importState.mode = id; renderImport(); }
+
+/* v1.9.6：确认页里勾选/取消某一列是否导入（学号是合并主键，不可排除） */
+function toggleImportCol(k, on){
+  if(k === '学号') return;
+  importState.skipCols = importState.skipCols || new Set();
+  if(on) importState.skipCols.delete(k); else importState.skipCols.add(k);
+  renderImport();
+}
+/* 勾选结果的实时小结：这次进几个字段、排除了哪些。
+   名册导入若把「政治面貌」排除掉，自动同步就不会发生 —— 必须当场提醒，不能等导入完才发现。 */
+function importFieldSummary(){
+  const m = importState;
+  const all = m.cols || [];
+  if(!all.length) return '';
+  const skipped = all.filter(c=>m.skipCols && m.skipCols.has(c));
+  const keep = all.length - skipped.length;
+  let html = `<div class="hint" style="margin-top:10px">
+    <b>本次将导入 ${keep} / ${all.length} 个字段</b>${
+      skipped.length
+        ? `（已排除：<b>${skipped.map(esc).join('、')}</b> —— 这些列不会进来，本机已有数据不受影响）`
+        : '（默认全部导入）'}`;
+  if(m.kind === 'roster' && skipped.indexOf('政治面貌') >= 0){
+    html += `<br><b style="color:var(--warn)">⚠ 名册导入排除了「政治面貌」：本次不会把任何人同步为"入党积极分子"。</b>`;
+  }
+  return html + `</div>`;
+}
 
 /* 模式对应的规则说明（覆盖模式必须把风险写在明面上） */
 function modeHint(mode){
@@ -6743,6 +6827,7 @@ function buildImportState(rawHeader, rawRows, fileName, headerIdx, rowNos){
   importState.rows = rows;
   // 本列全空 → 导入后不带来新信息，提前告知（而不是导入完才发现一片空）
   importState.emptyCols = cols.filter(c => !rows.some(r => r[c] != null && r[c] !== ''));
+  importState.skipCols = new Set();      // v1.9.6：换文件后重置勾选，默认全部导入
   importState.step = 2;
   renderImport();
 }
@@ -6750,7 +6835,8 @@ function buildImportState(rawHeader, rawRows, fileName, headerIdx, rowNos){
 function openImport(){
   importState = {
     step:1, fileName:'', header:[], cols:[], emptyCols:[], rows:[],
-    mode:'append', headerIdx:0, rowNos:null, kind:'student'
+    mode:'append', headerIdx:0, rowNos:null, kind:'student',
+    skipCols:new Set()      // v1.9.6：确认页里取消勾选、不参与导入的字段（归一列名）
   };
   renderImport();
   closeSidebar();
@@ -6777,10 +6863,9 @@ function renderImport(){
 
       <div class="modelabel">导入方式</div>
       <div class="modes">
-        ${modeCard('append','新增 / 合并','已有学号只更新，新学号追加；<b>备注永不覆盖</b>，不删任何学生')}
-        ${modeCard('overwrite','覆盖当前批次',
-          `清空当前批次的 <b>${cur?cur.students.length:0} 人</b> 后重新导入；辅导员备注<b>按学号搬过来</b>，删前自动导出备份`,'danger')}
-        ${modeCard('new','新建批次','另起一份<b>独立数据</b>，与现有批次并存，当前批次完全不受影响')}
+        ${modeCard('append','新增 / 合并','日常用这个 · 备注永不覆盖')}
+        ${modeCard('overwrite','覆盖当前批次','整批替换 · 删前自动备份','danger')}
+        ${modeCard('new','新建批次','另起一份 · 与现有批次并存')}
       </div>
       <div class="hint" style="margin-top:14px">${modeHint(m.mode)}</div>
       ${m.rows.length ? `
@@ -6808,13 +6893,16 @@ function renderImport(){
         </div>
         <span class="ok-badge">✓ 解析成功</span>
       </div>
-      <div class="hint">表头识别结果如下。<b>不同系统导出的列名会自动归一</b>（如「住宿地址」→「宿舍」），未见过的新字段原样保留，学号为必备主键。</div>
+      <div class="hint">表头识别结果如下。<b>不同系统导出的列名会自动归一</b>（如「住宿地址」→「宿舍」），未见过的新字段原样保留，学号为必备主键。
+        <b>不想导入的列，把右边"导入"的勾去掉即可</b>（只是这一列不进来，已在本机的数据不受影响）。</div>
       <div style="max-height:250px;overflow:auto;border:1px solid var(--line-2);border-radius:9px">
         <table class="map-tbl">
-          <thead><tr><th style="width:44px">#</th><th>表格列名</th><th style="width:150px">识别结果</th></tr></thead>
+          <thead><tr><th style="width:44px">#</th><th>表格列名</th><th style="width:150px">识别结果</th><th style="width:64px">导入</th></tr></thead>
           <tbody>${m.header.map((h,i)=>{
             const isKey = h.norm === '学号';
             const isEmptyCol = m.emptyCols.indexOf(h.norm) >= 0;
+            const canSkip = !!h.norm && !isKey;
+            const checked = !(m.skipCols && m.skipCols.has(h.norm));
             const badge = isKey
               ? `<span class="ok-badge">✓ 主键</span>`
               : h.renamed
@@ -6825,10 +6913,14 @@ function renderImport(){
             return `<tr>
               <td style="color:var(--text-3)">${i+1}</td>
               <td>${esc(h.raw || '（空列名）')}${isEmptyCol?' <span style="color:var(--warn);font-size:11.5px">· 本列全空</span>':''}</td>
-              <td>${badge}</td></tr>`;
+              <td>${badge}</td>
+              <td style="text-align:center">${h.norm ? (canSkip
+                  ? `<input type="checkbox" ${checked?'checked':''} data-k="${esc(h.norm)}" onchange="toggleImportCol(this.dataset.k, this.checked)" title="勾选 = 导入这一列；取消 = 这一列不进来">`
+                  : `<span class="ok-badge" title="学号是合并主键，必须导入">必导入</span>`) : ''}</td></tr>`;
           }).join('')}</tbody>
         </table>
       </div>
+      ${importFieldSummary()}
       ${importPreStats()}`;
   }
   else{
@@ -6877,6 +6969,12 @@ function renderImport(){
       ${res.mode==='new' ? `<div class="hint">
         <b>新批次已创建，并自动切换为当前批次</b><br>
         批次名「${esc(res.batchName||'')}」共 ${res.added||0} 人；原有批次未受影响，可在顶部批次条随时切回。
+      </div>` : ''}
+
+      ${res.autoBatchName ? `<div class="hint" style="border-color:var(--warn)">
+        <b style="color:var(--warn)">导入前没有任何批次，已自动新建「${esc(res.autoBatchName)}」并放入本次导入的 ${res.added||0} 人</b><br>
+        这是防止数据丢失的保护动作（以前这种情况数据只存在内存里，重开程序就没了）。<br>
+        如果这批数据本该并进某个已有批次，请到「批次管理」删掉这个自动批次，再重新导入并选对方式。
       </div>` : ''}
 
       ${res.kind==='roster' ? `<div class="hint" style="border-color:var(--brand);background:var(--brand-soft)">
@@ -7251,6 +7349,26 @@ function doImportOverwrite(target, clearedCount, prevSnapshot){
 
 /* ════════ 模式二/三：按列合并（四条铁律） ════════ */
 function doImportMerge(rows, cols, mode, remarkMap, backupName, clearedCount, prevSnapshot){
+  /* ⚠️ v1.9.6：没有批次时（比如批次被删光了）绝不能把数据只写进内存。
+     save() 持久化的是「批次」，没有批次 = 界面上看得到人数、结果页也显示"导入成功"，
+     但重开程序后「全部学生」是空的 —— 数据悄悄丢了。
+     所以先自动建一个批次（用文件名命名）并挂上去，结果页会明说这件事。 */
+  let autoBatchName = '';
+  if(mode !== 'new' && !activeBatch()){
+    const base = String((importState && importState.fileName) || '').replace(/\.(xlsx|xls|csv)$/i, '').trim();
+    autoBatchName = base || newBatchName();
+    const b = makeBatch(autoBatchName, 'new', [], importState ? importState.fileName : '');
+    S.batches.push(b);
+    attachBatch(b.id);
+  }
+  /* v1.9.6：勾选排除的字段 —— 确认页里取消勾选的列不参与导入（学号是合并主键，永远保留）。
+     在这里统一过滤，三条模式路径（new / overwrite / append）就都不用各自处理。 */
+  const skip = (importState && importState.skipCols) || new Set();
+  skip.delete('学号');
+  if(skip.size){
+    rows = rows.map(r=>{ const o={}; Object.entries(r).forEach(([k,v])=>{ if(!skip.has(k)) o[k]=v; }); return o; });
+    cols = cols.filter(c=>!skip.has(c));
+  }
   // v1.5 导入历史：进函数先冻结「导入前」的状态（覆盖模式此时学生已被清空，用传入的快照）
   const preStudents = mode === 'overwrite' ? (prevSnapshot || []).slice() : S.students.slice();
   const preBatchId = activeBatch() ? activeBatch().id : null;
@@ -7325,7 +7443,8 @@ function doImportMerge(rows, cols, mode, remarkMap, backupName, clearedCount, pr
   importState.result = {
     mode, added, updated, skipped, badRows, missing, cols,
     total: rows.length, carried, unmatchedRemarks, clearedCount, backupName,
-    kind: sheetKind, rosterSynced, rosterKept   // v1.9.2：名册同步统计
+    kind: sheetKind, rosterSynced, rosterKept,   // v1.9.2：名册同步统计
+    autoBatchName                                 // v1.9.6：无批次时自动建的批次名
   };
   importState.step = 3;
   renderImport();
