@@ -160,14 +160,17 @@ const polHtml = R(`$('mainArea').innerHTML`);
   const nQr   = (polHtml.match(/class="qr-box"/g) || []).length;
   const nCopy = (polHtml.match(/copyPlain\(/g) || []).length;
   const ok = !threw
-    && polHtml.includes('鹿晓南') && polHtml.includes('综合评定答疑机器人')
+    // v2.1.0：这一页改名「AI 助理」并收三个入口（新增「学工工作助理」）
+    && polHtml.includes('鹿晓南') && polHtml.includes('综合评定答疑机器人') && polHtml.includes('学工工作助理')
+    && polHtml.includes('辅导员专用')
     && polHtml.includes('data:image/png;base64')
     && !polHtml.includes('notesArea')
     && !polHtml.includes('什么问题适合问鹿晓南')                  // 已删
-    && nQr === 2 && nCopy === 2                                   // 两张码 / 两个复制按钮
+    && nQr === 3 && nCopy === 3                                   // 三张码 / 三个复制按钮
     && polHtml.includes('24e2c0d19f4e8fee5bcfc17372ce897e8b')      // 鹿晓南链接
-    && polHtml.includes('24d1d5d6dbbc9966888e83992af4e857fc');     // 答疑机器人链接
-  ok ? pass('AI 辅导员页：两卡并列 + 两张二维码同款外框 + 各自「复制链接」')
+    && polHtml.includes('24d1d5d6dbbc9966888e83992af4e857fc')      // 答疑机器人链接
+    && polHtml.includes('249890243394250fb32122a8eb23103ecc');     // 学工工作助理链接（v2.1.0）
+  ok ? pass('AI 助理页：三卡并列 + 三张二维码同款外框 + 各自「复制链接」')
      : fail(`renderAssistant 落点不对（qr-box ${nQr} 个 / 复制按钮 ${nCopy} 个）`
             + (threw ? ' 异常:' + threw.message : ''));
 }

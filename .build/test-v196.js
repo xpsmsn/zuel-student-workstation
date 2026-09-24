@@ -466,6 +466,25 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
   ok(R('(activeBatch().grades||[]).length') === 1,
      '★ 脱钩状态下录的成绩仍然落进批次（不会重开就没了）');
 
+  /* ── [13] AI 助理页三入口 + 金句框定宽（v2.1.0）── */
+  console.log('\n[13] AI 助理页三入口 & 金句框定宽');
+  ok(html.includes("class=\"asst-cards\""), '布局类改名为 .asst-cards（原来是 .asst-2col，两栏）');
+  ok(/\.asst-cards\{display:grid;grid-template-columns:repeat\(3/.test(html), '★ 三栏并排（repeat(3,minmax(0,1fr))）');
+  ok(html.includes('@media (max-width:1180px){ .asst-cards{grid-template-columns:repeat(2'), '窄屏退 2 栏');
+  ok(html.includes('@media (max-width:720px){ .asst-cards{grid-template-columns:1fr'), '手机退 1 栏');
+  ok(!html.includes('asst-2col'), '旧类名 .asst-2col 已无残留');
+  ok(html.includes('const XSGZZL_URL') && html.includes('const QR_XSGZZL'), '新增学工工作助理的链接与二维码常量');
+  const _u = R('XSGZZL_URL');
+  ok(_u.indexOf('https') === 0 && _u.indexOf('/wework_admin/common/openBotProfile/') > 0
+     && /^[0-9a-f]{32}$/.test(_u.slice(-32)),
+     '链接与另外两个同一种格式（openBotProfile + 32 位 hash）：' + _u.slice(-12) + '…');
+  ok(R('XSGZZL_URL').slice(-32) !== R('LU_URL').slice(-32) && R('XSGZZL_URL').slice(-32) !== R('BOT_URL').slice(-32),
+     '★ 和另外两个不是同一个机器人（hash 不同）');
+  // 金句框：定宽 + 允许收缩（两者缺一不可）
+  ok(/\.quote-bar\{[\s\S]{0,420}width:min\(46vw,556px\);min-width:0;/.test(html), '★ 金句框按最长语录定宽（40 字 → 556px）');
+  ok(html.includes('.topbar .quote-bar{flex:0 1 auto}'), '★ 用两个类的选择器压过 .topbar>*{flex-shrink:0}（否则撑破顶栏）');
+  ok(html.indexOf('max-width:min(46vw,560px)') < 0, '旧的 max-width 写法已移除（那正是"换句就跳"的原因）');
+
   finish();
 })().catch(e => { console.error('测试执行出错：' + (e && e.stack || e)); process.exit(1); });
 
