@@ -371,10 +371,11 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
      '多个标签都能还原（顺序固定按标签表排，不随标记先后变）');
   ok(R(`tagsOf({'关注标签':''}).length`) === 0 && R(`tagsOf({}).length`) === 0, '没标签时返回空');
   eq(R(`tagTitleOf({'关注标签':'🎭⛄'})`), '🎭心理 ⛄人际', '悬停提示把 emoji 翻成名称');
-  // 关注逻辑：原来只认挂科/军训备注，现在自己标的标签也算
+  // 关注逻辑：只认"有据可查"的信号（成绩不及格 / 旧挂科字段）+ 辅导员自己标的标签
+  // ⚠️ 「军训备注」字面上与学业关注无关，是历史误用，已移出关注信号 —— 见 CONTEXT.md「关注信号」
   ok(R(`hasFocus({'关注标签':'🎭'})`) === true, '★ 打了标签的学生进「需重点关注」');
   ok(R(`hasFocus({})`) === false, '没有任何信号的学生不算重点关注');
-  ok(R(`hasFocus({'军训备注':'需留意'})`) === true, '原来的军训备注规则没被改坏');
+  ok(R(`hasFocus({'军训备注':'需留意'})`) === false, '★ 军训备注不再算关注信号（历史误用已移除）');
   R(`S.batches=[]; S.activeBatchId=null; S.students=[];
      S.batches.push(makeBatch('标签测试','demo',[])); attachBatch(S.batches[0].id);
      setStudents([{'学号':'2026001','姓名':'张三'},{'学号':'2026002','姓名':'李四'}]);`);
@@ -401,6 +402,28 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
   R(`S.quickView='all'; S.filters={};`);
   ok(R(`detailTagBlock('2026001')`).indexOf('toggleStudentTag') >= 0, '学生详情里有可点的标签行');
   ok(R(`detailTagBlock('2026001')`).indexOf('自定义标签') >= 0, '详情里能进「自定义标签」');
+
+  /* 行为接缝：只有「军训备注」的学生不该出现在「需重点关注」名单里
+     —— 另两类信号各留 1 人，证明移出军训备注没有误伤它们 */
+  R(`setStudents([
+       {'学号':'2026901','姓名':'军训王','军训备注':'需留意'},
+       {'学号':'2026902','姓名':'标签李','关注标签':'🎭'},
+       {'学号':'2026903','姓名':'挂科张','挂科情况':'2'}]);
+     S.filters={}; S.classFilter='all'; S._search=''; S.quickView='focus';`);
+  eq(R(`viewList().length`), 2, '★ 只有军训备注的人不进「需重点关注」（带标签的与有挂科记录的各 1 人）');
+  ok(R(`viewList().some(s=>s['学号']==='2026901')`) === false, '军训备注那位确实不在名单里');
+  ok(R(`viewList().some(s=>s['学号']==='2026902')`) === true, '带关注标签的仍在名单里（没误伤）');
+  ok(R(`viewList().some(s=>s['学号']==='2026903')`) === true, '有挂科记录的仍在名单里（没误伤）');
+  // 还原成上面那两位学生，别影响后续断言
+  R(`setStudents([{'学号':'2026001','姓名':'张三','关注标签':'🎭'},
+                  {'学号':'2026002','姓名':'李四','关注标签':'👩‍👦⛄'}]);
+     S.quickView='all'; S.filters={};`);
+
+  /* 静态断言：仪表盘「关注提醒」里那条「军训需关注」是同一处误用的第二张脸，必须一起清 */
+  ok(appSrc.indexOf('军训需关注') < 0, '★ 源码里不再有「军训需关注」提醒卡');
+  // 反向保护：军训备注仍是个可显示字段，只把它从"关注信号"里摘掉，别连字段一起删了
+  ok(appSrc.indexOf("'军训备注'") >= 0, '军训备注仍作为字段保留（只摘信号，不删字段）');
+
   R(`openTagManager();`);
   ok(R(`$('modalRoot').innerHTML`).indexOf('addFocusTag') >= 0, '标签管理弹窗（增删改）可打开');
   ok(R(`buildSavePayload().focusTags`) !== undefined, '标签表进了存档载荷（持久化）');
@@ -484,6 +507,23 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
   ok(/\.quote-bar\{[\s\S]{0,420}width:min\(46vw,556px\);min-width:0;/.test(html), '★ 金句框按最长语录定宽（40 字 → 556px）');
   ok(html.includes('.topbar .quote-bar{flex:0 1 auto}'), '★ 用两个类的选择器压过 .topbar>*{flex-shrink:0}（否则撑破顶栏）');
   ok(html.indexOf('max-width:min(46vw,560px)') < 0, '旧的 max-width 写法已移除（那正是"换句就跳"的原因）');
+
+  /* ════════ [14] 总览渲染入口唯一（死代码清理） ════════
+     原型里曾有两个同名 renderDashboard()：一个是「数据总览构建中…」的占位版，
+     一个是真的仪表盘。同名函数后者胜出，所以占位版从来没执行过 —— 但留着会让
+     下一个人（和下一个 agent）以为总览还没做完。
+     真正的风险是"删错那一个"：删掉真实现，占位版就接管，总览直接变成「构建中…」。
+     所以先用行为断言把真实现钉住，再去删。 */
+  console.log('\n[14] 总览渲染入口唯一');
+  R(`S.batches=[]; S.activeBatchId=null; S.students=[];
+     S.batches.push(makeBatch('总览测试','demo',[])); attachBatch(S.batches[0].id);
+     setStudents([{'学号':'2026801','姓名':'总览甲','班级':'法语2401'}]);`);
+  R(`renderDashboard();`);
+  const dashOut = R(`$('mainArea').innerHTML`);
+  ok(dashOut.indexOf('构建中') < 0, '★ 总览渲染的不是「构建中…」占位版（说明删掉的是占位那个）');
+  ok(dashOut.indexOf('dashBody') >= 0, '★ 真仪表盘照旧渲染（含 dashBody 挂载点）');
+  eq((appSrc.match(/function renderDashboard\s*\(/g) || []).length, 1, '★ 源码里 renderDashboard 只定义一次');
+  ok(appSrc.indexOf('数据总览构建中') < 0, '占位版文案已从源码移除');
 
   finish();
 })().catch(e => { console.error('测试执行出错：' + (e && e.stack || e)); process.exit(1); });

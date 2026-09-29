@@ -3917,9 +3917,11 @@ function presetMissText(p){
   return '字段缺失';
 }
 
-/* 「需重点关注」= 有不及格（来自成绩表）或 军训备注/旧挂科字段（来自学生表）有值 */
+/* 「需重点关注」= 有不及格（来自成绩表）或 旧挂科字段（来自学生表，仅为旧模板兼容）有值 */
 /* ======== v1.9.8：学生「关注标签」（可自定义） ========
    原来的「需重点关注」只认两类信号：成绩表的不及格门数、学生表的挂科情况/军训备注
+   ⚠️ 军训备注已于 v2.1.x 移出关注信号：它字面上与学业关注无关，属历史误用
+      （只摘信号，不删字段 —— 详情页「入学与住宿」里仍能看到它。见 CONTEXT.md「关注信号」）
    —— 也就是"有据可查"的那部分。但辅导员真正在跟的事往往没数据来源：
    心理状态、单亲、人际紧张…… 这些只有自己知道，得有地方标。
    设计取舍：
@@ -4054,7 +4056,7 @@ function delFocusTag(emoji){
 function hasFocus(s){
   const g = gradeOf(s);
   if(g && gNum(g,'不及格门数') > 0) return true;
-  if(s['挂科情况'] || s['军训备注']) return true;
+  if(s['挂科情况']) return true;   // 旧导出模板的遗留字段，仅为老批次兼容保留
   return hasFocusTag(s);   // v1.9.8：辅导员自己标的关注标签也算
 }
 
@@ -5526,13 +5528,6 @@ function saveColSettings(){
   toast(`列已更新：显示 ${cols.length} 列`);
 }
 
-/* ---------- 总览仪表盘（批次四实现） ---------- */
-function renderDashboard(){
-  $('mainArea').innerHTML = `<div class="card"><div class="card-body">
-    <div class="empty-state"><div class="ico">📊</div>数据总览构建中…</div>
-  </div></div>`;
-}
-
 /* =====================================================================
    总览仪表盘
    设计要点：
@@ -5851,13 +5846,11 @@ function renderDashBody(){
   const unDormN    = searched.length - dormN;
   const fail = searched.filter(s=>{const g=gradeOf(s); return !!g && gNum(g,'不及格门数')>0;}).length;
   const lowGpa = searched.filter(s=>{const v=gNum(gradeOf(s),'平均学分绩点'); return !isNaN(v)&&v>0&&v<LOW_GPA;}).length;
-  const drill = searched.filter(s=>s['军训备注']).length;
 
   // 关注提醒（只保留"确实有值"的项；缺字段的项不参与，避免显示成 0）
   const alerts = [
     {n:fail, t:'有不及格科目', c:'danger', act: presetAvailable(presetById('fail')) ? `gotoList({preset:'fail'})` : ''},
     {n:lowGpa, t:`绩点偏低（< ${LOW_GPA}）`, c:'warn', act: presetAvailable(presetById('lowgpa')) ? `gotoList({preset:'lowgpa'})` : ''},
-    {n:drill, t:'军训需关注', c:'warn', act:''},
     {n:searched.length-withRemark, t:'尚未填写备注', c:'brand', act:`gotoList({preset:'noremark'})`},
     {n:noScoreN, t:'暂无成绩记录', c:'warn',
       act: hasGrade() ? `gotoList({preset:'noscore'})` : ''}
