@@ -6129,6 +6129,34 @@ function renderDashBody(){
         emptyText:'本批学生的学籍状态都是「在读」，且都在校'}));
   }
 
+  /* ── v2.2（方案 片 E）：学制与毕业年份 ──
+     真实数据：学制 4 年×164 / 2 年×25，预计毕业年份 2028×188 / 2027×1。
+     这两项都不是"越多人越要看"的名单（25 人罗列出来没人会看），所以做成**计数行 + 跳预设**：
+     与「关注提醒」同一套样式；沿用该卡口径 —— 计数为 0 的行不出现，两项都为 0 时整卡不出现。 */
+  const xzRows = (() => {
+    const rows = [];
+    if(fieldHasData('学制')){
+      const n = searched.filter(s => String(s['学制'] || '') === '2' || /二/.test(String(s['班级'] || ''))).length;
+      if(n) rows.push({n, t:'第二学士学位（学制 2 年 / 班级含「二」）', act:`gotoList({preset:'second'})`});
+    }
+    const cy = batchGradYear(S.students);
+    if(fieldHasData('预计毕业年份') && !isNaN(cy)){
+      const n = searched.filter(s => isEarlyGrad(s)).length;
+      if(n) rows.push({n, t:`提前毕业（早于本批主流 ${cy} 年）`, act:`gotoList({preset:'earlygrad'})`});
+    }
+    return rows;
+  })();
+  if(xzRows.length){
+    cards.push(dashCard('学制与毕业年份', `${xzRows.length} 项可跟进`,
+      `<div class="alert-list">${xzRows.map(a=>`
+        <div class="alert-row clickable" onclick="${a.act}">
+          <span class="alert-dot" data-c="brand"></span>
+          <span class="alert-t">${esc(a.t)}</span>
+          <span class="alert-n">${a.n}</span>
+          <span class="alert-go">→</span>
+        </div>`).join('')}</div>`, false, {span:spanFor('list', xzRows.length)}));
+  }
+
   cards.push(dashCard('关注提醒', `${alerts.length} 项待处理`,
     alerts.length ? `<div class="alert-list">${alerts.map(a=>`
       <div class="alert-row ${a.act?'clickable':''}" ${a.act?`onclick="${a.act}"`:''}>
@@ -6141,9 +6169,16 @@ function renderDashBody(){
 
   // 数据完整度：只列"本批真有这个字段"的项 —— 缺字段的项不出现，
   // 否则会显示成「0 / 189」，被误读成"这届学生都没宿舍"
+  const cntField = k => searched.filter(s => s && s[k] != null && String(s[k]).trim() !== '').length;
   const pbarRows = [pbar('已填写辅导员备注', withRemark, searched.length, 'var(--brand)')];
   if(hasScore) pbarRows.push(pbar('已录入成绩', scoreN, searched.length, 'var(--ok)'));
   if(hasDorm)  pbarRows.push(pbar('已分配宿舍', dormN, searched.length, 'var(--warn)'));
+  /* v2.2（方案 片 E）：把真实模板里"缺失最值得注意"的三列纳进来 ——
+     真实数据缺失：微信号 86 人、身份证件号 25 人、家庭电话 25 人。
+     沿用既有规则：**只列本批真有这个字段的项**，缺字段不虚报「0 / N」（那会被读成"这届学生都没填"）。 */
+  if(fieldHasData('证件号码')) pbarRows.push(pbar('已填写证件号码', cntField('证件号码'), searched.length, 'var(--brand-deep)'));
+  if(fieldHasData('家庭电话')) pbarRows.push(pbar('已填写家庭电话', cntField('家庭电话'), searched.length, 'var(--warn)'));
+  if(fieldHasData('微信号'))   pbarRows.push(pbar('已填写微信号',   cntField('微信号'),   searched.length, 'var(--text-3)'));
   cards.push(dashCard('数据完整度', `备注覆盖 ${withRemark} / ${searched.length} 人`,
     `<div class="pbar-stack">${pbarRows.join('')}</div>`, !searched.length, {span:spanFor('pbar', pbarRows.length)}));
 
@@ -6188,6 +6223,17 @@ function renderDashBody(){
   if(multi(blds)){
     cards.push(dashCard('宿舍楼分布', `${blds.length} 栋 · 覆盖 ${blds.reduce((a,b)=>a+b.value,0)} 人`,
       hBarChart(blds), false, {span:spanFor('hbar', blds.length)}));
+  }
+
+  /* ── v2.2（方案 片 E）：管理老师 ──
+     真实数据 2 类：吴章凡(辅导员)×179 / 吴章凡(辅导员),周怡(辅导员)×10。
+     ⚠️ 这个字段的值是**逗号分隔的多人**（见 MULTIVALUE_FIELDS）。这里按**完整值**分组成类，
+     也就是"谁和谁一起管"；点图例筛选时走包含匹配，所以选「吴章凡(辅导员)」不会漏掉共管的那批人。 */
+  const teachers = groupCount(searched, '管理老师');
+  if(fieldHasData('管理老师') && multi(teachers)){
+    cards.push(dashCard('管理老师', `${teachers.length} 类 · 点击图例筛选`,
+      donutChart(teachers, {field:'管理老师', centerLab:'人', onClick:true}), false,
+      {span:spanFor('donut', teachers.length)}));
   }
 
   /* ── v2.2（方案 片 D）：户口性质 ── 资助认定常用（真实数据 非农84 / 农业80）。

@@ -911,6 +911,61 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
   R(`S.students.forEach(s => { delete s['学籍状态']; delete s['是否在校']; }); renderDashboard();`);
   ok(cardOf(R(`$('dashBody').innerHTML`), '学籍异常') === null, '★ 本批没有学籍/在校字段 → 不出现「学籍异常」卡');
 
+  /* ════════ [23] 新增看板卡：学制与毕业年份 / 管理老师 / 完整度纳入新列（方案 片 E） ════════
+     真实分布：学制 4年×164 / 2年×25、预计毕业年份 2028×188 / 2027×1、
+     管理老师 吴章凡(辅导员)×179 / 吴章凡(辅导员),周怡(辅导员)×10。
+     完整度新增三项的真实缺失：微信号 86、身份证件号 25、家庭电话 25（189 行样本）。 */
+  console.log('\n[23] 新增看板卡（片 E）：学制与毕业年份 / 管理老师 / 完整度纳入新列');
+  R(`
+    S.batches = []; S.activeBatchId = null; S.students = []; S.grades = [];
+    S.batches.push(makeBatch('片E测试','demo',[])); attachBatch(S.batches[0].id);
+    setStudents([
+      {'学号':'2026951','姓名':'甲','班级':'英语2401','学制':'4','预计毕业年份':'2028','管理老师':'吴章凡(辅导员)','证件号码':'X1','家庭电话':'0271','微信号':'w1'},
+      {'学号':'2026952','姓名':'乙','班级':'英语2401','学制':'4','预计毕业年份':'2028','管理老师':'吴章凡(辅导员)','证件号码':'X2','家庭电话':'0272'},
+      {'学号':'2026953','姓名':'丙','班级':'英语2402','学制':'4','预计毕业年份':'2028','管理老师':'吴章凡(辅导员),周怡(辅导员)','证件号码':'X3'},
+      {'学号':'2026954','姓名':'丁','班级':'商英2403','学制':'2','预计毕业年份':'2028','管理老师':'吴章凡(辅导员),周怡(辅导员)'},
+      {'学号':'2026955','姓名':'戊','班级':'英语2403','学制':'4','预计毕业年份':'2027','管理老师':'吴章凡(辅导员)','证件号码':'X5','家庭电话':'0275','微信号':'w5'}
+    ]);
+    S.grades.length = 0; invalidateGradeMap();
+    S.quickView='all'; S.filters={}; S.classFilter='all'; S._search='';
+  `);
+  R(`renderDashboard();`);
+  const c23 = R(`$('dashBody').innerHTML`);
+
+  // ── ① 学制与毕业年份：计数行 + 跳同名预设（25 人列名单反而没人看，所以做成计数）──
+  const xz = cardOf(c23, '学制与毕业年份');
+  ok(xz !== null, '★ 出现「学制与毕业年份」卡');
+  ok(xz !== null && xz.indexOf('第二学士学位') >= 0, '有「第二学士学位」一行');
+  ok(xz !== null && xz.indexOf("preset:'second'") >= 0, '★ 点它跳到同名预设 second');
+  ok(xz !== null && xz.indexOf("preset:'earlygrad'") >= 0, '★ 点「提前毕业」跳到同名预设 earlygrad');
+  ok(xz !== null && xz.indexOf('2028') >= 0, '写明基准是哪一年（本批主流 2028）');
+  eq(R("presetById('second').fn(S.students).length"), 1, '学制=2 的那位被 second 预设筛出');
+  eq(R("presetById('earlygrad').fn(S.students).length"), 1, '2027 的那位被 earlygrad 预设筛出');
+
+  // ── ② 管理老师：环形（值是逗号分隔的多人，整值作为一类）──
+  const mt = cardOf(c23, '管理老师');
+  ok(mt !== null, '★ 出现「管理老师」卡');
+  ok(mt !== null && mt.indexOf('吴章凡(辅导员)') >= 0, '单人管的那一类在');
+  ok(mt !== null && mt.indexOf('周怡') >= 0, '★ 双人共管那一类在（保留逗号分隔的完整值）');
+  ok(mt !== null && /dash-card span-5/.test(mt), '环形卡半行');
+  ok(mt !== null && mt.indexOf('donut-svg') >= 0, '用的是环形图');
+
+  // ── ③ 数据完整度纳入新列（只列本批真有值的字段 —— 既有规则不能破）──
+  const wd = cardOf(c23, '数据完整度');
+  const barOf = (h, label) => { const i = h.indexOf(label); return i < 0 ? '' : h.slice(i, i + 200); };
+  ['已填写证件号码','已填写家庭电话','已填写微信号'].forEach(t =>
+    ok(wd !== null && wd.indexOf(t) >= 0, `完整度含「${t}」`));
+  ok(barOf(wd, '已填写证件号码').indexOf('4 / 5') >= 0, '★ 证件号码：5 人中 4 人已填');
+  ok(barOf(wd, '已填写家庭电话').indexOf('3 / 5') >= 0, '★ 家庭电话：3 人已填');
+  ok(barOf(wd, '已填写微信号').indexOf('2 / 5') >= 0, '★ 微信号：2 人已填');
+
+  // ── 反向保护 ──
+  R(`S.students.forEach(s => { delete s['微信号']; }); renderDashboard();`);
+  ok(cardOf(R(`$('dashBody').innerHTML`), '数据完整度').indexOf('已填写微信号') < 0,
+     '★ 本批没有微信号字段 → 完整度不列该项（不虚报「0 / 5」，这是既有规则）');
+  R(`S.students.forEach(s => { delete s['管理老师']; }); renderDashboard();`);
+  ok(cardOf(R(`$('dashBody').innerHTML`), '管理老师') === null, '★ 本批没有管理老师字段 → 不出现该卡');
+
   finish();
 })().catch(e => { console.error('测试执行出错：' + (e && e.stack || e)); process.exit(1); });
 
