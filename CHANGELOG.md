@@ -18,6 +18,33 @@
 
 ## [未发布]
 
+**修复：详情页编辑会被静默丢弃（升级清单 ①：数据丢失防护）。**
+
+- **问题（三条真实丢失路径）**：
+  1. 编辑中点 × / 遮罩 → `closeModal()` 直接清掉 `detailEdit` / `detailDraft`，**一整页字段编辑没了且无任何提示**；
+  2. 浏览器刷新 / 关标签页 → 全文没有 `beforeunload`，同样静默丢失；
+  3. **编辑学生甲时直接打开学生乙** → 草稿被新草稿覆盖。
+- **改法**：
+  · `draftSet()`（**所有**编辑的唯一入口）顺手标脏 `detailDraft.dirty = true`；
+  · 新增 `confirmLeaveDirty(then)` —— 有未保存修改才问，用**应用内** `askConfirm`（不用系统 `confirm`：
+    打包后的 WebView 会吞掉它）；
+  · `closeModal()` 拆成「守门 + `closeModalReally()`」，脏状态下先问再关；
+  · `openDetail()` 在「草稿属于**另一个**学生」时先问；同一学生不算（"保存 → 回到查看态"走的就是同 id 路径）；
+  · `initResponsive()` 里装 `beforeunload`（仅脏时触发）。
+- **⚠️ 一处我原本设计错、被测试逼着改正的地方（值得留痕）**：我一开始把守门加在 `renderMain()` 上，
+  想"一次覆盖 12+ 个导航入口"，判据是"视图变了"。跑测试才发现两条问题：
+  （a）`openDetail` **不改变 `S.view`**，所以"已在列表页时点侧栏预设"根本不触发；
+  （b）更重要 —— **导航并不会丢草稿**：详情弹窗挂在独立的 `#modalRoot` 上，全文搜索确认
+  **没有任何视图渲染函数会写 `modalRoot`**，所以切视图时弹窗与草稿都活着。
+  于是撤掉这个错误守门（它是在"解决一个不存在的问题"），改成真正会丢数据的那条路径（打开另一个学生）。
+  测试也随之改成断言**真实行为**："跳转不弹确认、且草稿仍在、弹窗仍在"。
+- **回归**：test-v196 新增 §[26] 共 23 条（脏标记来源 / closeModal 守门与取消保留 / 不脏不弹 /
+  导航不弹且草稿仍在 / 打开另一学生要拦 / 同学生重开不拦 / beforeunload 存在）。
+- **验证**：全量闸门绿（check-syntax / test-library / test-import / test-v196 / test-delete-backup /
+  build-desktop + test-desktop 28/28）；桌面版入口已确认带上 `confirmLeaveDirty` / `beforeunload`。
+
+---
+
 **修复：列设置里每勾一项就跳回列表首行（用户反馈）。**
 
 - **根因**：`colToggle()` 勾选后调 `renderColSettings()` **整段重绘弹窗** → `.collist`

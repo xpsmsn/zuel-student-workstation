@@ -1101,6 +1101,98 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
     R(`['renderColSettings','renderFieldSettings','renderSettings'].forEach(n=>{ if(window.__spy[n]) window[n] = window.__spy[n].bak; });`);
   }
 
+  /* ════════ [26] 详情页 dirty 守门（用户数据丢失防护，2026-09-30 升级清单 ①） ════════
+     问题：点 × / 遮罩 / 侧栏跳转 / 关标签页 → 详情页的字段编辑全部静默丢弃。
+     改法：draftSet 维护 dirty；导航走"view 变了就 askConfirm"；浏览器层加 beforeunload。 */
+  console.log('\n[26] 详情页编辑：dirty 守门 + 离开前确认');
+  if(R('typeof draftSet') !== 'function'){
+    fail('详情页编辑机制不在 —— 后续断言无法进行');
+  } else {
+    // 探针：拦截 askConfirm（dirty 时应该被调用），记录调用次数与 onOk
+    R(`
+      window.__c = { calls:0, cb:null };
+      window.__oldAsk = askConfirm;
+      window.askConfirm = function(opts){ window.__c.calls++; window.__c.cb = (opts && opts.onOk) || null; };
+    `);
+
+    R(`
+      S.batches=[]; S.activeBatchId=null; S.students=[]; S.grades=[];
+      S.batches.push(makeBatch('dirty测试','demo',[])); attachBatch(S.batches[0].id);
+      setStudents([{'学号':'2026901','姓名':'甲','班级':'英语2401','备注（保密）':'原备注'}]);
+      S.grades.length=0; invalidateGradeMap();
+    `);
+    R(`renderDashboard();`);   // 立起 _navFromView（无 dirty 不触发）
+
+    // ① 进入编辑、改一个字段 → dirty
+    R(`openDetail('2026901', true);`);
+    eq(R('detailEdit'), true, '进入编辑模式');
+    eq(R('!!(detailDraft && detailDraft.dirty)'), false, '刚进入 → 还不脏');
+    R(`draftSet('f', '备注（保密）', '改过的内容');`);
+    eq(R('detailDraft.fields["备注（保密）"]'), '改过的内容', '★ 修改被记进草稿');
+    eq(R('detailDraft.dirty'), true, '★ draftSet 把草稿标 dirty');
+    eq(R('window.__c.calls'), 0, '修改时不该弹确认');
+
+    // ② 保存 → dirty 应清零、草稿清掉、真实数据被改
+    R(`saveDetailEditApply();`);
+    eq(R('!!(detailDraft && detailDraft.dirty)'), false, '★ 保存后 dirty 清零（saveDetailEditApply 末尾回到查看态 → draft=null）');
+    eq(R(`S.students.find(s => String(s['学号'])==='2026901')['备注（保密）']`), '改过的内容', '★ 真实数据已落');
+
+    // ③ 脏状态下 closeModal → 弹 askConfirm（先重新进入编辑态，因为保存后退出了）
+    R(`openDetail('2026901', true); draftSet('f', '备注（保密）', '又一次改动');`);
+    eq(R('!!(detailDraft && detailDraft.dirty)'), true, '再次改动 → dirty');
+    R(`closeModal();`);
+    eq(R('window.__c.calls'), 1, '★ 脏状态下 closeModal 弹出确认');
+
+    // ④ 模拟「取消」→ 弹窗仍在
+    ok(R('$("modalRoot").innerHTML.length > 0'), '取消后弹窗仍在（草稿未丢）');
+
+    // ⑤ 模拟「确认关闭」→ 弹窗关掉、草稿清掉
+    R(`if(window.__c.cb) window.__c.cb();`);
+    eq(R('$("modalRoot").innerHTML'), '', '★ 确认关闭后弹窗被清掉');
+    eq(R('detailDraft'), null, '★ 确认关闭后 detailDraft 清掉');
+
+    // ⑥ 不脏时 → 不弹确认（重开编辑但不修改）
+    R(`openDetail('2026901', true); detailDraft.dirty = false;`);
+    R(`window.__c.calls = 0;`);
+    R(`closeModal();`);
+    eq(R('window.__c.calls'), 0, '★ 不脏时 closeModal 不弹确认');
+    R(`if(window.__c.cb) window.__c.cb();`);   // 收尾（让弹窗真的关掉）
+
+    // ⑦ 导航**不该**弹确认，也不该丢草稿 —— 详情弹窗挂在独立的 #modalRoot 上，
+    //    视图切换不碰它（这条是实测确认的：视图渲染函数里没有一处写 modalRoot）。
+    R(`window.__c.calls = 0;`);
+    R(`openDetail('2026901', true); detailDraft.dirty = false; draftSet('f','备注（保密）','跳转前改');`);
+    R(`gotoList({clear:true});`);
+    eq(R('window.__c.calls'), 0, '★ 侧栏跳转不弹确认（导航本来就不丢草稿 —— 不该过度拦截）');
+    eq(R('S.view'), 'list', '跳转正常完成');
+    eq(R('!!(detailDraft && detailDraft.dirty)'), true, '★ 跳转后草稿仍在（弹窗活着，没被清）');
+    eq(R('$("modalRoot").innerHTML.length > 0'), true, '★ 详情弹窗仍在（所以没丢东西）');
+
+    // ⑧ 真正会丢草稿的是"编辑甲时直接打开乙" → 必须拦
+    R(`
+      setStudents([{'学号':'2026901','姓名':'甲','班级':'英语2401','备注（保密）':'原备注'},
+                   {'学号':'2026902','姓名':'乙','班级':'英语2401'}]);
+    `);
+    R(`openDetail('2026901', true); detailDraft.dirty = false; draftSet('f','备注（保密）','甲的改动');`);
+    eq(R('window.__c.calls'), 0, '（还没打开乙）');
+    R(`openDetail('2026902', true);`);
+    eq(R('window.__c.calls'), 1, '★ 编辑甲时打开乙 → 弹确认（草稿会被冲掉，这才是真丢数据的路径）');
+    eq(R('curStudent && String(curStudent["学号"])'), '2026901', '取消后仍停在甲（没被切走）');
+    R(`if(window.__c.cb) window.__c.cb();`);
+    eq(R('curStudent && String(curStudent["学号"])'), '2026902', '确认后才切到乙');
+    // 同一学生不算（"保存 → 回查看态"走的就是同 id 路径，不能拦）
+    R(`window.__c.calls = 0;`);
+    R(`openDetail('2026902', true); detailDraft.dirty = false; draftSet('f','备注（保密）','乙的改动');`);
+    R(`openDetail('2026902', false);`);
+    eq(R('window.__c.calls'), 0, '★ 同一学生重开不弹确认（保存后回到查看态是正常路径）');
+
+    // ⑨ 浏览器层 beforeunload 装好了吗？
+    ok(appSrc.indexOf('beforeunload') >= 0, '★ 浏览器层 beforeunload 装好了');
+
+    // 收尾：还原探针
+    R(`window.askConfirm = window.__oldAsk;`);
+  }
+
   finish();
 })().catch(e => { console.error('测试执行出错：' + (e && e.stack || e)); process.exit(1); });
 

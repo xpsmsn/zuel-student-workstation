@@ -3846,6 +3846,11 @@ function onViewportChange(){
 function initResponsive(){
   if(typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
   window.addEventListener('resize', onViewportChange);
+  /* v2.2（升级清单 ①）：关标签页 / 刷新时也拦一道 —— 详情页编辑中误关 = 整页编辑丢失。
+     浏览器只允许"要不要留下"的提示，文案不可定制；有未保存修改时才触发。 */
+  window.addEventListener('beforeunload', e=>{
+    if(detailDraft && detailDraft.dirty){ e.preventDefault(); e.returnValue = ''; return ''; }
+  });
   // matchMedia 的 change 事件在部分老浏览器上不存在，失败就退化为 resize
   if(typeof matchMedia === 'function'){
     [ '(max-width:760px)', '(max-width:1180px)', '(max-width:1024px)' ].forEach(q=>{
@@ -7343,6 +7348,22 @@ function draftSet(kind, key, val){
   if(!detailDraft) return;
   const box = kind === 'g' ? detailDraft.grade : detailDraft.fields;
   box[key] = val;
+  /* v2.2（升级清单 ①）：标记"有未保存的修改" —— 离开（× / 遮罩 / 侧栏跳转 / 关标签页）时要拦一道，
+     否则一整页字段编辑会被静默丢弃。这是 draftSet 作为"所有编辑的唯一入口"才成立的做法。 */
+  detailDraft.dirty = true;
+}
+
+/* v2.2（升级清单 ①）：离开详情页编辑前的守门。
+   有未保存修改 → 先问；没有 → 直接执行 then()。
+   注意用应用内 askConfirm 而不是系统 confirm（打包后的 WebView 会吞掉系统对话框）。 */
+function confirmLeaveDirty(then){
+  if(!(detailDraft && detailDraft.dirty)){ then(); return; }
+  askConfirm({
+    title:'有未保存的修改',
+    html:'你正在编辑学生资料，但还没点「<b>保存修改</b>」。<br>现在离开，这些改动会丢掉。',
+    okText:'确认离开',
+    onOk: then
+  });
 }
 
 /* 单个字段：查看态是文本，编辑态是输入框 */
@@ -7612,6 +7633,19 @@ function fieldItem(k, v){
 function openDetail(sid, edit){
   const s = S.students.find(x=>String(x['学号'])===String(sid));
   if(!s) return;
+  /* v2.2（升级清单 ①）：正在编辑**另一个**学生（草稿未保存）时，直接打开这位会把草稿冲掉 —— 先问一句。
+     ⚠️ 同一学生不算（"保存 → 回到查看态"就是走 openDetail 同 id 的路径，那是正常流程）。
+     注：**导航（侧栏跳转/换筛选）不需要守门** —— 详情弹窗挂在独立的 #modalRoot 上，
+     视图切换不会碰它，草稿也不会因此丢失（这一点是实测确认的，不是推断）。 */
+  if(detailDraft && detailDraft.dirty && curStudent && String(curStudent['学号']) !== String(sid)){
+    askConfirm({
+      title:'有未保存的修改',
+      html:`学生「<b>${esc(studentName(curStudent) || '（无姓名）')}</b>」的资料还没保存。<br>现在打开另一位学生，刚才的改动会丢掉。`,
+      okText:'放弃改动并打开',
+      onOk(){ detailDraft.dirty = false; openDetail(sid, edit); }
+    });
+    return;
+  }
   curStudent = s;
   detailEdit = !!edit;
   const grade = gradeOf(s);
@@ -9255,6 +9289,10 @@ function applySavedFilter(i){
 }
 
 function closeModal(){
+  /* v2.2（升级清单 ①）：详情页编辑中直接点 × / 遮罩 → 先问一句再关，否则一整页编辑丢失。 */
+  confirmLeaveDirty(closeModalReally);
+}
+function closeModalReally(){
   $('modalRoot').innerHTML = '';
   curStudent = null;
   detailEdit = false; detailDraft = null;
