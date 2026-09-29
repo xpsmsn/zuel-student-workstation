@@ -765,6 +765,97 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
   eq(countMetric(metHtml()), 6, '导了成绩表后指标卡回到 6 张');
   ok(dashHtml().indexOf('去导入成绩') < 0, '此时不再显示那条"去导入成绩"提示');
 
+  /* ════════ [20] 卡片尺寸跟内容走：spanFor()（方案 片 B · R1） ════════
+     目的：尺寸不再由调用处写死 —— 否则"3 个班"和"20 个班"拿到同样的 7 格，
+     或者"10 个民族"被塞进半行。规则见 docs/数据总览卡片与多端适配-方案.md §3 R1。 */
+  console.log('\n[20] 卡片尺寸跟内容走（spanFor）');
+  if(R('typeof spanFor') !== 'function'){
+    fail('spanFor 还没实现 —— 后续断言无法进行');
+  } else {
+    // 环形：≤6 类 → 5；>6 类 → 7（环形超过 6 类本来就难读，但也别给整行）
+    eq(R("spanFor('donut', 2)"), 5, '环形 2 类 → 5');
+    eq(R("spanFor('donut', 6)"), 5, '环形 6 类 → 5');
+    eq(R("spanFor('donut', 9)"), 7, '环形 9 类 → 7');
+    // 横向条形：≤5 → 5；6–10 → 7；>10 → 12
+    eq(R("spanFor('hbar', 3)"), 5, '横条 3 条 → 5');
+    eq(R("spanFor('hbar', 8)"), 7, '横条 8 条 → 7');
+    eq(R("spanFor('hbar', 15)"), 12, '横条 15 条 → 12');
+    // 纵向条形：≤4 → 5；5–12 → 7；>12 → 12
+    eq(R("spanFor('vbar', 4)"), 5, '纵条 4 类 → 5');
+    eq(R("spanFor('vbar', 10)"), 7, '纵条 10 类 → 7');
+    eq(R("spanFor('vbar', 20)"), 12, '纵条 20 类 → 12');
+    // 名单 / 比例条：固定
+    eq(R("spanFor('list', 8)"), 5, '名单类固定 5');
+    eq(R("spanFor('pbar', 3)"), 7, '比例条固定 7');
+    // 空数据不该炸、也不该算出 0
+    ok([0, 1, 99].every(n => R(`spanFor('donut', ${n})`) >= 5), '任何类别数都至少给 5 格');
+
+    // ── 接入验证：卡片**实际渲染出来的** span 必须等于 spanFor 的结果 ──
+    const spanOfCard = (h, title) => {
+      const i = h.indexOf(`<div class="card-title">${title}</div>`);
+      if(i < 0) return null;
+      const m = h.slice(Math.max(0, i - 300), i).match(/dash-card span-(\d+)/);
+      return m ? Number(m[1]) : null;
+    };
+    R(`
+      S.batches = []; S.activeBatchId = null; S.students = []; S.grades = [];
+      S.batches.push(makeBatch('尺寸测试','demo',[])); attachBatch(S.batches[0].id);
+      setStudents([
+        {'学号':'2026801','姓名':'甲','班级':'一班','民族':'汉族','性别':'女'},
+        {'学号':'2026802','姓名':'乙','班级':'二班','民族':'土家族','性别':'男'},
+        {'学号':'2026803','姓名':'丙','班级':'三班','民族':'苗族','性别':'女'},
+        {'学号':'2026804','姓名':'丁','班级':'一班','民族':'壮族','性别':'男'},
+        {'学号':'2026805','姓名':'戊','班级':'二班','民族':'回族','性别':'女'},
+        {'学号':'2026806','姓名':'己','班级':'三班','民族':'满族','性别':'男'},
+        {'学号':'2026807','姓名':'庚','班级':'一班','民族':'侗族','性别':'女'}
+      ]);
+      S.grades.length = 0; invalidateGradeMap();
+      S.quickView='all'; S.filters={}; S.classFilter='all'; S._search='';
+    `);
+    const sizeHtml = dashHtml();
+    eq(spanOfCard(sizeHtml, '班级人数分布'), 5, '★ 3 个班 → 5 格（内容少就不给大版面，原先写死 7）');
+    eq(spanOfCard(sizeHtml, '民族构成'), 7, '★ 7 个民族 → 7 格（条数多需要宽度，原先写死 5）');
+    eq(spanOfCard(sizeHtml, '性别构成'), 5, '环形仍是 5 格');
+  }
+
+  /* ════════ [21] 多端：断点映射与图表宽度同一口径（方案 片 C · R4） ════════
+     背景：≤1180px 原先"每张卡都占整行"，笔记本上 10 张卡纵排成很长一页。
+     改成两列后，**CSS 的 span 映射与 chartWidth() 的折算必须说同一件事** ——
+     否则图表按整行宽度绘制、卡片却只有半行，图会被压扁或溢出。 */
+  console.log('\n[21] 多端断点：CSS 与图表宽度同一口径（≤1180 两列）');
+  if(R('typeof spanToCols') !== 'function'){
+    fail('spanToCols 还没实现 —— 后续断言无法进行');
+  } else {
+    eq(R("spanToCols(5,'wide')"), 5, 'wide：span-5 就是 5 格');
+    eq(R("spanToCols(7,'wide')"), 7, 'wide：span-7 就是 7 格');
+    eq(R("spanToCols(12,'wide')"), 12, 'wide：span-12 整行');
+    eq(R("spanToCols(5,'mid')"), 6, '★ mid（≤1180）：两列 —— span-5 折合 12 格口径的 6');
+    eq(R("spanToCols(7,'mid')"), 6, '★ mid：span-7 同样占半行');
+    eq(R("spanToCols(12,'mid')"), 12, 'mid：span-12 仍整行（大图不被压成半行）');
+    eq(R("spanToCols(5,'narrow')"), 12, '★ narrow（≤760）：单列 → 一律整行');
+    eq(R("spanToCols(12,'narrow')"), 12, 'narrow：整行');
+
+    // CSS 必须说同一件事
+    const midCss = (html.match(/@media\(max-width:1180px\)\{[\s\S]{0,600}?\n\}/) || [''])[0].replace(/\s+/g, '');
+    ok(midCss.indexOf('.dash.span-5,.dash.span-7{grid-column:span3}') >= 0,
+       '★ CSS 在 ≤1180 把 span-5/7 映射成半行（6 格网格里的 span 3）');
+    ok(midCss.indexOf('.dash.span-12{grid-column:span6}') >= 0,
+       'CSS 在 ≤1180 让 span-12 仍整行');
+
+    // 图表宽度真的跟着断点走（沙盒里 clientWidth 可伪造、matchMedia 可替换）
+    R(`$('dashBody').clientWidth = 1200;`);
+    const w5w = R('chartWidth(5)'), w7w = R('chartWidth(7)'), w12w = R('chartWidth(12)');
+    ok(w5w < w7w && w7w < w12w, `wide：宽度随 span 递增（${w5w} < ${w7w} < ${w12w}）`);
+    R(`window.__mmBak = window.matchMedia;
+       window.matchMedia = k => ({ matches: /max-width:1180px/.test(k), addEventListener(){}, removeEventListener(){} });`);
+    const w5m = R('chartWidth(5)'), w7m = R('chartWidth(7)'), w12m = R('chartWidth(12)');
+    R(`window.matchMedia = window.__mmBak;`);
+    eq(w5m, w7m, '★ mid：span-5 与 span-7 都占半行 → 图宽相同');
+    ok(w12m > w5m, `★ mid：span-12 仍整行、比半行宽（${w12m} > ${w5m}）—— 旧实现两者相等（都按整行算）`);
+    ok(w5m > w5w, `★ mid 的半行(${w5m}) 比 wide 的 5/12(${w5w}) 宽 —— "两列"确实生效`);
+    R(`$('dashBody').clientWidth = 0;`);
+  }
+
   finish();
 })().catch(e => { console.error('测试执行出错：' + (e && e.stack || e)); process.exit(1); });
 

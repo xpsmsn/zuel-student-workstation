@@ -587,11 +587,14 @@ html[data-theme="dark"] img.brand-logo{filter:brightness(1.5) saturate(1.05)}
 .dash-card{margin-bottom:0}
 .dash-card .card-body{min-height:80px}
 .dash-empty{text-align:center;padding:34px 0;color:var(--text-3);font-size:12.5px}
-/* 窄屏不必硬撑 12 列：网格降为 6 列后，span-7/span-5 都变成整行，
-   指标卡则改 3 列 —— 这样 6 张卡两行排完，不再出现"每行只剩 1 张、6 张纵排"的浪费 */
+/* ≤1180px：网格降为 6 列，卡片**改两列**（span-5 / span-7 各占半行 = span 3），span-12 仍整行；
+   指标卡则改 3 列 —— 两行排完，不再出现"每行只剩 1 张、纵排一长页"的浪费。
+   ⚠️ 这组映射必须与 JS 里的 spanToCols()（chartWidth 用它算图宽）**保持一致**：
+      改这里就要改那里，test-v196 §[21] 对两边都有断言。 */
 @media(max-width:1180px){
   .dash:not(.dash-metrics){grid-template-columns:repeat(6,minmax(0,1fr))}
-  .dash .span-5,.dash .span-7,.dash .span-12{grid-column:span 6}
+  .dash .span-5,.dash .span-7{grid-column:span 3}
+  .dash .span-12{grid-column:span 6}
 }
 
 /* ---- 欢迎条 ---- */
@@ -5721,15 +5724,33 @@ function barChart(data, opts={}){
     data-w="${W}" data-pl="${PL}" data-pr="${PR}">${g}</svg>`;
 }
 
+/* 当前断点名（与 CSS 的三档一一对应：>1180 / ≤1180 / ≤760） */
+function breakpointName(){
+  const mq = k => (typeof matchMedia === 'function' ? matchMedia(k).matches : false);
+  if(mq('(max-width:760px)'))  return 'narrow';
+  if(mq('(max-width:1180px)')) return 'mid';
+  return 'wide';
+}
+
+/* 给定卡片 span 与断点，它**实际占多少列**（一律折算成 12 格口径）。
+   这是 CSS 与图表宽度**唯一的共同口径** —— 改其一必须同步另一（test-v196 §[21] 对两边都断言）：
+     · wide  （>1180px） 12 格网格：原样 5 / 7 / 12
+     · mid   （≤1180px） 6 格网格：span-5 与 span-7 都占半行（折合 6），span-12 仍整行（12）
+     · narrow（≤760px）  单列：一律整行（12）
+   v2.2（方案 片 C）：mid 档由"每卡整行"改为"两列" —— 笔记本（1100–1180px）上不再纵排成一长页。 */
+function spanToCols(span, bp){
+  if(bp === 'narrow') return 12;
+  if(bp === 'mid')    return (Number(span) >= 12) ? 12 : 6;
+  return Number(span) || 12;
+}
+
 /* 图表可用宽度：按 12 列网格与断点折算「卡片内容区」的实际像素宽度。
    量不到（尚未进 DOM / 无头环境）时退回 560，保证不会画出 0 宽度。 */
 function chartWidth(spanOf12){
   const host = $('dashBody');
   const w = host ? host.clientWidth : 0;
   if(!w) return 560;
-  const mq = k => (typeof matchMedia === 'function' ? matchMedia(k).matches : false);
-  // ≤760px 时 .dash 是单列；≤1180px 时 span-7/span-5 都是整行 → 两种都按整行算
-  const n = (mq('(max-width:1180px)')) ? 12 : spanOf12;
+  const n = spanToCols(spanOf12, breakpointName());
   const gap = 14;
   const colW = (w - gap*11) / 12;
   const cardW = colW*n + gap*(n-1);
@@ -5794,6 +5815,23 @@ function pbar(label, val, total, color){
     <div class="pbar-head"><span>${esc(label)}</span><span class="pbar-num">${val} / ${total} · ${pct}%</span></div>
     <div class="pbar"><div class="pbar-fill" style="width:${pct}%;background:${color||'var(--brand)'}"></div></div>
   </div>`;
+}
+
+/* ---------- 卡片尺寸：尺寸跟内容走（v2.2 方案 R1，见 docs/数据总览卡片与多端适配-方案.md §3） ----------
+   动机：span 原先由调用处写死 —— "3 个班"和"20 个班"拿到同样的 7 格；
+   而"10 个民族"的横条被塞进半行。规则：
+     · 环形 donut  ≤6 类 → 5；>6 → 7      （⚠️ 环形是**固定 172px**不随卡片放大，所以永不进 12）
+     · 横向条形 hbar ≤5 → 5；6–10 → 7；>10 → 12   （hBarChart 是纯 HTML 百分比宽度，天然自适应）
+     · 纵向条形 vbar ≤4 → 5；5–12 → 7；>12 → 12   （barChart 是 SVG，图宽必须与 span 同步，故调用处要复用同一个值）
+     · 名单 list 固定 5；比例条 pbar 固定 7
+   传入的 n 一律是**实际渲染出来的**条数（例如民族只画前 8 条，就传 8 而不是总数）。 */
+function spanFor(kind, n){
+  const c = Math.max(0, Math.floor(Number(n) || 0));
+  if(kind === 'donut') return c > 6 ? 7 : 5;
+  if(kind === 'hbar')  return c > 10 ? 12 : (c > 5 ? 7 : 5);
+  if(kind === 'vbar')  return c > 12 ? 12 : (c > 4 ? 7 : 5);
+  if(kind === 'list')  return 5;
+  return 7;                      // pbar 及其他
 }
 
 /* ---------- 卡片包装器（含空数据降级） ---------- */
@@ -6019,13 +6057,14 @@ function renderDashBody(){
      · 只在真有信息量时出现：某一维度只有 1 类（如全校一个专业）就不占版面 */
   const cards = [];
 
+  const clsSpan = spanFor('vbar', cls.length);
   cards.push(dashCard('班级人数分布', `当前 ${searched.length} 人 · 点击柱查看`,
-    barChart(cls, {width:chartWidth(7), onClick:true, colorOf:(d,i)=>['var(--brand)','var(--brand-deep)','var(--ok)','var(--warn)'][i%4]}),
-    !cls.length, {span:7, bodyClick:'dashBarClick(event)'}));
+    barChart(cls, {width:chartWidth(clsSpan), onClick:true, colorOf:(d,i)=>['var(--brand)','var(--brand-deep)','var(--ok)','var(--warn)'][i%4]}),
+    !cls.length, {span:clsSpan, bodyClick:'dashBarClick(event)'}));
 
   cards.push(dashCard('性别构成', hasGender ? `${gender.length} 类 · 也是男/女寝的划分依据` : '字段缺失',
     donutChart(gender, {field:'性别', centerLab:'人', onClick:true, palette:['var(--brand)','var(--warn)','var(--text-3)']}),
-    !hasGender || !gender.length, {span:5, emptyText: hasGender ? '暂无数据' : missTip(['性别'])}));
+    !hasGender || !gender.length, {span:spanFor('donut', gender.length), emptyText: hasGender ? '暂无数据' : missTip(['性别'])}));
 
   /* v2.2（方案 片 A）：成绩表没导入时，「加权成绩分布 / 学业预警名单 / 班级平均加权成绩」
      三张卡会各占 7/5/12 的版面、却只显示同一句提示（合计近两整行）→ 合并成这一条。
@@ -6040,9 +6079,10 @@ function renderDashBody(){
       false, {span:7}));
   }
   if(!noGradeTable){
+  const scoreSpan = spanFor('vbar', buckets.length);
   cards.push(dashCard('加权成绩分布', hasScore ? `${scoreN} 人已录入${noScoreN ? ` · ${noScoreN} 人暂无成绩` : ''}` : '字段缺失',
-    barChart(buckets, {width:chartWidth(7), colorOf:(d,i)=>['var(--danger)','var(--warn)','var(--warn)','var(--brand)','var(--brand)','var(--ok)'][i%6]}),
-    !hasScore || !buckets.some(b=>b.value), {span:7, emptyText: scoreTip}));
+    barChart(buckets, {width:chartWidth(scoreSpan), colorOf:(d,i)=>['var(--danger)','var(--warn)','var(--warn)','var(--brand)','var(--brand)','var(--ok)'][i%6]}),
+    !hasScore || !buckets.some(b=>b.value), {span:scoreSpan, emptyText: scoreTip}));
   }
 
   // 学业预警名单：本页最该被看到的东西 —— 直接点名，点一下就能打开该生详情
@@ -6056,7 +6096,7 @@ function renderDashBody(){
       </button>`).join('')}${
       risk.length > 8 ? `<div style="font-size:11.5px;color:var(--text-3);text-align:center;padding-top:2px">
         还有 ${risk.length - 8} 人，点左侧「有不及格」进列表看全</div>` : ''}</div>` : '',
-    !risk.length, {span:5, emptyText: hasScore ? '本批没有不及格或绩点偏低的学生' : scoreTip}));
+    !risk.length, {span:spanFor('list', risk.length), emptyText: hasScore ? '本批没有不及格或绩点偏低的学生' : scoreTip}));
   }
 
   cards.push(dashCard('关注提醒', `${alerts.length} 项待处理`,
@@ -6067,7 +6107,7 @@ function renderDashBody(){
         <span class="alert-n">${a.n}</span>
         ${a.act?'<span class="alert-go">→</span>':''}
       </div>`).join('')}</div>` : '', !alerts.length,
-    {span:5, emptyText: noAlertField ? '尚未导入成绩表，暂无可统计项' : '暂无待处理事项'}));
+    {span:spanFor('list', alerts.length), emptyText: noAlertField ? '尚未导入成绩表，暂无可统计项' : '暂无待处理事项'}));
 
   // 数据完整度：只列"本批真有这个字段"的项 —— 缺字段的项不出现，
   // 否则会显示成「0 / 189」，被误读成"这届学生都没宿舍"
@@ -6075,37 +6115,38 @@ function renderDashBody(){
   if(hasScore) pbarRows.push(pbar('已录入成绩', scoreN, searched.length, 'var(--ok)'));
   if(hasDorm)  pbarRows.push(pbar('已分配宿舍', dormN, searched.length, 'var(--warn)'));
   cards.push(dashCard('数据完整度', `备注覆盖 ${withRemark} / ${searched.length} 人`,
-    `<div class="pbar-stack">${pbarRows.join('')}</div>`, !searched.length, {span:7}));
+    `<div class="pbar-stack">${pbarRows.join('')}</div>`, !searched.length, {span:spanFor('pbar', pbarRows.length)}));
 
   if(!noGradeTable){
+  const avgSpan = spanFor('vbar', classAvg.length);
   cards.push(dashCard('班级平均加权成绩', classAvgPhrase(classAvg, hasScore),
     barChart(classAvg.length>12 ? classAvg.slice(0,12) : classAvg,
-      {width:chartWidth(12), colorOf:(d,i)=>d.value>=85?'var(--ok)':(d.value>=70?'var(--brand)':'var(--warn)')}),
-    !classAvg.length, {span:12, emptyText: scoreTip}));
+      {width:chartWidth(avgSpan), colorOf:(d,i)=>d.value>=85?'var(--ok)':(d.value>=70?'var(--brand)':'var(--warn)')}),
+    !classAvg.length, {span:avgSpan, emptyText: scoreTip}));
   }
 
   // 宿舍分配概览：不画图，只给"够不够住"三个数 + 一个入口
   if(hasDorm){
     cards.push(dashCard('宿舍分配概览', `${dorms.assigned.length} 间 · 每间按 ${S.dormCap} 人估算`,
-      dormEntryHtml(dorms, unDormN), false, {span:5, bodyClick:'gotoDorm()'}));
+      dormEntryHtml(dorms, unDormN), false, {span:5, bodyClick:'gotoDorm()'}));   // 非图表卡，固定半行
   }
 
   if(hasOrigin){
     cards.push(dashCard('生源地 Top 10', `${searched.length} 人 · 覆盖 ${groupCount(searched,'生源地').length} 个地区`,
-      hBarChart(origins), !origins.length, {span:hasDorm ? 7 : 12, emptyText: '暂无数据'}));
+      hBarChart(origins), !origins.length, {span:spanFor('hbar', origins.length), emptyText: '暂无数据'}));
   }
 
   if(hasMajor && multi(major)){
     cards.push(dashCard('专业分布', `${major.length} 个专业`,
-      hBarChart(major.slice(0,10)), false, {span:7}));
+      hBarChart(major.slice(0,10)), false, {span:spanFor('hbar', Math.min(major.length, 10))}));
   }
   if(hasNation && multi(nation)){
     cards.push(dashCard('民族构成', `${nation.length} 个民族 · 便于民族学生关怀`,
-      hBarChart(nation.slice(0,8)), false, {span:5}));
+      hBarChart(nation.slice(0,8)), false, {span:spanFor('hbar', Math.min(nation.length, 8))}));
   }
   if(hasPol && multi(pol)){
     cards.push(dashCard('政治面貌构成', `${pol.length} 类 · 点击图例筛选`,
-      donutChart(pol, {field:'政治面貌', centerLab:'人', onClick:true}), false, {span:5}));
+      donutChart(pol, {field:'政治面貌', centerLab:'人', onClick:true}), false, {span:spanFor('donut', pol.length)}));
   }
 
   body.innerHTML = `<div class="dash">${cards.join('')}</div>`;
