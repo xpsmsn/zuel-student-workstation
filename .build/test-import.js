@@ -7,6 +7,8 @@
      [2] 名册导入 → 政治面貌自动同步为「入党积极分子」，且不降级已是党员/发展对象的人
      [3] 班委的同义词（班干部 / 班级委员 / 班级职务 / 职务 / 担任职务）都归一到「班委」
      [4] 老样式的表（表头就在第 1 行）行为完全不变，不会因为新逻辑被改坏
+     [7] 铁律①②③ 在「新增/合并」与「新建批次」两条路径下结果一致
+         （v2.1.x：这两条路径原先各写一份「按列合并」，已漂移 —— 本节的验收条件）
 
    桩设计沿用 test-library.js：DOM 元素按 id 缓存，localStorage 用 Map 顶替。 */
 const fs = require('fs'), vm = require('vm');
@@ -200,6 +202,58 @@ R(`S.students.find(x=>String(x['学号'])==='${seeds[1].id}')['备注（保密�
 R(`importState.mode='append'; doImport();`);
 eq(R(`(S.students.find(x=>String(x['学号'])==='${seeds[1].id}')||{})['备注（保密）']`),
    '原来的备注', '铁律①：备注仍不被覆盖');
+
+const ok = (cond, label) => cond ? pass(label) : fail(label);
+
+console.log('\n[7] 铁律①②③：「新增/合并」与「新建批次」必须给出同一套结果');
+/* 背景：doImport 的 new 分支与 doImportMerge 原先各写一份「按列合并」，而且**已经漂移**
+   （new 那份少了铁律③）。这一节用**同一张表**走两条路径，逐条断言三条铁律 ——
+   它同时是「把合并逻辑收到一处」这个重构的验收条件。
+   注意接缝：两条路径都从 doImport() 进（不直调内部函数），避免把测试绑死在实现上。 */
+const IRON_ID = String(seeds[2].id);
+sandbox.__ironRows = [
+  { '学号':IRON_ID, '姓名':'甲', '民族':'汉族', '班委':'班长',   '备注（保密）':'CSV 第一行备注' },
+  { '学号':IRON_ID, '姓名':'乙', '民族':'',     '班委':'副班长', '备注（保密）':'CSV 第二行备注' }
+];
+const ironResult = {};
+['append', 'new'].forEach(mode=>{
+  R(`
+    S.batches = []; S.activeBatchId = null; S.students = [];
+    S.batches.push(makeBatch('铁律测试','demo',[
+      {'学号':'${IRON_ID}','姓名':'原始','备注（保密）':'辅导员原备注','民族':'汉族','班委':'班长'}
+    ]));
+    attachBatch(S.batches[0].id);
+    importState = { step:2, fileName:'铁律表.xlsx', header:[], emptyCols:[],
+      cols:['学号','姓名','民族'], rows: window.__ironRows,
+      mode:'${mode}', headerIdx:0, rowNos:null, kind:'student', skipCols:new Set() };
+    doImport();
+  `);
+  ironResult[mode] = R(`(function(){
+    const s = S.students.find(x=>String(x['学号'])==='${IRON_ID}') || {};
+    return { remark:s['备注（保密）'], nation:s['民族'], committe:s['班委'], n:S.students.length };
+  })()`);
+});
+
+/* ── 与路径无关的三条不变量：第二行独有的值，一个都不许进来 ── */
+[['append','新增/合并'], ['new','新建批次']].forEach(([mode, tag])=>{
+  const r = ironResult[mode] || {};
+  ok(r.remark !== 'CSV 第二行备注', `[${tag}] 铁律①：备注不被后一行覆盖`);
+  ok(r.nation === '汉族',            `[${tag}] 铁律②：空值不覆盖（民族仍为「汉族」）`);
+  ok(r.committe !== '副班长',         `[${tag}] 铁律③：不在本次列清单里的列不动（班委没被改成副班长）`);
+});
+/* ── 逐路径的具体期望 ── */
+eq(ironResult.append && ironResult.append.remark, '辅导员原备注', '[新增/合并] 备注恒为辅导员原有的那条');
+eq(ironResult.new && ironResult.new.remark, 'CSV 第一行备注',   '[新建批次] 备注取本表首次出现的值');
+eq(ironResult.append && ironResult.append.n, 1, '[新增/合并] 同一学号只留一条记录');
+eq(ironResult.new && ironResult.new.n, 1,       '[新建批次] CSV 内部同学号合并为一条记录');
+
+/* ── 静态断言：铁律①②③ 的合并循环只允许存在一份实现 ──
+   重构前它是两份，注释「铁律①：备注永不覆盖」在 :8078 与 :8206 各写一次，
+   其中一份少了铁律③ —— 那正是本次修掉的漂移。这条断言防的是它再被复制回来。 */
+eq((appSrc.match(/function mergeRowInto/g) || []).length, 1, '★ mergeRowInto 只有一个定义');
+eq((appSrc.match(/铁律①：备注永不覆盖/g) || []).length, 1, '★ 铁律①的合并循环全仓库只写一处（防再复制）');
+ok(appSrc.indexOf('mergeRowInto(recMap.get(id)') >= 0, 'doImport 的 CSV 内合并走 mergeRowInto');
+ok(appSrc.indexOf('mergeRowInto(old, r, cols)') >= 0, 'doImportMerge 的合并走 mergeRowInto');
 
 console.log(failN ? `\n共 ${failN} 项失败` : '\n全部通过 ✅');
 process.exit(failN ? 1 : 0);

@@ -3920,7 +3920,9 @@ function presetMissText(p){
 /* 「需重点关注」= 有不及格（来自成绩表）或 旧挂科字段（来自学生表，仅为旧模板兼容）有值 */
 /* ======== v1.9.8：学生「关注标签」（可自定义） ========
    原来的「需重点关注」只认两类信号：成绩表的不及格门数、学生表的挂科情况/军训备注
-   ⚠️ 军训备注已于 v2.1.x 移出关注信号：它字面上与学业关注无关，属历史误用
+   ⚠️ 军训备注已于 v2.1.x 移出关注信号。这是**口径决定，不是修 bug**：
+      该字段确有该跟进的值（样例「膝盖受伤、请假」），但它属身体 / 请假类信息，
+      与学业预警不同源 —— 不该由一列旧导出字段自动推断，该由辅导员用关注标签主动标注。
       （只摘信号，不删字段 —— 详情页「入学与住宿」里仍能看到它。见 CONTEXT.md「关注信号」）
    —— 也就是"有据可查"的那部分。但辅导员真正在跟的事往往没数据来源：
    心理状态、单亲、人际紧张…… 这些只有自己知道，得有地方标。
@@ -8035,6 +8037,22 @@ function openFileError(fileName, err){
    它把"读不了你的文件"伪装成"导入成功"，还会把演示学生写进你的批次里。
    需要演示数据的场合请走「系统设置 → 数据管理 → 恢复演示数据」这条显式入口。 */
 
+/* ── 按列合并一行到已有记录（铁律①②③的**唯一实现处**） ──
+   doImport（新建批次内、CSV 内部同学号去重）与 doImportMerge（与已有批次合并 / 覆盖模式）
+   都走这里。v2.1.x 由 code-review 发现这形状原先被复制成两份，而且**已经漂移**：
+   doImport 那份少了铁律③，于是「不在本次列清单里的列」在 CSV 内合并时会被改写。
+   两份复制体一旦漂移，铁律就会在其中一条路上静默失效 —— 故收到一处。
+   cols 传 null/空 表示"不过滤列"（铁律③只在本次表列清单已知时才有意义）。 */
+function mergeRowInto(old, r, cols){
+  Object.entries(r).forEach(([k, v])=>{
+    if(k === '备注（保密）') return;               // 铁律①：备注永不覆盖
+    if(v == null || v === '') return;              // 铁律②：空值不覆盖
+    if(cols && cols.indexOf(k) === -1) return;     // 铁律③：不在本次表里的列不动
+    old[k] = v;
+  });
+  return old;
+}
+
 /* ---------- 合并入库 ----------
    三种模式：
    · new       新建批次：本次行原样成为一份独立快照，不做任何合并
@@ -8070,13 +8088,8 @@ function doImport(){
       const id = String(r['学号'] ?? '').trim();
       if(!id){ badRows.push(excelRowNo(idx)); return; }
       if(recMap.has(id)){
-        // ── CSV 内部学号已见过：合并字段（空值不覆盖已有）
-        const old = recMap.get(id);
-        Object.entries(r).forEach(([k,v])=>{
-          if(k === '备注（保密）') return;        // 铁律①：备注永不覆盖
-          if(v == null || v === '') return;      // 铁律②：空值不覆盖
-          old[k] = v;
-        });
+        // ── CSV 内部学号已见过：按列合并（铁律①②③，与 doImportMerge 同一实现）
+        mergeRowInto(recMap.get(id), r, cols);
         internalMerged++;
         return;
       }
@@ -8198,14 +8211,9 @@ function doImportMerge(rows, cols, mode, remarkMap, backupName, clearedCount, pr
     seen.add(id);
 
     if(map.has(id)){
-      // ── 已存在：逐列合并 ──
+      // ── 已存在：逐列合并（铁律①②③，与 doImport 的 CSV 内部合并同一实现）──
       const old = map.get(id);
-      Object.entries(r).forEach(([k,v])=>{
-        if(k === '备注（保密）') return;            // 铁律①：备注永不覆盖
-        if(v == null || v === '') return;          // 铁律②：空值不覆盖
-        if(cols.indexOf(k) === -1) return;         // 铁律③：不在本次表里的列不动
-        old[k] = v;
-      });
+      mergeRowInto(old, r, cols);
       // v1.9.2：名册导入时顺手同步政治面貌（已是党员/发展对象的受保护，不降级）
       if(sheetKind === 'roster'){
         if(rosterProtected(old)) rosterKept++;
