@@ -29,6 +29,18 @@ import re
 import shutil
 import sys
 
+# Windows 上 Python 的 stdout 默认是 GBK（代码页 936），而本脚本要打印 ✓ ✗ ⚠️ ❌ ——
+# 不显式设成 UTF-8 就会 UnicodeEncodeError。后果不是"显示乱码"这么轻：
+#   · `--selftest` 会**第一行就崩** → 那道"守住文档同步"的安全网形同虚设（它本来正是为
+#     "静默漏改"设的，见 selftest 的文档字符串；结果自己先崩了，谁也没发现）
+#   · `drop()` / `put()` 里的 ⚠️/❌ 告警分支一旦真被触发（安全软件占住刚写完的文件 ——
+#     正是这两个函数注释里写的那两道坎），脚本会崩掉，而不是给出那句友好提示
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONF = os.path.join(ROOT, "app", "src-tauri", "tauri.conf.json")
 RELEASE_DIR = os.path.join(ROOT, "app", "src-tauri", "target", "release")
@@ -41,11 +53,23 @@ KINDS = [
     ("单位部署", "Deploy", "msi", os.path.join(RELEASE_DIR, "bundle", "msi", "*.msi")),
 ]
 
+# 「只参与命名与文档同步、不参与本机复制」的产物。
+# macOS 的 dmg 由 GitHub Actions 构建（Windows 编不出 Mac 程序），本机没有这个文件；
+# 但**它的文件名同样要跟着版本走** —— 原先 KINDS 只有三个、正则也不认 .dmg，
+# 于是每次发版，README / 安装说明 / Release 说明里的 dmg 名都停在旧版本，
+# 而同一张表里的另外三个已经是新版本（方案说明 §6.14 那张表就长期是 1.9.5 与 2.1.0 混着）。
+NAMING_ONLY = [
+    ("macOS", "macOS", "dmg"),
+]
+
 # 需要跟着同步文件名的文档
 DOCS = [
     os.path.join(OUT_DIR, "安装说明.txt"),
     os.path.join(ROOT, "README.md"),
     os.path.join(ROOT, ".build", "release-notes.md"),
+    # §6.14 那张「用途 → 文件名」的命名表也必须跟着走：
+    # 它原先不在名单里，于是长期停在 v1.9.5（而同一张表的 macOS 行是 v2.1.0，自相矛盾）。
+    os.path.join(ROOT, "中南大学生工作台_方案说明.md"),
 ]
 
 DRY = "--dry" in sys.argv
@@ -110,10 +134,13 @@ def put(src, dst):
 
 
 def build_names(ver):
-    """按当前版本号生成中英文两套文件名。"""
+    """按当前版本号生成中英文两套文件名（含只参与命名的 macOS dmg）。"""
     tag = f"v{ver}"
     cn_names, en_names = {}, {}
     for cn, en, ext, _pat in KINDS:
+        cn_names[(cn, ext)] = f"中南大学生工作台-{tag}-{cn}.{ext}"
+        en_names[(en, ext)] = f"ZUEL-StudentWorkstation-{tag}-{en}.{ext}"
+    for cn, en, ext in NAMING_ONLY:
         cn_names[(cn, ext)] = f"中南大学生工作台-{tag}-{cn}.{ext}"
         en_names[(en, ext)] = f"ZUEL-StudentWorkstation-{tag}-{en}.{ext}"
     return cn_names, en_names
@@ -140,6 +167,11 @@ def rewrite(text, cn_names, en_names):
         r"ZUEL-StudentWorkstation-(Portable|Setup|Deploy)(?:-v[\d.]+)?\.(exe|msi)",
     ):
         new = re.sub(pat, en_repl, new)
+    # macOS 的 dmg：用途名与扩展名都跟上面不同，得单独认（原先完全漏掉，长期没被同步）
+    new = re.sub(r"中南大学生工作台(?:-v[\d.]+)?-macOS\.dmg",
+                 lambda m: cn_names[("macOS", "dmg")], new)
+    new = re.sub(r"ZUEL-StudentWorkstation-(?:v[\d.]+-)?macOS\.dmg",
+                 lambda m: en_names[("macOS", "dmg")], new)
     return new
 
 
@@ -182,6 +214,11 @@ def selftest(ver):
         ("ZUEL-StudentWorkstation-Portable-v1.9.exe", f"ZUEL-StudentWorkstation-{tag}-Portable.exe"),
         ("ZUEL-StudentWorkstation-Portable.exe", f"ZUEL-StudentWorkstation-{tag}-Portable.exe"),
         ("ZUEL-StudentWorkstation-Deploy.msi", f"ZUEL-StudentWorkstation-{tag}-Deploy.msi"),
+        # macOS dmg（脚本原先完全不认 .dmg，文档里的 dmg 名长期停在旧版本）
+        (f"中南大学生工作台-{tag}-macOS.dmg", f"中南大学生工作台-{tag}-macOS.dmg"),
+        ("中南大学生工作台-v1.9.5-macOS.dmg", f"中南大学生工作台-{tag}-macOS.dmg"),
+        ("ZUEL-StudentWorkstation-v1.9.5-macOS.dmg", f"ZUEL-StudentWorkstation-{tag}-macOS.dmg"),
+        ("ZUEL-StudentWorkstation-macOS.dmg", f"ZUEL-StudentWorkstation-{tag}-macOS.dmg"),
         # 不该被动的：产品名本身、其它文件
         ("中南大学生工作台.html", "中南大学生工作台.html"),
         ("ZUEL-StudentWorkstation-源码.zip", "ZUEL-StudentWorkstation-源码.zip"),
@@ -240,9 +277,11 @@ def main():
         if changed:
             print(f"  已同步文件名：{os.path.relpath(doc, ROOT)}")
 
-    print("\nGitHub Release 附件用这三个英文名：")
+    print("\nGitHub Release 附件用这些英文名：")
     for cn, en, ext, _ in KINDS:
         print(f"  {en_names[(en, ext)]}   ←  {cn_names[(cn, ext)]}")
+    for cn, en, ext in NAMING_ONLY:
+        print(f"  {en_names[(en, ext)]}   ←  {cn_names[(cn, ext)]}（由 Actions 构建）")
     if DRY:
         print("\n（--dry 模式，没有真的改文件）")
 
