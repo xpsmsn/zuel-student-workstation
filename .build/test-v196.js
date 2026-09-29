@@ -1468,6 +1468,72 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
     ok(appSrc.indexOf("'已撤销，数据恢复到删除前'") < 0, '★ 撤销后的提示语不再写死"删除前"');
   }
 
+/* ════════ [31] 指标卡一致性 + 列设置"恢复默认"分两档（升级清单 ④⑤） ════════
+     ④ 6 张指标卡里 3 张可点（在册学生/需重点关注/有不及格）、3 张不可点
+        （覆盖班级/平均加权成绩/平均学分绩点）—— 用户看不出为什么有的能点有的不能。
+     ⑤ 列设置的「恢复默认」只回到出厂的 10 列；但片 3 之后本批常有二十几个可用字段，
+        想"全都显示出来"没有出口。 */
+  console.log('\n[31] 指标卡一致性 + 列设置两档恢复（升级清单 ④⑤）');
+  if(R('typeof jumpByClass') !== 'function' || R('typeof showAllCols') !== 'function'){
+    fail('指标卡跳转 / 列设置两档还没实现 —— 后续断言无法进行');
+  } else {
+    R(`
+      S.batches=[]; S.activeBatchId=null; S.students=[]; S.grades=[];
+      S.batches.push(makeBatch('卡片一致性','demo',[])); attachBatch(S.batches[0].id);
+      setStudents([
+        {'学号':'2026801','姓名':'甲','班级':'英语2401','微信号':'w1','学籍状态':'在读'},
+        {'学号':'2026802','姓名':'乙','班级':'英语2402','微信号':'w2','学籍状态':'保留学籍'}
+      ]);
+      S.grades.length=0;
+      S.grades.push({'学号':'2026801','加权平均成绩':'88','平均学分绩点':'3.6'},
+                    {'学号':'2026802','加权平均成绩':'66','平均学分绩点':'1.9'});
+      invalidateGradeMap();
+      S.quickView='all'; S.filters={}; S.classFilter='all'; S._search=''; S.sort={key:'',dir:'desc'};
+    `);
+
+    // ① 三张原本不可点的卡现在都有去处，且去处合理
+    R(`S.view='dashboard'; jumpByClass();`);
+    eq(R(`S.view`), 'list', '「覆盖班级」→ 进列表');
+    eq(R(`S.sort.key`), '班级', '★ 且按「班级」排开（同班的人聚在一起）');
+    R(`S.sort={key:'',dir:'desc'}; jumpByScore();`);
+    eq(R(`S.sort.key`), '成绩', '★ 「平均加权成绩」→ 按成绩排序（低分在前，看是谁拉低了平均）');
+    R(`S.quickView='all'; jumpToLowGpa();`);
+    eq(R(`S.view`), 'list', '「平均学分绩点」→ 进列表');
+    eq(R(`S.quickView`), 'lowgpa', '★ 且直接进「绩点偏低」名单（可操作，而不只是看个数）');
+
+    // ② 渲染出来的指标卡确实挂上了这三个动作
+    R(`S.view='dashboard'; S.quickView='all'; S.sort={key:'',dir:'desc'}; S._search=''; renderMain();`);
+    const met = R(`$('dashMetrics').innerHTML`);
+    ['jumpByClass()', 'jumpByScore()', 'jumpToLowGpa()'].forEach(a =>
+      ok(met.indexOf(a) >= 0, `★ 指标卡上挂上了 ${a}`));
+    // 有成绩时不该再是"空卡"（空卡没有动作）
+    ok(met.indexOf('is-empty') < 0 || met.indexOf('尚未导入成绩表') < 0, '有成绩时不是空态');
+
+    // ③ 没成绩时这两张卡仍是空态、不该给人点（点了没意义）
+    R(`S.grades.length=0; invalidateGradeMap(); S.view='dashboard'; renderMain();`);
+    const met2 = R(`$('dashMetrics').innerHTML`);
+    ok(met2.indexOf('jumpByScore()') < 0, '★ 没成绩时「平均加权成绩」不给跳转');
+    ok(met2.indexOf('jumpToLowGpa()') < 0, '★ 没成绩时「平均学分绩点」不给跳转');
+    ok(met2.indexOf('jumpByClass()') >= 0, '「覆盖班级」不依赖成绩，照常可点');
+
+    // ④ 列设置两档恢复
+    R(`openColSettings();`);
+    const n0 = R('colOn.size');
+    // ⚠️ 别在宿主作用域直接引用 app 内部常量（DEFAULT_COLS 是 VM 里的全局），要在 VM 内比
+    eq(n0, R('DEFAULT_COLS.filter(colAvailable).length'), `出厂档 = 出厂 10 列里本批可用的那些（${n0} 列）`);
+    R(`showAllCols();`);
+    const nAll = R('colOn.size');
+    ok(nAll > n0, `★ 「显示全部字段」比出厂档多（${n0} → ${nAll}）`);
+    ok(R(`colOn.has('微信号')`), '★ 本批特有的字段（微信号）也进来了');
+    ok(R(`colOn.has('学籍状态')`), '本批新列（学籍状态）也进来了');
+    R(`resetCols();`);
+    eq(R('colOn.size'), n0, '★ 「恢复默认」仍是出厂那一档（可来回切）');
+
+    // ⑤ 两个按钮都在列设置里（不是二选一替换掉）
+    ok(appSrc.indexOf('resetCols()') >= 0 && appSrc.indexOf('showAllCols()') >= 0,
+       '★ 列设置里「恢复默认」与「显示全部字段」并存');
+  }
+
   finish();
 })().catch(e => { console.error('测试执行出错：' + (e && e.stack || e)); process.exit(1); });
 

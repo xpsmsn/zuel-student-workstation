@@ -5387,6 +5387,15 @@ function pickPreset(id){ S.view='list'; S.quickView = id; S.classFilter='all'; S
 
 /* ---------- 视图路由 ---------- */
 function gotoDashboard(){ S.view = 'dashboard'; renderSidebar(); renderMain(); closeSidebar(); }
+/* v2.2（升级清单 ④）：三张原本不可点的指标卡补上跳转 —— 让"每张卡点一下都有去处"一致起来。
+   去处都挑"能接着做事"的，而不是只为可点而可点：
+     · 覆盖班级   → 列表按「班级」排开（同班聚在一起，便于逐个班处理）
+     · 平均加权成绩 → 列表按「成绩」排序（低分在前，看是谁把平均拉下来了）
+     · 平均学分绩点 → 直接进「绩点偏低」名单（可操作，而不只是看个数） */
+function jumpByClass(){ gotoList(); setSort('班级'); }
+function jumpByScore(){ gotoList(); setSort('成绩'); }
+function jumpToLowGpa(){ gotoList({preset:'lowgpa'}); }
+
 function gotoList(opts={}){
   S.view = 'list';
   if(opts.preset){
@@ -5767,7 +5776,8 @@ function renderColSettings(focusIdx){
         <div class="collist" id="colList">${rows}</div>
       </div>
       <div class="modal-foot">
-        <button class="btn" onclick="resetCols()">恢复默认</button>
+        <button class="btn" onclick="resetCols()" title="回到出厂的 10 列">恢复默认（10 列）</button>
+        <button class="btn" onclick="showAllCols()" title="把本批所有可用字段都显示出来（列会变多，可再自行增减）">显示全部字段</button>
         <span style="flex:1"></span>
         <button class="btn" onclick="closeModal()">取消</button>
         <button class="btn pri" onclick="saveColSettings()">完成</button>
@@ -5813,6 +5823,15 @@ function colMove(i, d){
   const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
   colDraft = arr;
   renderColSettings(j);   // 重画后把刚移动的那一行滚回视野
+}
+/* v2.2（升级清单 ⑤）：把本批**所有可用字段**都显示出来。
+   原来只有「恢复默认」一条路（回到出厂 10 列）；片 3 之后本批常有二十几个可用字段，
+   想"先全显示、再删掉不要的"没有出口。两档并存，可来回切。 */
+function showAllCols(){
+  colDraft = colCandidates();
+  colOn = new Set(colDraft.filter(k => k && k !== '' && colAvailable(k)));
+  if(!colOn.size){ toast('本批没有可用字段'); return; }
+  renderColSettings();
 }
 function resetCols(){
   colDraft = colCandidates();
@@ -6204,16 +6223,18 @@ function renderDashMetrics(){
         noFail ? gMiss('不及格门数') : (fail?'点击查看名单':'暂无不及格记录'),
         (!noFail && fail) ? `gotoList({preset:'fail'})` : '', noFail || fail===0)}
     ${metricCard('ok','平均加权成绩', avgScore?avgScore.toFixed(1):'—',
-        noScore ? gMiss('加权平均成绩') : `${scores.length} 人有成绩`,
-        '', noScore || !avgScore)}
+        noScore ? gMiss('加权平均成绩') : `${scores.length} 人有成绩 · 点一下看低分`,
+        (!noScore && avgScore) ? 'jumpByScore()' : '', noScore || !avgScore)}
     ${metricCard('brand','平均学分绩点', avgGpa?avgGpa.toFixed(2):'—',
-        noGpa ? gMiss('平均学分绩点') : `${gpas.length} 人有绩点`,
-        '', noGpa || !avgGpa)}`;
+        noGpa ? gMiss('平均学分绩点') : `${gpas.length} 人有绩点 · 点一下看偏低名单`,
+        (!noGpa && avgGpa) ? 'jumpToLowGpa()' : '', noGpa || !avgGpa)}`;
 
   el.innerHTML = `
     ${metricCard('brand','在册学生', searched.length, '查看全部学生',
         searched.length?`gotoList({clear:true})`:'')}
-    ${metricCard('plain','覆盖班级', classes.length, '个班级 · 侧栏可直接选', '')}
+    ${metricCard('plain','覆盖班级', classes.length,
+        classes.length?'点一下按班级排开':'个班级 · 侧栏可直接选',
+        classes.length?'jumpByClass()':'')}
     ${metricCard('warn','需重点关注', focus,
         focus?'点击查看名单':'暂无需要关注的学生',
         focus?`gotoList({preset:'focus'})`:'', focus===0)}
