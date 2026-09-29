@@ -1704,6 +1704,8 @@ let S = {
   /* ---- 页面个性化（v0.6，用户的偏好，落盘；与批次无关） ---- */
   listCols: null,        // 列表列：null=默认列；数组=自定义的可见列 key（按顺序，不含开头的「#」）
   hiddenFields: [],      // 详情页隐藏的字段 key（默认全显示）
+  hiddenPresets: [],     // v2.2：侧栏「关注视图」隐藏的 preset id（默认全显示）
+  hideUnavailable: true, // v2.2：侧栏"本批暂时用不了的视图"收成一行（true = 收起，不占地方）
   customFields: [],      // 自定义字段定义 [{key,label}] —— 导入表里没有、由辅导员自己加的列
   /* ---- 新手引导（v0.7）：走完/跳过一次就不再自动弹 ---- */
   guideSeen: false,      // 「导入指引」页始终可从侧栏进入，这里只控制首次是否自动弹引导
@@ -1890,6 +1892,8 @@ function buildSavePayload(){
     dormCap: S.dormCap || 4,
     listCols: S.listCols,                     // 页面个性化（null = 用默认）
     hiddenFields: S.hiddenFields || [],
+    hiddenPresets: S.hiddenPresets || [],     // v2.2：侧栏关注视图的显示开关
+    hideUnavailable: S.hideUnavailable !== false,
     customFields: Array.isArray(S.customFields) ? S.customFields : [],
     guideSeen: !!S.guideSeen,                 // 新手引导是否已看过（跳过一次也算）
     tourSeen: !!S.tourSeen,                   // v1.9.2：页面浮窗批注导览是否已看过
@@ -1993,6 +1997,8 @@ function load(){
       // 页面个性化：老数据没有这三项 → 用默认（默认列 / 全字段显示 / 无自定义字段）
       S.listCols = Array.isArray(d.listCols) ? d.listCols.filter(k=>typeof k === 'string') : null;
       S.hiddenFields = Array.isArray(d.hiddenFields) ? d.hiddenFields.filter(k=>typeof k === 'string') : [];
+      S.hiddenPresets = Array.isArray(d.hiddenPresets) ? d.hiddenPresets.filter(k=>typeof k === 'string') : [];
+      S.hideUnavailable = d.hideUnavailable !== false;   // 老数据没有这一项 → 用默认（收起用不了的视图）
       S.customFields = Array.isArray(d.customFields)
         ? d.customFields.filter(f=>f && f.key).map(f=>({key:String(f.key), label:String(f.label || f.key)}))
         : [];
@@ -2259,6 +2265,7 @@ function backupPayload(){
     password: S.password, batches: S.batches, activeBatchId: S.activeBatchId,
     savedFilters: S.savedFilters, dormCap: S.dormCap || 4, listCols: S.listCols,
     hiddenFields: S.hiddenFields || [],
+    hiddenPresets: S.hiddenPresets || [], hideUnavailable: S.hideUnavailable !== false,
     customFields: Array.isArray(S.customFields) ? S.customFields : [],
     guideSeen: !!S.guideSeen, tourSeen: !!S.tourSeen, theme: S.theme || 'light'
   };
@@ -2306,6 +2313,8 @@ function restoreBackupFile(input){
         S.dormCap = d.dormCap || 4;
         S.listCols = d.listCols || null;
         S.hiddenFields = Array.isArray(d.hiddenFields) ? d.hiddenFields : [];
+        S.hiddenPresets = Array.isArray(d.hiddenPresets) ? d.hiddenPresets : [];
+        S.hideUnavailable = d.hideUnavailable !== false;
         S.customFields = Array.isArray(d.customFields) ? d.customFields : [];
         S.guideSeen = !!d.guideSeen;
         // v1.9.2：老备份里没有这项 → 视为「看过」，别让恢复完备份又弹一层浮窗
@@ -3214,6 +3223,36 @@ function renderSettings(){
     <div class="page-sub">外观 · 学期与周次 · 数据管理 · 数据固化 —— 个人资料在「个人中心」</div></div>
     <button class="btn" onclick="gotoProfile()">个人中心 →</button>
   </div>
+
+  <div class="card" style="margin-bottom:16px"><div class="card-body">
+    <div style="font-weight:660;font-size:14.5px;margin-bottom:12px">📌 左侧「关注视图」显示哪些</div>
+    <div class="opt-row">
+      <div class="opt-l">
+        <div class="opt-t">本批暂时用不了的视图</div>
+        <div class="opt-d">例如还没导成绩表时的「有不及格」「绩点偏低」。收起后侧栏只留一行提示（点它能看是哪几个），不占地方</div>
+      </div>
+      <div class="opt-c">
+        <div class="seg">
+          <button class="${S.hideUnavailable!==false?'on':''}" onclick="setHideUnavailable(true)">收起</button>
+          <button class="${S.hideUnavailable===false?'on':''}" onclick="setHideUnavailable(false)">显示为灰色</button>
+        </div>
+      </div>
+    </div>
+    <div class="fieldset-hint" style="margin:12px 0 10px">
+      勾选要在左侧显示的视图。取消勾选<b>只是不显示入口</b> —— 数据、筛选、看板都不受影响，随时勾回来。
+    </div>
+    <div class="collist" style="max-height:none">
+      ${PRESETS.filter(p=>p.id!=='all').map(p=>`
+      <div class="colrow${!isHiddenPreset(p.id)?' on':''}">
+        <label class="colrow-chk">
+          <input type="checkbox" ${!isHiddenPreset(p.id)?'checked':''} onchange="togglePresetVisible(${jsq(p.id)}, this.checked)">
+          <span>${esc(p.label)}</span>
+        </label>
+        <span style="flex:1"></span>
+        <span class="colrow-miss">${esc(presetAvailable(p) ? '本批可用' : presetMissText(p))}</span>
+      </div>`).join('')}
+    </div>
+  </div></div>
 
   <div class="card" style="margin-bottom:16px"><div class="card-body">
     <div style="font-weight:660;font-size:14.5px;margin-bottom:12px">🎨 外观与主题</div>
@@ -5017,8 +5056,14 @@ function renderSidebar(){
   h += sideLabel('views', '关注视图', 'views');
   if(sideGroupOpen('views')){
   const ICO_BY_PRESET = {focus:'eye', fail:'warn', lowgpa:'trend', noscore:'doc', noremark:'pencil', hasremark:'chat', party:'flag', cadre:'star'};
+  /* v2.2（用户 2026-09-30 请求）：① 设置里取消勾选的视图不显示；
+     ② "本批暂时用不了"的视图**默认收成一行**（原先是逐个置灰各占一行，17 个预设时很杂）。
+     收起 ≠ 悄悄消失：那一行可以点开，会列出是哪些视图、各自缺什么。 */
+  const unavailable = [];
   PRESETS.filter(p=>p.id!=='all').forEach(p=>{
+    if(isHiddenPreset(p.id)) return;
     if(!presetAvailable(p)){
+      if(S.hideUnavailable !== false){ unavailable.push(p); return; }
       // 字段缺失降级：本批数据没导出这个字段 → 置灰 + 显示「—」，
       // 绝不能显示 0（0 会被误读成"这批学生没人挂科"）
       const miss = presetMissText(p);
@@ -5031,6 +5076,12 @@ function renderSidebar(){
     h += `<div class="side-item ${(S.view==='list' && S.quickView===p.id)?'active':''}" onclick="pickPreset('${p.id}')" title="${p.label}">
       ${sideIco(ICO_BY_PRESET[p.id]||'eye')}<span class="s-txt">${p.label}</span><span class="cnt">${n}</span></div>`;
   });
+  if(unavailable.length){
+    const why = unavailable.map(p=>`${p.label}（${presetMissText(p)}）`).join('；');
+    h += `<div class="side-item disabled" title="点击查看是哪几个：${esc(why)}"
+      onclick="toast('${esc(unavailable.length + ' 个视图本批暂时用不了：' + why)}')">
+      ${sideIco('doc')}<span class="s-txt">用不了的视图</span><span class="cnt">${unavailable.length}</span></div>`;
+  }
 
   }
 
@@ -7356,6 +7407,25 @@ function commitCustomValue(k, el){
 
 /* ---------- 详情页「字段设置」：隐藏不关心的字段 / 新增自定义字段 ---------- */
 function isHiddenField(k){ return (S.hiddenFields || []).indexOf(k) >= 0; }
+
+/* v2.2：侧栏「关注视图」的显示开关 —— 与详情页「字段设置」同一套思路：
+   只控制"入口显不显示"，数据与筛选能力都不动，随时勾回来。
+   用户 2026-09-30 请求：关注视图太杂、且"缺项的灰色显示依然占用地方"。 */
+function isHiddenPreset(id){ return (S.hiddenPresets || []).indexOf(id) >= 0; }
+function togglePresetVisible(id, on){
+  const set = new Set(S.hiddenPresets || []);
+  if(on) set.delete(id); else set.add(id);
+  S.hiddenPresets = [...set];
+  save();
+  renderSidebar();
+  if(S.view === 'settings') renderSettings();
+}
+function setHideUnavailable(v){
+  S.hideUnavailable = !!v;
+  save();
+  renderSidebar();
+  if(S.view === 'settings') renderSettings();
+}
 function customFieldKeys(){ return (S.customFields || []).map(f=>f.key); }
 
 let fsHidden = null;    // 字段设置草稿：隐藏了哪些

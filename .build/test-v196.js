@@ -973,6 +973,59 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
   R(`S.students.forEach(s => { delete s['管理老师']; }); renderDashboard();`);
   ok(cardOf(R(`$('dashBody').innerHTML`), '管理老师') === null, '★ 本批没有管理老师字段 → 不出现该卡');
 
+  /* ════════ [24] 侧栏「关注视图」可自选 + 本批用不了的收起 ════════
+     用户 2026-09-30 请求：① 能在设置里自选展示哪些关注视图；② "缺项灰色显示依然占用地方"。
+     侧栏原本列出除「全部学生」外的**全部 17 个预设**，其中用不了的也各占一行（灰色「—」）。 */
+  console.log('\n[24] 侧栏关注视图：可自选 · 用不了的收起不占地方');
+  if(R('typeof togglePresetVisible') !== 'function'){
+    fail('侧栏视图开关还没实现（togglePresetVisible 不存在）—— 后续断言无法进行');
+  } else {
+  R(`
+    S.batches = []; S.activeBatchId = null; S.students = []; S.grades = [];
+    S.batches.push(makeBatch('侧栏测试','demo',[])); attachBatch(S.batches[0].id);
+    setStudents([{'学号':'2026971','姓名':'甲','班级':'英语2401'},{'学号':'2026972','姓名':'乙','班级':'英语2401'}]);
+    S.grades.length = 0; invalidateGradeMap();
+    S.hiddenPresets = []; delete S.hideUnavailable;
+  `);
+  const sideHtml = () => R(`(function(){ renderSidebar(); return $('sidebar').innerHTML; })()`);
+
+  // ① 默认：缺成绩表而用不了的那三个视图不再各占一行，收成一行提示
+  const s1 = sideHtml();
+  ['有不及格','绩点偏低','暂无成绩'].forEach(t =>
+    ok(s1.indexOf(`>${t}<`) < 0, `★ 用不了的「${t}」不再占一行（默认收起）`));
+  ok(/用不了的视图|暂时用不了/.test(s1), '★ 改为一行提示（不能悄悄消失 —— 要能点开看原因）');
+  /* ⚠️ 别硬编码"哪个视图可用" —— 17 个预设的可用性随批次数据变
+     （例：本批没人写备注时，「未写备注」命中全部 → 按片 4 的规则被置灰）。
+     所以先问一遍运行时，再拿它做断言。 */
+  const availP = R(`(function(){ const p = PRESETS.find(x => x.id !== 'all' && presetAvailable(x)); return p ? p.id : ''; })()`);
+  const availL = R(`(function(){ const p = PRESETS.find(x => x.id !== 'all' && presetAvailable(x)); return p ? p.label : ''; })()`);
+  ok(availP && s1.indexOf('>' + availL + '<') >= 0, `能用的视图照常显示（本批首可用：${availL}）`);
+
+  // ② 切成"显示为灰色" → 恢复旧行为
+  R(`S.hideUnavailable = false;`);
+  const s2 = sideHtml();
+  ok(s2.indexOf('>有不及格<') >= 0, '★ 切成"显示为灰色"后，用不了的视图又出现');
+  ok(s2.indexOf('>用不了的视图<') < 0, '★ 此时不再有"收起"那行提示（两种模式互斥，别同时出现）');
+
+  // ③ 自选：取消勾选某个视图 → 侧栏不显示；勾回来 → 又出现
+  R(`S.hideUnavailable = true; S.hiddenPresets = []; togglePresetVisible(${JSON.stringify(availP)}, false);`);
+  ok(sideHtml().indexOf('>' + availL + '<') < 0, `★ 取消勾选「${availL}」→ 侧栏不再显示它`);
+  ok(R(`isHiddenPreset(${JSON.stringify(availP)})`), '状态记在 S.hiddenPresets');
+  R(`togglePresetVisible(${JSON.stringify(availP)}, true);`);
+  ok(sideHtml().indexOf('>' + availL + '<') >= 0, '勾回来 → 又出现');
+
+  // ④ 持久化：状态管道一处都不能漏（这是"设了不生效"的经典来源）
+  R(`S.hiddenPresets = ['cadre','party']; save(); S.hiddenPresets = []; load();`);
+  eq(R(`JSON.stringify(S.hiddenPresets)`), '["cadre","party"]', '★ save → load 往返：自选结果落盘并恢复');
+  ok(R(`Array.isArray(backupPayload().hiddenPresets) && backupPayload().hiddenPresets.length === 2`),
+     '★ 全量备份里也带着它');
+  ok(appSrc.indexOf('hiddenPresets: S.hiddenPresets || []') >= 0 &&
+     (appSrc.match(/S\.hiddenPresets = Array\.isArray\(d\.hiddenPresets\)/g) || []).length === 2,
+     '★ 两处写出（本地存档 + 全量备份）+ 两处读入（本地加载 + 备份恢复）都写了');
+  ok((appSrc.match(/hiddenPresets/g) || []).length >= 8, '状态管道五处齐全');
+  R(`S.hiddenPresets = []; delete S.hideUnavailable;`);
+  }
+
   finish();
 })().catch(e => { console.error('测试执行出错：' + (e && e.stack || e)); process.exit(1); });
 
