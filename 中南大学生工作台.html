@@ -167,6 +167,21 @@ input,select,textarea{font-family:inherit;font-size:14px;outline:none}
   from{opacity:0;transform:translateY(5px);filter:blur(2px)}
   to{opacity:1;transform:translateY(0);filter:blur(0)}
 }
+/* ── v2.2（片 5）两处动效约束 ──
+   A：尊重系统的「减少动态效果」。开了它的人（晕动症、部分无障碍设置）看到的应当几乎不动，
+      这一条是硬需求 —— 之前全文没有 prefers-reduced-motion，系统开了也照样动。
+   B：入场动画只在"进入视图"时播一次。这些元素挂在**每次重建**的 innerHTML 里，
+      不加约束就会出现"每筛一次、柱状图再长一次"。重绘时由 JS 打上 no-anim。 */
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{
+    animation-duration:.001ms !important;
+    animation-delay:0ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.001ms !important;
+    scroll-behavior:auto !important;
+  }
+}
+.no-anim .bar-grow, .no-anim .donut-seg, .no-anim .hbar-fill{animation:none}
 .quote-btn{
   flex-shrink:0;width:20px;height:20px;border-radius:5px;
   display:inline-flex;align-items:center;justify-content:center;
@@ -5656,6 +5671,17 @@ function groupCount(list, key, opts={}){
 /* W 由容器真实像素宽度决定（见 chartWidth）。
    viewBox 宽度 == 实际像素宽度，因此 1 单位 = 1px：
    轴字不会被缩放、高度恒定、点击换算也不会错位。 */
+/* ── v2.2（片 5）：入场动画的两个开关 ──
+   D·阶梯延迟封顶：原先 --delay 随序号线性增长（柱状 i*45ms、环形 i*80ms、横条 i*50ms）——
+     12 根柱子会拉到 495ms、20 根 855ms，叠加 .55s 动画后要 1.4s 才 settle，显得拖沓。
+     现在统一夹在 ANIM_STAGGER_MAX 以内：保留"依次出现"的节奏，但不拖尾。
+   B·入场只播一次：`_animCls` 由 renderDashBody 在**构建 HTML 之前**决定，图表构建器读它。 */
+const ANIM_STAGGER_MAX = 240;
+const animDelay = (i, step) => Math.min(Math.max(0, i) * step, ANIM_STAGGER_MAX);
+let _dashAnimDone = false;      // 总览是否已经渲染过一次（renderDashboard 会重置）
+let _animCls = '';              // 本次渲染要带的类：'' 或 ' no-anim'
+function dashAnimClass(){ return _animCls; }
+
 function barChart(data, opts={}){
   if(!data.length) return '';
   const W = Math.max(200, Math.round(opts.width || 560));
@@ -5679,7 +5705,7 @@ function barChart(data, opts={}){
     const h = ih * d.value / max;
     const x = PL + step*i + (step-bw)/2;
     const y = PT + ih - h;
-    const clickable = opts.onClick ? ` class="chart-hit bar-grow" style="fill:${colorOf(d,i)};--delay:${i*45}ms"` : ` class="bar-grow" style="fill:${colorOf(d,i)};--delay:${i*45}ms"`;
+    const clickable = opts.onClick ? ` class="chart-hit bar-grow${dashAnimClass()}" style="fill:${colorOf(d,i)};--delay:${animDelay(i,45)}ms"` : ` class="bar-grow${dashAnimClass()}" style="fill:${colorOf(d,i)};--delay:${animDelay(i,45)}ms"`;
     if(opts.onClick){
       g += `<rect x="${x}" y="${PT}" width="${bw}" height="${ih}" class="chart-hit-bg"/>`;
     }
@@ -5727,7 +5753,7 @@ function donutChart(data, opts={}){
     const col = d.color || palette[i % palette.length];
     const ttl = `<title>${esc(d.label)}：${d.value} 人（${Math.round(frac*100)}%）</title>`;
     segs += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke-width="${sw}"
-      class="donut-seg" style="stroke:${col};stroke-dasharray:${len} ${C-len};stroke-dashoffset:${off};--delay:${i*80}ms"
+      class="donut-seg${dashAnimClass()}" style="stroke:${col};stroke-dasharray:${len} ${C-len};stroke-dashoffset:${off};--delay:${animDelay(i,80)}ms"
       transform="rotate(-90 ${cx} ${cy})">${ttl}</circle>`;
     acc += frac;
   });
@@ -5756,7 +5782,7 @@ function hBarChart(data, opts={}){
   return `<div class="hbar-list">` + data.map((d,i)=>`
     <div class="hbar-row">
       <span class="hbar-label" title="${esc(d.label)}">${esc(d.label)}</span>
-      <div class="hbar-track"><div class="hbar-fill" style="width:${(d.value/max*100).toFixed(1)}%;--delay:${i*50}ms"></div></div>
+      <div class="hbar-track"><div class="hbar-fill${dashAnimClass()}" style="width:${(d.value/max*100).toFixed(1)}%;--delay:${animDelay(i,50)}ms"></div></div>
       <span class="hbar-val">${d.value}</span>
     </div>`).join('') + `</div>`;
 }
@@ -5820,6 +5846,7 @@ function dashPreset(id){ S.quickView = id; S.classFilter='all'; renderSidebar();
 
 /* ---------- 总览页主体 ---------- */
 function renderDashboard(){
+  _dashAnimDone = false;      // v2.2（片 5-B）：进入总览 = 一次"视图进入"，入场动画可以再播一次
   const searched = searchList((S._search||'').trim());
   const hasFilter = S.classFilter!=='all' || Object.keys(S.filters).length>0 || S.quickView!=='all' || S._search;
 
@@ -5911,6 +5938,10 @@ function renderDashMetrics(){
 }
 
 function renderDashBody(){
+  /* v2.2（片 5-B）：在**构建 HTML 之前**决定本次是否静音，构建完就把标记置上。
+     于是：进入总览的第一次会播入场动画；之后每次筛选/搜索引起的重绘都带 no-anim、不再重播。 */
+  _animCls = _dashAnimDone ? ' no-anim' : '';
+  _dashAnimDone = true;
   const searched = searchList((S._search||'').trim());
   const body = $('dashBody');
   if(!body) return;

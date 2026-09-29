@@ -18,6 +18,33 @@
 
 ## [未发布]
 
+**真实模板适配（第 5/6 片）：交互动画 —— 尊重「减少动态效果」、入场只播一次、不拖尾。**
+
+- **问题（有代码证据）**：`.bar-grow`（barUp .55s）、`.donut-seg`（donutIn .7s）、`.hbar-fill`（hbarIn .6s）
+  挂在**每次重建**的 innerHTML 里（`renderDashBody()` 就是整段替换；全文 54 处 `innerHTML=`），
+  于是**改一个筛选条件、柱状图就再"长"一次**；`--delay` 还随序号线性增长（`i*45/80/50ms`），
+  12 根柱子拉到 495ms、20 根 855ms，叠加动画后要 1.4s 才 settle。而全文**没有** `prefers-reduced-motion`。
+- **A · 减少动效**：补 `@media (prefers-reduced-motion: reduce)`，把 animation / transition 的时长与延迟
+  压到最小、`animation-iteration-count` 限 1 —— 系统开了「减少动态效果」的人看到的就几乎不动。
+  （无障碍硬需求，之前完全没有。）
+- **B · 入场只播一次**：`renderDashboard()`（= 进入总览）重置标记；`renderDashBody()` 在**构建 HTML 之前**
+  决定本次是否静音（`_animCls`），构建完置上标记。三个图表构建器读 `dashAnimClass()` 输出 `no-anim` 类，
+  CSS 一行 `animation:none` 覆盖。效果：**进入总览会播一次；之后每次筛选/搜索重绘都不再重播；
+  重新进入总览又会播**（视图级，不是全局关掉）。
+- **D · 不拖尾**：新增 `animDelay(i, step) = min(i*step, 240ms)`，三处阶梯延迟统一封顶 240ms ——
+  保留"依次出现"的节奏，但不再拖尾（12 根：495ms → 240ms）。
+- **未做（当时的选择）**：C 金句轮换的动画分级 —— 核实后发现它是**刻意用强制 reflow 重放**的
+  （`:4145-4147` 的 `animation='none'` → `void offsetWidth` → `animation=''`），
+  而且鼠标悬停会暂停、间隔可在设置里改（默认 5s）。属**偏好**而非缺陷，先不动。
+- **回归**：test-v196 新增 §[18] 共 8 条 —— 2 条静态（有 reduced-motion，且同时压住 animation 与
+  transition 时长）+ 3 条行为（进入总览播 / 重绘不播 / 重新进入又播）+ 3 条延迟（12 根都有延迟设置、
+  最大值 ≤ 240ms、仍保留阶梯而不是整个砍掉）。
+- **验证**：全量闸门绿（check-syntax 6 个 script 块 / test-library / test-import / test-v196 /
+  test-delete-backup / build-desktop + test-desktop 28/28）；桌面版入口已确认含
+  `prefers-reduced-motion` 与 `no-anim`。
+
+---
+
 **真实模板适配（第 4/6 片）：8 条对着真实数据做的看板预设 + 「筛不出人」的置灰机制。**
 
 - **新增 8 条预设**（都在真实导出表上算过命中人数，形状来自 189 行样本）：

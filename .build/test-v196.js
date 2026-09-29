@@ -674,6 +674,47 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
   eq(R(`(function(){ const p = presetById('xjabnormal'); return p ? presetAvailable(p) : 'no-preset'; })()`),
      true, '★ 命中 0 人时仍可用（不置灰）');
 
+  /* ════════ [18] 交互动画：减少动效 / 入场只播一次 / 不拖尾（片 5 · A+B+D） ════════
+     起因：`.bar-grow` / `.donut-seg` / `.hbar-fill` 挂在**每次重建**的 innerHTML 里
+     （`renderDashBody` 就是整段替换），于是**改一个筛选条件，柱状图就再"长"一次**。
+     入场动画本该只在"进入视图"时播。 */
+  console.log('\n[18] 交互动画（A 减少动效 / B 入场只播一次 / D 不拖尾）');
+
+  // ── A：尊重系统的「减少动态效果」 ──
+  const rmIdx = html.indexOf('prefers-reduced-motion');
+  ok(rmIdx >= 0, '★ 有 prefers-reduced-motion 适配（系统开了就几乎不动 —— 无障碍硬需求）');
+  const rmWin = rmIdx >= 0 ? html.slice(rmIdx, rmIdx + 800) : '';
+  ok(rmWin.indexOf('animation-duration') >= 0 && rmWin.indexOf('transition-duration') >= 0,
+     '该适配里同时压住 animation 与 transition 的时长');
+
+  // ── B：入场动画只在"进入视图"时播；筛选/搜索引起的重绘不再重播 ──
+  R(`
+    S.batches = []; S.activeBatchId = null; S.students = [];
+    S.batches.push(makeBatch('动画测试','demo',[])); attachBatch(S.batches[0].id);
+    setStudents([
+      {'学号':'2026701','姓名':'甲','班级':'英语2401'},
+      {'学号':'2026702','姓名':'乙','班级':'英语2402'}
+    ]);
+    S.quickView='all'; S.filters={}; S.classFilter='all'; S._search='';
+  `);
+  R(`renderDashboard();`);
+  ok(R(`$('dashBody').innerHTML`).indexOf('no-anim') < 0,
+     '★ 进入总览这一次：入场动画照常播（不带 no-anim）');
+  R(`renderDashBody();`);                       // 模拟一次筛选/搜索引起的重绘
+  ok(R(`$('dashBody').innerHTML`).indexOf('no-anim') >= 0,
+     '★ 之后再重绘（筛选/搜索）不再重播入场动画');
+  R(`renderDashboard();`);
+  ok(R(`$('dashBody').innerHTML`).indexOf('no-anim') < 0,
+     '★ 重新进入总览时又会播一次（是"视图级"的，不是全局关掉）');
+
+  // ── D：阶梯延迟不拖尾 ──
+  const bars = R(`barChart([1,2,3,4,5,6,7,8,9,10,11,12].map((v,i)=>({label:'x'+i, value:v})))`);
+  const delays = (bars.match(/--delay:(\d+)ms/g) || []).map(s => parseInt(s.replace(/\D/g, ''), 10));
+  ok(delays.length >= 10, '12 根柱子都带延迟设置');
+  ok(Math.max.apply(null, delays) <= 240,
+     `★ 最大阶梯延迟 ${Math.max.apply(null, delays)}ms ≤ 240ms（原先 12 根会到 495ms，叠加 .55s 动画明显拖尾）`);
+  ok(delays[0] === 0 && delays[1] > 0, '仍保留"依次出现"的节奏（不是把阶梯整个砍掉）');
+
   finish();
 })().catch(e => { console.error('测试执行出错：' + (e && e.stack || e)); process.exit(1); });
 
