@@ -715,6 +715,56 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
      `★ 最大阶梯延迟 ${Math.max.apply(null, delays)}ms ≤ 240ms（原先 12 根会到 495ms，叠加 .55s 动画明显拖尾）`);
   ok(delays[0] === 0 && delays[1] > 0, '仍保留"依次出现"的节奏（不是把阶梯整个砍掉）');
 
+  /* ════════ [19] 总览卡片：空转合并 + 尺寸跟内容走（方案 片 A） ════════
+     依据 docs/数据总览卡片与多端适配-方案.md：
+     ①「成绩表没导入」时，4 张成绩卡不该各自占 7/5/12/7 的版面 —— 合成一条带入口的提示；
+     ②「政治面貌构成」是 span 12 整行卡，但环形图固定 172px 不放大 → 降成 span 5。
+     反向保护同样重要：**导了成绩表之后必须照常出现**，不能把功能变没了。 */
+  console.log('\n[19] 总览卡片：空转合并不占版面 · 尺寸跟内容走');
+  const dashHtml = () => R(`(function(){ renderDashboard(); return $('dashBody').innerHTML; })()`);
+  const metHtml  = () => R(`$('dashMetrics').innerHTML`);
+  const countMetric = h => (h.match(/class="metric[" ]/g) || []).length;   // 只数卡片本身，别把 metric-val/lab/hint 算进去
+
+  R(`
+    S.batches = []; S.activeBatchId = null; S.students = []; S.grades = [];
+    S.batches.push(makeBatch('卡片测试','demo',[])); attachBatch(S.batches[0].id);
+    setStudents([
+      {'学号':'2026501','姓名':'甲','班级':'英语2401','性别':'女','政治面貌':'共青团员','专业':'英语','民族':'汉族'},
+      {'学号':'2026502','姓名':'乙','班级':'英语2402','性别':'男','政治面貌':'群众','专业':'英语','民族':'汉族'},
+      {'学号':'2026503','姓名':'丙','班级':'英语2402','性别':'女','政治面貌':'共青团员','专业':'英语','民族':'汉族'}
+    ]);
+    S.grades.length = 0; invalidateGradeMap();
+    S.quickView='all'; S.filters={}; S.classFilter='all'; S._search='';
+  `);
+
+  // ── 场景一：只有学生表 → 三张成绩卡退场，换成一条合并提示 ──
+  let dHtml = dashHtml();
+  // ⚠️ 断言"不作为**卡片标题**出现" —— 因为合并提示里会**列出这三张卡的名字**
+  //    （"以下三张卡需要它：加权成绩分布 · …"），用 indexOf<0 会误判。
+  ['加权成绩分布','学业预警名单','班级平均加权成绩'].forEach(t =>
+    ok(dHtml.indexOf(`<div class="card-title">${t}</div>`) < 0, `★ 没有成绩表时不出现空转卡「${t}」`));
+  ok(dHtml.indexOf('openGradeImport()') >= 0 && dHtml.indexOf('成绩') >= 0,
+     '★ 改为一条合并提示，并带「去导入成绩」入口（不能让人以为功能没了）');
+  eq(countMetric(metHtml()), 4, '★ 指标卡 6 张 → 4 张（三张成绩项收成一张）');
+  ok(metHtml().indexOf('openGradeImport()') >= 0, '合并后的那张指标卡能点进成绩导入');
+
+  // ── 尺寸跟内容走：政治面貌只有 2 类，不该独占整行 ──
+  const pi = dHtml.indexOf('政治面貌构成');
+  ok(pi > 0 && /dash-card span-5/.test(dHtml.slice(Math.max(0, pi - 300), pi)),
+     '★ 「政治面貌构成」不再独占整行（span-12 → span-5；环形图是固定 172px，整行必然左小右空）');
+
+  // ── 场景二：导了成绩表 → 三张卡回来、指标卡回到 6 张（反向保护）──
+  R(`S.grades.push(
+      {'学号':'2026501','加权平均成绩':'88','平均学分绩点':'3.6','不及格门数':'0'},
+      {'学号':'2026502','加权平均成绩':'72','平均学分绩点':'2.5','不及格门数':'1'},
+      {'学号':'2026503','加权平均成绩':'66','平均学分绩点':'1.9','不及格门数':'2'});
+     invalidateGradeMap();`);
+  dHtml = dashHtml();
+  ['加权成绩分布','学业预警名单','班级平均加权成绩'].forEach(t =>
+    ok(dHtml.indexOf(`<div class="card-title">${t}</div>`) >= 0, `导了成绩表后「${t}」照常出现`));
+  eq(countMetric(metHtml()), 6, '导了成绩表后指标卡回到 6 张');
+  ok(dashHtml().indexOf('去导入成绩') < 0, '此时不再显示那条"去导入成绩"提示');
+
   finish();
 })().catch(e => { console.error('测试执行出错：' + (e && e.stack || e)); process.exit(1); });
 

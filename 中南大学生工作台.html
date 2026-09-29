@@ -5919,14 +5919,14 @@ function renderDashMetrics(){
   const noGpa   = noGrade || !gradeHasData('平均学分绩点');
   const gMiss = f => noGrade ? '尚未导入成绩表，请先导入成绩' : missTip([f]);
 
-  el.innerHTML = `
-    ${metricCard('brand','在册学生', searched.length, '查看全部学生',
-        searched.length?`gotoList({clear:true})`:'')}
-    ${metricCard('plain','覆盖班级', classes.length, '个班级 · 侧栏可直接选', '')}
-    ${metricCard('warn','需重点关注', focus,
-        focus?'点击查看名单':'暂无需要关注的学生',
-        focus?`gotoList({preset:'focus'})`:'', focus===0)}
-    ${metricCard('danger','有不及格', fail,
+  /* v2.2（方案 片 A）：整张成绩表没导入时，三张成绩指标卡不再各占 1/6 的版面
+     （三张都是「—」+ 同一句提示，等于把同一件事说三遍），收成一张能点进导入的卡。
+     ⚠️ 与卡片区同口径：只在**整张表都没导**时收；导了表但缺某一项，仍逐项降级。 */
+  const gradeMetrics = noGrade
+    ? metricCard('plain','成绩类指标','3 项',
+        '导入成绩信息表后自动出现：有不及格 / 平均加权成绩 / 平均学分绩点',
+        'openGradeImport()')
+    : `${metricCard('danger','有不及格', fail,
         noFail ? gMiss('不及格门数') : (fail?'点击查看名单':'暂无不及格记录'),
         (!noFail && fail) ? `gotoList({preset:'fail'})` : '', noFail || fail===0)}
     ${metricCard('ok','平均加权成绩', avgScore?avgScore.toFixed(1):'—',
@@ -5935,6 +5935,15 @@ function renderDashMetrics(){
     ${metricCard('brand','平均学分绩点', avgGpa?avgGpa.toFixed(2):'—',
         noGpa ? gMiss('平均学分绩点') : `${gpas.length} 人有绩点`,
         '', noGpa || !avgGpa)}`;
+
+  el.innerHTML = `
+    ${metricCard('brand','在册学生', searched.length, '查看全部学生',
+        searched.length?`gotoList({clear:true})`:'')}
+    ${metricCard('plain','覆盖班级', classes.length, '个班级 · 侧栏可直接选', '')}
+    ${metricCard('warn','需重点关注', focus,
+        focus?'点击查看名单':'暂无需要关注的学生',
+        focus?`gotoList({preset:'focus'})`:'', focus===0)}
+    ${gradeMetrics}`;
 }
 
 function renderDashBody(){
@@ -5997,6 +6006,9 @@ function renderDashBody(){
   const hasDorm   = dormN > 0;
   const noAlertField = alerts.length === 0 && !hasScore;
   const scoreTip = hasGrade() ? '暂无数据' : '尚未导入成绩表，请先导入成绩';
+  /* v2.2（方案 片 A）：**整张成绩表**都没导入 —— 三张成绩卡合并成一条提示。
+     ⚠️ 只在"整张表没导"时合并；导了表但缺某一项，仍按原来的逐项降级（各card 自己说明）。 */
+  const noGradeTable = !hasGrade();
   // 只有一类 = 没有信息量 → 不占版面（避免"一个柱子占一整张卡"这种假看板）
   const multi = arr => arr.length > 1;
 
@@ -6015,11 +6027,26 @@ function renderDashBody(){
     donutChart(gender, {field:'性别', centerLab:'人', onClick:true, palette:['var(--brand)','var(--warn)','var(--text-3)']}),
     !hasGender || !gender.length, {span:5, emptyText: hasGender ? '暂无数据' : missTip(['性别'])}));
 
+  /* v2.2（方案 片 A）：成绩表没导入时，「加权成绩分布 / 学业预警名单 / 班级平均加权成绩」
+     三张卡会各占 7/5/12 的版面、却只显示同一句提示（合计近两整行）→ 合并成这一条。
+     数据源到位后三张卡自动回来（下面各有 if(!noGradeTable)）。 */
+  if(noGradeTable){
+    cards.push(dashCard('成绩分析待导入', '3 张卡在等这张表',
+      `<div class="dash-empty" style="text-align:left;padding:8px 0 12px">
+         本批还没导入 <b>成绩信息表</b> —— 以下三张卡需要它才能出图：<br>
+         <span style="color:var(--text-2)">加权成绩分布 · 学业预警名单 · 班级平均加权成绩</span>
+       </div>
+       <div style="text-align:center"><button class="btn pri" onclick="openGradeImport()">去导入成绩</button></div>`,
+      false, {span:7}));
+  }
+  if(!noGradeTable){
   cards.push(dashCard('加权成绩分布', hasScore ? `${scoreN} 人已录入${noScoreN ? ` · ${noScoreN} 人暂无成绩` : ''}` : '字段缺失',
     barChart(buckets, {width:chartWidth(7), colorOf:(d,i)=>['var(--danger)','var(--warn)','var(--warn)','var(--brand)','var(--brand)','var(--ok)'][i%6]}),
     !hasScore || !buckets.some(b=>b.value), {span:7, emptyText: scoreTip}));
+  }
 
   // 学业预警名单：本页最该被看到的东西 —— 直接点名，点一下就能打开该生详情
+  if(!noGradeTable){
   cards.push(dashCard('学业预警名单', risk.length ? `共 ${risk.length} 人 · 点名字看详情` : '暂无预警',
     risk.length ? `<div class="warn-list">${risk.slice(0,8).map(r=>`
       <button class="warn-row" onclick="openDetail(${jsq(String(r.s['学号']||''))})">
@@ -6030,6 +6057,7 @@ function renderDashBody(){
       risk.length > 8 ? `<div style="font-size:11.5px;color:var(--text-3);text-align:center;padding-top:2px">
         还有 ${risk.length - 8} 人，点左侧「有不及格」进列表看全</div>` : ''}</div>` : '',
     !risk.length, {span:5, emptyText: hasScore ? '本批没有不及格或绩点偏低的学生' : scoreTip}));
+  }
 
   cards.push(dashCard('关注提醒', `${alerts.length} 项待处理`,
     alerts.length ? `<div class="alert-list">${alerts.map(a=>`
@@ -6049,10 +6077,12 @@ function renderDashBody(){
   cards.push(dashCard('数据完整度', `备注覆盖 ${withRemark} / ${searched.length} 人`,
     `<div class="pbar-stack">${pbarRows.join('')}</div>`, !searched.length, {span:7}));
 
+  if(!noGradeTable){
   cards.push(dashCard('班级平均加权成绩', classAvgPhrase(classAvg, hasScore),
     barChart(classAvg.length>12 ? classAvg.slice(0,12) : classAvg,
       {width:chartWidth(12), colorOf:(d,i)=>d.value>=85?'var(--ok)':(d.value>=70?'var(--brand)':'var(--warn)')}),
     !classAvg.length, {span:12, emptyText: scoreTip}));
+  }
 
   // 宿舍分配概览：不画图，只给"够不够住"三个数 + 一个入口
   if(hasDorm){
@@ -6075,7 +6105,7 @@ function renderDashBody(){
   }
   if(hasPol && multi(pol)){
     cards.push(dashCard('政治面貌构成', `${pol.length} 类 · 点击图例筛选`,
-      donutChart(pol, {field:'政治面貌', centerLab:'人', onClick:true}), false, {span:12}));
+      donutChart(pol, {field:'政治面貌', centerLab:'人', onClick:true}), false, {span:5}));
   }
 
   body.innerHTML = `<div class="dash">${cards.join('')}</div>`;
