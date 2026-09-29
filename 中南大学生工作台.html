@@ -3260,7 +3260,7 @@ function renderSettings(){
         const on = !isHiddenPreset(p.id), okA = presetAvailable(p);
         // 只有"本批用不了"的标签才挂 title（能用的没必要，也省字符）
         return `<button class="pchip${on?' on':''}${okA?'':' unavail'}"${
-          okA ? '' : ` title="${esc(p.label)}：${esc(presetMissText(p))}"`} onclick="togglePresetVisible(${jsq(p.id)}, ${on?'false':'true'})">${on?'✓ ':''}${esc(p.label)}</button>`;
+          okA ? '' : ` title="${esc(p.label)}：${esc(presetMissText(p))}"`} onclick="togglePresetVisible(${jsq(p.id)}, ${on?'false':'true'}, this)">${on?'✓ ':''}${esc(p.label)}</button>`;
       }).join('')}
     </div>
   </div></div>
@@ -5632,7 +5632,7 @@ function openColSettings(){
   colOn = new Set(Array.isArray(S.listCols) ? S.listCols : DEFAULT_COLS.filter(colAvailable));
   renderColSettings();
 }
-function renderColSettings(){
+function renderColSettings(focusIdx){
   const rows = colDraft.map((k,i)=>{
     const c = colMeta(k);
     const miss = colMissReason(k);
@@ -5641,7 +5641,7 @@ function renderColSettings(){
         ondrop="colDrop(${i},event)" ondragend="colDragEnd()">
       <span class="colrow-grip" title="按住拖动调整顺序">⠿</span>
       <label class="colrow-chk">
-        <input type="checkbox" ${colOn.has(k)?'checked':''} onchange="colToggle(${i},this.checked)">
+        <input type="checkbox" ${colOn.has(k)?'checked':''} onchange="colToggle(${i},this.checked,this)">
         <span>${esc(c.label)}</span>
       </label>
       ${miss?`<span class="colrow-miss" title="${
@@ -5666,7 +5666,7 @@ function renderColSettings(){
           这里列出的字段都来自你导入的表 —— 勾了本批没有的字段也不会显示（换到有该字段的数据会自动出现）。<br>
           想加表里没有的列（例如「家长电话」）？先到详情页的「<b>字段设置</b>」里新建自定义字段。
         </div>
-        <div class="collist">${rows}</div>
+        <div class="collist" id="colList">${rows}</div>
       </div>
       <div class="modal-foot">
         <button class="btn" onclick="resetCols()">恢复默认</button>
@@ -5676,6 +5676,20 @@ function renderColSettings(){
       </div>
     </div>
   </div>`;
+  /* v2.2：排序（上移/下移/拖动）后必须重画 —— 但重画会把 .collist 滚回顶部，
+     用户就找不到刚动的那一行了。所以把"刚动过的下标"传进来，重画后把它滚回视野。
+     （勾选不走这里：勾选是就地更新，见 colToggle。） */
+  if(focusIdx != null){
+    const list = $('colList');
+    const row = (list && list.children) ? list.children[focusIdx] : null;
+    if(row && typeof row.scrollIntoView === 'function'){ try{ row.scrollIntoView({block:'nearest'}); }catch(e){} }
+  }
+}
+/* 就地切换一行「已选」外观 —— 不整段重绘（重绘会让 .collist 的滚动位置打回顶部，
+   用户反馈"每勾一项就跳回首行"就是这个原因）。colToggle 与 fsToggle 共用这一处。 */
+function toggleRowOn(el, on){
+  const row = (el && el.closest) ? el.closest('.colrow') : null;
+  if(row && row.classList) row.classList.toggle('on', on);
 }
 function colDragStart(i, ev){ colDragFrom = i; if(ev && ev.dataTransfer){ ev.dataTransfer.effectAllowed='move'; } }
 function colDragOver(ev){ if(ev) ev.preventDefault(); }
@@ -5687,12 +5701,12 @@ function colDrop(i, ev){
   const it = arr.splice(colDragFrom,1)[0];
   arr.splice(i,0,it);
   colDraft = arr; colDragFrom = null;
-  renderColSettings();
+  renderColSettings(i);
 }
-function colToggle(i, on){
+function colToggle(i, on, el){
   const k = colDraft[i];
   if(on) colOn.add(k); else colOn.delete(k);
-  renderColSettings();
+  toggleRowOn(el, on);   // v2.2：就地更新 —— 不重绘（重绘会把列表滚回顶部，用户反馈的"跳回首行"）
 }
 function colMove(i, d){
   const j = i + d;
@@ -5700,7 +5714,7 @@ function colMove(i, d){
   const arr = colDraft.slice();
   const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
   colDraft = arr;
-  renderColSettings();
+  renderColSettings(j);   // 重画后把刚移动的那一行滚回视野
 }
 function resetCols(){
   colDraft = colCandidates();
@@ -7423,13 +7437,21 @@ function isHiddenField(k){ return (S.hiddenFields || []).indexOf(k) >= 0; }
    只控制"入口显不显示"，数据与筛选能力都不动，随时勾回来。
    用户 2026-09-30 请求：关注视图太杂、且"缺项的灰色显示依然占用地方"。 */
 function isHiddenPreset(id){ return (S.hiddenPresets || []).indexOf(id) >= 0; }
-function togglePresetVisible(id, on){
+function togglePresetVisible(id, on, el){
   const set = new Set(S.hiddenPresets || []);
   if(on) set.delete(id); else set.add(id);
   S.hiddenPresets = [...set];
   save();
   renderSidebar();
-  if(S.view === 'settings') renderSettings();
+  /* v2.2：设置页那颗标签**就地改状态**，不重绘整页 —— 重绘会把页面滚动位置打回顶部
+     （与列设置"勾选跳回首行"是同一类问题）。没传元素时（如测试）才退回重绘。 */
+  if(el && el.classList){
+    el.classList.toggle('on', on);
+    const p = presetById(id);
+    el.textContent = (on ? '✓ ' : '') + (p ? p.label : id);
+  }else if(S.view === 'settings'){
+    renderSettings();
+  }
 }
 function setHideUnavailable(v){
   S.hideUnavailable = !!v;
@@ -7518,8 +7540,7 @@ function renderFieldSettings(){
 }
 function fsToggle(k, on, el){
   if(on) fsHidden.delete(k); else fsHidden.add(k);
-  const row = (el && el.closest) ? el.closest('.colrow') : null;
-  if(row && row.classList) row.classList.toggle('on', on);
+  toggleRowOn(el, on);   // v2.2：与列设置共用同一处就地更新（都是"勾选不该整段重绘"）
 }
 function addCustomField(){
   const el = $('cfName');

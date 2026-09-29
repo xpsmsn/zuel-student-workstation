@@ -1046,6 +1046,61 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
   R(`S.hiddenPresets = []; delete S.hideUnavailable;`);
   }
 
+  /* ════════ [25] 勾选不再"跳回首行"（用户 2026-09-30 反馈） ════════
+     现象：列设置里每勾一项，列表就滚回顶部。
+     根因：`colToggle` 调 `renderColSettings()` **整段重绘 modal** → `.collist`
+     （max-height:46vh / overflow-y:auto）被重新挂载 → scrollTop 归零。
+     正解在代码里已有先例：`fsToggle`（字段设置）就是**就地改那一行的类**，所以它不跳。
+     这里把"切换不重绘"钉成断言 —— 重绘与否是可观测的（替换渲染函数计数）。 */
+  console.log('\n[25] 列设置勾选不再跳回首行（就地更新，不整段重绘）');
+  if(R('typeof colToggle') !== 'function'){
+    fail('列设置还没实现 —— 后续断言无法进行');
+  } else {
+    // 装一个"渲染计数"探针（函数声明的全局绑定可写）
+    R(`
+      window.__spy = {};
+      ['renderColSettings','renderFieldSettings','renderSettings'].forEach(n=>{
+        window.__spy[n] = { n:0, bak: window[n] };
+        window[n] = function(){ window.__spy[n].n++; return window.__spy[n].bak.apply(null, arguments); };
+      });
+    `);
+    const calls = n => R(`window.__spy[${JSON.stringify(n)}].n`);
+
+    // ① 列设置勾选：只改这一行的外观，不重绘整个 modal
+    R(`
+      colDraft = colCandidates(); colOn = new Set();
+      window.__rowOn = null;
+      const fakeEl = { closest: () => ({ classList: { toggle: (c,v) => { window.__rowOn = [c,v]; } } }) };
+      colToggle(0, true, fakeEl);
+    `);
+    eq(calls('renderColSettings'), 0, '★ 勾选不再整段重绘（重绘才会把 .collist 的滚动位置打回顶部）');
+    eq(R('JSON.stringify(window.__rowOn)'), '["on",true]', '★ 改为就地给这一行加上「已选」外观');
+    eq(R('colOn.size'), 1, '状态照样记进 colOn（保存时用它）');
+    R(`colToggle(0, false, { closest: () => ({ classList: { toggle(){} } }) });`);
+    eq(R('colOn.size'), 0, '取消勾选也照样生效');
+
+    // ② 字段设置的勾选本来就是就地更新 —— 钉住，别在重构里退化
+    R(`fsHidden = new Set();`);   // 它只在 openFieldSettings() 里初始化，这里手动备好
+    R(`fsToggle('学号', false, { closest: () => null });`);
+    eq(calls('renderFieldSettings'), 0, '字段设置勾选也是就地更新（既有行为）');
+
+    // ③ 上一轮加的"关注视图标签"同样不能重绘整页（否则页面滚动也会跳）
+    R(`S.view = 'settings'; S.hiddenPresets = [];`);
+    R(`togglePresetVisible('cadre', false, { classList:{ toggle(){} }, textContent:'' });`);
+    eq(calls('renderSettings'), 0, '★ 设置页标签就地更新（不重绘整页）');
+    ok(R(`isHiddenPreset('cadre')`), '状态照样记进 S.hiddenPresets');
+    R(`S.hiddenPresets = []; S.view = 'list';`);
+
+    // ④ 上移/下移要能"把刚动的那一行滚回视野"（重绘会让它滚出屏幕）
+    ok(appSrc.indexOf('scrollIntoView') >= 0, '★ 排序后把移动的那一行保持在视野里');
+    R(`colDraft = ['a','b','c']; colOn = new Set(); colMove(0, 1);`);
+    eq(R(`colDraft.join('')`), 'bac', '上移/下移仍然生效');
+    eq(calls('renderColSettings') >= 1, true, '排序仍会重绘（顺序变了，必须重画）');
+
+    // 收尾：还原探针
+    R(`['renderColSettings','renderFieldSettings','renderSettings'].forEach(n=>{ if(window.__spy[n]) window[n] = window.__spy[n].bak; });`);
+  }
+
   finish();
 })().catch(e => { console.error('测试执行出错：' + (e && e.stack || e)); process.exit(1); });
 
