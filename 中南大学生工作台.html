@@ -2243,19 +2243,26 @@ function initModalKeyboard(){
 
 /* ---------- 撤销快照：删除前把整个批次表拍下来，30 秒内可一键还原 ---------- */
 let undoSnap = null, undoTimer = null;
-function snapshotForUndo(label){
-  undoSnap = { data: JSON.stringify({ batches: S.batches, activeBatchId: S.activeBatchId }) };
+/* v2.2：撤销条本身不变，只是把"开一次撤销机会"抽成 offerUndo —— 因为现在有**两个来源**：
+   删除类操作（snapshotForUndo 用**当前**状态拍照）与详情页保存（事先拍好的 beforeEdit 快照）。 */
+function offerUndo(data, label){
+  undoSnap = { label: label || '', data: data };
   clearTimeout(undoTimer);
   undoTimer = setTimeout(hideUndoBar, 30000);
-  $('undoMsg').textContent = label + ' · 30 秒内可撤销';
+  $('undoMsg').textContent = (label || '') + ' · 30 秒内可撤销';
   $('undoBar').classList.add('show');
+}
+function snapshotForUndo(label){
+  offerUndo(JSON.stringify({ batches: S.batches, activeBatchId: S.activeBatchId }), label);
 }
 function hideUndoBar(){
   $('undoBar').classList.remove('show');
+  $('undoMsg').textContent = '';
   clearTimeout(undoTimer); undoTimer = null; undoSnap = null;
 }
 function undoRestore(){
   if(!undoSnap) return;
+  const label = undoSnap.label || '';
   let d = null;
   try{ d = JSON.parse(undoSnap.data); }catch(e){}
   hideUndoBar();
@@ -2267,7 +2274,8 @@ function undoRestore(){
   else { S.activeBatchId = null; S.students = []; S.grades = []; invalidateGradeMap(); }
   S.filters = {}; S.quickView = 'all'; S.classFilter = 'all'; S._search = '';
   save(); renderBatchBar(); renderSidebar(); renderMain(); closeModal();
-  toast('已撤销，数据恢复到删除前');
+  // v2.2：撤销条现在也服务"改资料"（不止删除），所以提示语不再写死"删除前"
+  toast(label ? `已撤销：${label}` : '已撤销，数据已恢复');
 }
 
 /* ---------- 删除 · 单个学生 ---------- */
@@ -7966,6 +7974,10 @@ function saveDetailEdit(){
 function saveDetailEditApply(){
   const s = curStudent;
   if(!s || !detailDraft){ toast('没有可保存的修改'); return; }
+  /* v2.2（升级清单 D）：**改动前**先拍一张快照。保存后若真有改动，就用现成的 30 秒撤销条
+     给一次后悔药（误清字段、数字填错都能一键回来）；没改动则不亮出撤销条，避免"撤销了个寂寞"。
+     ⚠️ 必须在这里立刻 stringify —— 后面的循环会就地改 s，晚了拍到的就是改后的值。 */
+  const beforeEdit = JSON.stringify({ batches: S.batches, activeBatchId: S.activeBatchId });
   const rawId2 = detailDraft.fields['学号'];
   const newId = String(rawId2 == null ? (s['学号']==null?'':s['学号']) : rawId2).trim();
   const oldId = String(s['学号']==null?'':s['学号']).trim();
@@ -8026,6 +8038,7 @@ function saveDetailEditApply(){
   }
 
   save();
+  if(n) offerUndo(beforeEdit, `已修改 ${studentName(s) || '该生'} 的资料（${n} 项）`);
   toast(n ? `已保存 ${n} 项修改` : '没有检测到修改');
   openDetail(s['学号'], false);
   renderBatchBar(); renderSidebar(); renderMain();

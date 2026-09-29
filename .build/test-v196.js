@@ -1416,6 +1416,58 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
     R(`renderDashBody = window.__rdBak;`);
   }
 
+/* ════════ [30] 保存后"撤销这次修改"（升级清单 D） ════════
+     现状：删批次/删学生早有 30 秒撤销条（snapshotForUndo），但**保存详情页修改没有**——
+     误清一个字段再点保存就再也回不来（方案说明原本还写着"本版不做撤销"）。
+     做法：复用同一条撤销条 —— 保存**前**拍快照，**真有改动**才亮出来。 */
+  console.log('\n[30] 保存后"撤销这次修改"（复用现成的 30 秒撤销条）');
+  if(R('typeof offerUndo') !== 'function'){
+    fail('撤销接口还没实现（offerUndo 不存在）—— 后续断言无法进行');
+  } else {
+    R(`
+      S.batches=[]; S.activeBatchId=null; S.students=[]; S.grades=[];
+      S.batches.push(makeBatch('撤销测试','demo',[])); attachBatch(S.batches[0].id);
+      setStudents([{'学号':'2026901','姓名':'甲','班级':'英语2401','备注（保密）':'原备注'}]);
+      S.grades.length=0; invalidateGradeMap();
+      hideUndoBar();
+    `);
+    eq(R('undoSnap'), null, '起始时没有待撤销的快照');
+
+    // ① 保存一次改动 → 给出 30 秒撤销机会，且快照抓的是**改动前**
+    R(`openDetail('2026901', true); draftSet('f','备注（保密）','改过的内容'); saveDetailEditApply();`);
+    eq(R(`S.students.find(s=>String(s['学号'])==='2026901')['备注（保密）']`), '改过的内容', '改动已落盘');
+    ok(R('!!undoSnap'), '★ 保存后出现待撤销快照');
+    ok(R(`String($('undoMsg').textContent).indexOf('30 秒内可撤销') >= 0`), '★ 撤销条上有提示');
+    ok(R(`String($('undoMsg').textContent).indexOf('甲') >= 0`), '★ 提示里点名是谁（甲）');
+    ok(R(`undoSnap.data.indexOf('原备注') >= 0`), '★ 快照抓的是改动**前**的值');
+
+    // ② 撤销 → 回到改动前
+    R(`undoRestore();`);
+    eq(R(`S.students.find(s=>String(s['学号'])==='2026901')['备注（保密）']`), '原备注', '★ 撤销后回到原值');
+    eq(R('undoSnap'), null, '撤销后快照清掉（不给第二次）');
+    eq(R(`$('undoMsg').textContent`), '', '撤销条内容清空');
+
+    // ③ 没实际改动就保存 → 不该给撤销机会（否则"撤销了个寂寞"）
+    R(`hideUndoBar(); openDetail('2026901', true); saveDetailEditApply();`);
+    eq(R('undoSnap'), null, '★ 没有实际改动时不给撤销机会');
+    R(`closeModal();`);
+
+    // ④ 成绩改动同样可撤销（快照含 batches，而 S.grades 就是批次那一份）
+    R(`
+      hideUndoBar();
+      openDetail('2026901', true);
+      draftSet('g','加权平均成绩','88');
+      saveDetailEditApply();
+    `);
+    ok(R('!!undoSnap'), '★ 改成绩也给撤销机会');
+    eq(R('S.grades.length'), 1, '成绩已写入一条');
+    R(`undoRestore();`);
+    eq(R('S.grades.length'), 0, '★ 撤销后成绩回到改动前（原本没有成绩）');
+
+    // ⑤ 撤销条的提示语不再写死"删除前"（同一个条现在也服务"改资料"）
+    ok(appSrc.indexOf("'已撤销，数据恢复到删除前'") < 0, '★ 撤销后的提示语不再写死"删除前"');
+  }
+
   finish();
 })().catch(e => { console.error('测试执行出错：' + (e && e.stack || e)); process.exit(1); });
 
