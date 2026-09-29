@@ -3999,8 +3999,16 @@ const FIELD_GROUPS = [
   { name:'学籍与培养', keys:['学籍状态','是否在校','在籍状态','学生类别','培养层次','学制','现在年级','入学年月','预计毕业年份','预计毕业日期'] },
   { name:'转专业与项目', keys:['转专业报名','转专业意向','国际班报名'] },
   { name:'国际与身份', keys:['港澳台侨','国家地区'] },
+  { name:'跟进记录', keys:['跟进记录'] },
   { name:'辅导员备注', keys:['备注（保密）'] }
 ];
+
+/* v2.2：**由本应用单独渲染、不走通用字段框**的字段。
+   它们照样在 FIELD_GROUPS 里（这样导入时算"已知字段"、导出也自动带上），
+   但详情页/字段设置/列设置里用各自的专用界面画，不套通用输入框。
+   抽成一处是为了避免"每加一个特殊字段就要改 5 个地方"（备注原本就是散着写的）。 */
+const SPECIAL_FIELDS = new Set(['备注（保密）', '跟进记录']);
+const isSpecialField = k => SPECIAL_FIELDS.has(k);
 
 /* ---------- 字段别名表：多来源表头归一 ----------
    迎新系统 32 列 与 新系统 12 列 对同一件事叫法不同，
@@ -4157,7 +4165,12 @@ const PRESETS = [
   {id:'nocontact',  label:'缺联系方式',    fn:list=>list.filter(s=>!s['联系电话']), need:['联系电话']},
   {id:'noidno',     label:'无证件号',      fn:list=>list.filter(s=>!s['证件号码']), need:['证件号码']},
   {id:'nowechat',   label:'缺微信号',      fn:list=>list.filter(s=>!s['微信号']), need:['微信号']},
-  {id:'earlygrad',  label:'提前毕业',      fn:list=>list.filter(s=>isEarlyGrad(s)), need:['预计毕业年份']}
+  {id:'earlygrad',  label:'提前毕业',      fn:list=>list.filter(s=>isEarlyGrad(s)), need:['预计毕业年份']},
+
+  /* ── v2.2（升级清单 C）：跟进记录到期 ──
+     判定：某条的"下次跟进日" ≤ 今天。没写"下次"的不算 —— 否则会永远挂在提醒里。
+     need 挂「跟进记录」→ 本批谁都没记过跟进时这个预设自动消失，不占侧栏。 */
+  {id:'followdue',  label:'该跟进',        fn:list=>list.filter(s=>followUpDue(s)), need:['跟进记录']}
 ];
 
 /* 某个预设当前是否可跳转 */
@@ -4274,8 +4287,116 @@ function toggleStudentTag(sid, emoji){
   const next = on ? cur.split(emoji).join('') : (cur + emoji);
   s['关注标签'] = next || null;
   save();
-  openDetail(sid, detailEdit);          // 就地重渲染，勾选状态立刻可见
+  /* v2.2：**就地刷新标签块**，不再整体 openDetail ——
+     整体重渲染会把编辑态的 detailDraft 重新初始化，**未保存的字段编辑会被静默冲掉**（老毛病）。 */
+  refreshDetailBlock('tagBox', ()=>detailTagBlock(sid));
   toast(on ? `已取消 ${emoji}${tagLabelOf(emoji)}` : `已标记 ${emoji}${tagLabelOf(emoji)}`);
+}
+/* v2.2：就地替换弹窗里的某一块（拿不到那个块就返回 false —— 例如详情页根本没开着） */
+function refreshDetailBlock(boxId, htmlFn){
+  const box = $(boxId);
+  if(box && typeof box.innerHTML === 'string'){ box.innerHTML = htmlFn(); return true; }
+  return false;
+}
+
+/* ---------- v2.2（升级清单 C）：学生跟进记录 ----------
+   为什么存在**学生字段**上（而不是像成绩那样另做一个层）：
+     · 它就是一个普通字段 → 导入 / 导出 Excel / 备份 / 详情编辑**全都自动带上**，零新增管道；
+     · 换电脑只要带学生表那一个文件；在 Excel 里补的跟进，导回来照样认。
+   格式（人可读、Excel 可编辑、可往返），每行一条：
+     2026-09-30 谈心：家庭经济困难，已告知绿色通道 → 2026-10-15
+   前 10 位是日期；` → ` 之后是可选的"下次跟进日"；没写箭头 = 不需要再跟。 */
+const FU_LINE_SEP = '\n';
+const FU_ARROW = ' → ';
+const FU_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+function parseFollowUps(s){
+  const raw = (s && s['跟进记录'] != null) ? String(s['跟进记录']) : '';
+  return raw.split(FU_LINE_SEP).map(l=>l.trim()).filter(Boolean).map(l=>{
+    const i = l.indexOf(FU_ARROW);
+    const head = (i >= 0 ? l.slice(0, i) : l).trim();
+    const nxt  = i >= 0 ? l.slice(i + FU_ARROW.length).trim() : '';
+    const d = head.slice(0, 10);
+    const hasDate = FU_DATE_RE.test(d);
+    return { date: hasDate ? d : '', text: (hasDate ? head.slice(10) : head).trim(), next: FU_DATE_RE.test(nxt) ? nxt : '' };
+  });
+}
+function serializeFollowUps(arr){
+  const lines = (arr || []).filter(x=>x && (x.date || x.text)).map(x=>{
+    const head = (x.date ? x.date + ' ' : '') + String(x.text || '').trim();
+    return x.next ? head + FU_ARROW + x.next : head;
+  });
+  return lines.join(FU_LINE_SEP) || null;
+}
+function addFollowUp(s, entry){
+  if(!s || !entry || !String(entry.text || '').trim()){ toast('写一句跟进内容'); return false; }
+  const arr = parseFollowUps(s);
+  arr.push({ date: entry.date || todayStr(), text: String(entry.text).trim(), next: entry.next || '' });
+  s['跟进记录'] = serializeFollowUps(arr);
+  return true;
+}
+function removeFollowUp(s, idx){
+  const arr = parseFollowUps(s);
+  if(idx < 0 || idx >= arr.length) return false;
+  arr.splice(idx, 1);
+  s['跟进记录'] = serializeFollowUps(arr);
+  return true;
+}
+/* 到期 = 某条的"下次跟进日" ≤ 今天（含今天）。没写"下次"的不算 —— 否则会永远挂在提醒里 */
+function followUpDue(s, today){
+  const t = today || todayStr();
+  return parseFollowUps(s).some(x => x.next && x.next <= t);
+}
+function followUpDueList(list, today){
+  return (list || []).filter(s => followUpDue(s, today));
+}
+/* 详情页里的那一块（单独成函数，便于就地刷新，不牵动整个弹窗） */
+function detailFollowUpBlock(s){
+  if(!s) return '';
+  const arr = parseFollowUps(s);
+  const today = todayStr();
+  const due = arr.some(x => x.next && x.next <= today);
+  const rows = arr.map((x, i) => Object.assign({}, x, { i })).slice(-5).reverse();   // 最近 5 条，新的在上
+  return `<div id="fuBox">
+    <div style="font-weight:640;font-size:13.5px;margin-bottom:9px;color:var(--text-2)">跟进记录
+      <span style="font-weight:400;font-size:11.5px;color:var(--text-3)">· 共 ${arr.length} 条${
+        due ? ' · <b style="color:var(--warn)">有到期的</b>' : ''}${arr.length > 5 ? ' · 只显示最近 5 条' : ''}</span></div>
+    ${rows.length ? `<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:9px">${rows.map(x=>`
+      <div style="display:flex;gap:9px;align-items:baseline;font-size:12.5px;line-height:1.7">
+        <span style="color:var(--text-3);flex-shrink:0">${esc(x.date || '—')}</span>
+        <span style="flex:1;min-width:0;word-break:break-word">${esc(x.text || '')}</span>
+        ${x.next ? `<span style="flex-shrink:0;color:${x.next <= today ? 'var(--warn)' : 'var(--text-3)'}">下次 ${esc(x.next)}</span>` : ''}
+        <button class="btn" style="padding:1px 7px;font-size:11.5px" title="删除这条"
+          onclick="deleteFollowUp(${x.i})">×</button>
+      </div>`).join('')}</div>`
+      : `<div style="font-size:12.5px;color:var(--text-3);margin-bottom:9px">还没有跟进记录</div>`}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <input class="input" id="fuText" style="flex:1;min-width:180px" placeholder="记一条：谈了什么 / 下一步做什么"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();saveFollowUp();}">
+      <input class="input" id="fuNext" type="date" style="width:auto" title="下次跟进日（可选）">
+      <button class="btn pri" onclick="saveFollowUp()">加一条</button>
+    </div>
+    <div style="font-size:11.5px;color:var(--text-3);margin-top:6px">
+      日期默认今天；填了「下次跟进日」，到那天会进看板的「关注提醒」，也能在侧栏「该跟进」里筛出来</div>
+  </div>`;
+}
+function saveFollowUp(){
+  const s = curStudent;
+  if(!s) return;
+  const t = $('fuText'), n = $('fuNext');
+  if(!addFollowUp(s, { date: todayStr(), text: (t && t.value) || '', next: (n && n.value) || '' })) return;
+  save();
+  refreshDetailBlock('fuBox', ()=>detailFollowUpBlock(s));   // 就地刷新：编辑态的草稿不受影响
+  if(t) t.value = '';
+  if(n) n.value = '';
+  toast('已记一条跟进');
+}
+function deleteFollowUp(i){
+  const s = curStudent;
+  if(!s) return;
+  if(!removeFollowUp(s, i)) return;
+  save();
+  refreshDetailBlock('fuBox', ()=>detailFollowUpBlock(s));
+  toast('已删除这条跟进');
 }
 /* 标签管理：增删改（改了名称不影响已标记的学生 —— 存的是 emoji） */
 function openTagManager(){
@@ -6299,7 +6420,10 @@ function renderDashBody(){
     {n:lowGpa, t:`绩点偏低（< ${LOW_GPA}）`, c:'warn', act: presetAvailable(presetById('lowgpa')) ? `gotoList({preset:'lowgpa'})` : ''},
     {n:searched.length-withRemark, t:'尚未填写备注', c:'brand', act:`gotoList({preset:'noremark'})`},
     {n:noScoreN, t:'暂无成绩记录', c:'warn',
-      act: hasGrade() ? `gotoList({preset:'noscore'})` : ''}
+      act: hasGrade() ? `gotoList({preset:'noscore'})` : ''},
+    /* v2.2（升级清单 C）：跟进到期 —— 辅导员真正每天要看的"谁今天该跟" */
+    {n:searched.filter(s=>followUpDue(s)).length, t:'该跟进（下次跟进日到了）', c:'warn',
+      act: presetAvailable(presetById('followdue')) ? `gotoList({preset:'followdue'})` : ''}
   ].filter(a=>a.n>0);
 
   // 字段可用性（用于图表降级提示）
@@ -7668,7 +7792,7 @@ function renderFieldSettings(){
   const grouped = new Set();
   FIELD_GROUPS.forEach(g=>g.keys.forEach(k=>grouped.add(k)));
   const ck = customFieldKeys();
-  const extra = [...keys].filter(k=>!grouped.has(k) && k!=='备注（保密）' && ck.indexOf(k)<0).sort();
+  const extra = [...keys].filter(k=>!grouped.has(k) && !isSpecialField(k) && ck.indexOf(k)<0).sort();
 
   const rowOf = k => {
     const on = !fsHidden.has(k);
@@ -7687,7 +7811,7 @@ function renderFieldSettings(){
     取消勾选的字段，在详情页里不再显示。<b>数据不会被删除</b>，随时勾回来都在。
     「辅导员备注」与成绩不在此列，始终显示。</div>`;
   FIELD_GROUPS.forEach(g=>{
-    h += sect(g.name, g.keys.filter(k=>k!=='备注（保密）' && keys.has(k) && ck.indexOf(k)<0));
+    h += sect(g.name, g.keys.filter(k=>!isSpecialField(k) && keys.has(k) && ck.indexOf(k)<0));
   });
   h += sect('其他字段（系统导出中本批新增的列）', extra);
   h += sect('自定义字段（你自己加的）', fsCustom.map(f=>f.key));
@@ -7821,14 +7945,14 @@ function openDetail(sid, edit){
   const grouped = new Set();
   FIELD_GROUPS.forEach(g=>g.keys.forEach(k=>grouped.add(k)));
   const ck = customFieldKeys();
-  const extra = [...keys].filter(k=>!grouped.has(k) && k !== '备注（保密）' && ck.indexOf(k) < 0).sort();
+  const extra = [...keys].filter(k=>!grouped.has(k) && !isSpecialField(k) && ck.indexOf(k) < 0).sort();
 
   if(detailEdit){
     detailDraft = { fields:{}, grade:{} };
     /* 草稿要覆盖「本批有值的字段 + 自定义字段」：
        自定义字段刚建好时还没有任何学生带该键，漏掉它就第一遍录不进去。 */
     const all = new Set([...keys, ...ck]);
-    all.forEach(k=>{ if(k !== '备注（保密）') detailDraft.fields[k] = s[k] == null ? '' : String(s[k]); });
+    all.forEach(k=>{ if(!isSpecialField(k)) detailDraft.fields[k] = s[k] == null ? '' : String(s[k]); });
     GRADE_FIELDS.forEach(k=>{ detailDraft.grade[k] = (grade && grade[k] != null) ? String(grade[k]) : ''; });
   }else{
     detailDraft = null;
@@ -7840,7 +7964,7 @@ function openDetail(sid, edit){
       <div style="font-weight:640;font-size:13.5px;margin-bottom:9px;color:var(--text-2)">${esc(name)}</div>
       <div class="info-grid">${list.map(k=>fieldItem(k, s[k])).join('')}</div></div>`;
   FIELD_GROUPS.forEach(g=>{
-    const list = g.keys.filter(k=>k !== '备注（保密）' && keys.has(k) && !isHiddenField(k));
+    const list = g.keys.filter(k=>!isSpecialField(k) && keys.has(k) && !isHiddenField(k));
     if(list.length) groups += groupHtml(g.name, list);
   });
   const extraShow = extra.filter(k=>!isHiddenField(k));
@@ -7877,7 +8001,9 @@ function openDetail(sid, edit){
           </div>
         </div>
 
-        ${detailTagBlock(sid)}
+        <div id="tagBox">${detailTagBlock(sid)}</div>
+
+        ${detailFollowUpBlock(s)}
 
         <!-- 辅导员备注 -->
         <div style="margin-bottom:18px">
@@ -9386,7 +9512,7 @@ function openCustomFilter(){
     opts.push(`<option value="${esc(f.key)}">${esc(f.label)}</option>`);
   });
   [...allFieldKeys()].sort((a,b)=>a.localeCompare(b,'zh'))
-    .filter(k=>k !== '备注（保密）' && !seen.has(k))
+    .filter(k=>!isSpecialField(k) && !seen.has(k))
     .forEach(k=>{ seen.add(k); opts.push(`<option value="${esc(k)}">${esc(k)}</option>`); });
 
   $('modalRoot').innerHTML = `

@@ -1534,6 +1534,144 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
        '★ 列设置里「恢复默认」与「显示全部字段」并存');
   }
 
+/* ════════ [32] 跟进记录（升级清单 C） ════════
+     设计选择：存在**学生字段**上（不是像成绩那样另做一层）。理由：
+       · 普通字段 → 导入 / 导出 Excel / 备份 / 详情编辑**全部自动带上**，零新增管道；
+       · 换电脑只要带学生表一个文件；在 Excel 里补的跟进，导回来照样认。
+     格式（人可读、Excel 可编辑、可往返）每行一条：
+       2026-09-30 谈心：家庭经济困难，已告知绿色通道 → 2026-10-15 */
+  console.log('\n[32] 跟进记录：解析 / 追加 / 删除 / 到期判定 / 详情页就地刷新');
+  if(R('typeof parseFollowUps') !== 'function'){
+    fail('跟进记录还没实现（parseFollowUps 不存在）—— 后续断言无法进行');
+  } else {
+    // ① 解析：带/不带"下次"、空行、坏行（没日期）
+    R(`S.__fu = {'跟进记录':'2026-09-30 谈心：家庭经济困难 → 2026-10-15\\n\\n2026-09-20 电话联系家长\\n随手写的一行没有日期'};`);
+    eq(R(`parseFollowUps(S.__fu).length`), 3, '★ 解析出 3 条（空行被忽略）');
+    eq(R(`parseFollowUps(S.__fu)[0].date`), '2026-09-30', '第 1 条日期');
+    eq(R(`parseFollowUps(S.__fu)[0].text`), '谈心：家庭经济困难', '第 1 条内容（去掉日期与箭头）');
+    eq(R(`parseFollowUps(S.__fu)[0].next`), '2026-10-15', '★ 第 1 条的"下次跟进日"');
+    eq(R(`parseFollowUps(S.__fu)[1].next`), '', '没写下次就是空（=不需要再跟）');
+    eq(R(`parseFollowUps(S.__fu)[2].date`), '', '★ 没日期的行不丢（date 空、内容留着）');
+    eq(R(`parseFollowUps(S.__fu)[2].text`), '随手写的一行没有日期', '内容照旧保留');
+    eq(R(`parseFollowUps({}).length`), 0, '没有该字段 → 空数组');
+
+    // ② 序列化与往返（Excel 里改完导回来必须还原）
+    eq(R(`serializeFollowUps([{date:'2026-09-30',text:'谈心',next:'2026-10-15'}])`),
+       '2026-09-30 谈心 → 2026-10-15', '序列化成一行');
+    eq(R(`serializeFollowUps([])`), null, '★ 空记录写 null（不是空串，与既有约定一致）');
+    eq(R(`JSON.stringify(parseFollowUps({'跟进记录': serializeFollowUps(parseFollowUps(S.__fu))}))`),
+       R(`JSON.stringify(parseFollowUps(S.__fu))`), '★ 解析→序列化→再解析 完全等价（往返不丢信息）');
+
+    // ③ 追加 / 删除
+    R(`
+      S.batches=[]; S.activeBatchId=null; S.students=[]; S.grades=[];
+      S.batches.push(makeBatch('跟进测试','demo',[])); attachBatch(S.batches[0].id);
+      setStudents([{'学号':'2026901','姓名':'甲','班级':'英语2401'}]);
+      S.grades.length=0; invalidateGradeMap();
+      S.quickView='all'; S.filters={}; S.classFilter='all'; S._search=''; S.view='list';
+      window.__s = S.students[0];
+    `);
+    eq(R(`addFollowUp(window.__s, {text:'第一次谈话'})`), true, '追加一条成功');
+    eq(R(`parseFollowUps(window.__s).length`), 1, '变成 1 条');
+    eq(R(`parseFollowUps(window.__s)[0].date`), R('todayStr()'), '★ 日期默认今天');
+    eq(R(`addFollowUp(window.__s, {text:'   '})`), false, '★ 内容为空不给加（也不写入）');
+    R(`addFollowUp(window.__s, {text:'第二次', next:'2099-01-01'});`);
+    eq(R(`parseFollowUps(window.__s).length`), 2, '第二条加上');
+    eq(R(`removeFollowUp(window.__s, 0)`), true, '删第 1 条');
+    eq(R(`parseFollowUps(window.__s)[0].text`), '第二次', '★ 删的是指定那条');
+    R(`removeFollowUp(window.__s, 0);`);
+    eq(R(`window.__s['跟进记录']`), null, '★ 删光后写 null');
+
+    // ④ 到期判定（下次跟进日 ≤ 今天）
+    R(`
+      window.__s['跟进记录'] = '2026-01-01 早就该跟了 → 2020-01-01\\n2026-02-02 还早呢 → 2099-12-31';
+    `);
+    eq(R(`followUpDue(window.__s, '2026-06-01')`), true, '★ 有一条已到期 → true');
+    eq(R(`followUpDue(window.__s, '2019-01-01')`), false, '都还没到 → false');
+    eq(R(`followUpDue({'跟进记录':'2026-01-01 谈过，不用再跟'}, '2099-01-01')`), false,
+       '★ 没写"下次"的不算到期（不然永远挂在提醒里）');
+    eq(R(`followUpDueList([window.__s, {'学号':'x','跟进记录':''}], '2026-06-01').length`), 1,
+       '★ 只看得到期的那一个');
+
+    // ⑤ 详情页：区块在、内容在、有"下次"徽标
+    //    ⚠️ 沙盒的 getElementById 不解析 HTML（子元素不会真的生成），所以断言要落在
+    //       modalRoot 的 HTML 字符串上，而不是 $('fuBox') 这个按需新建的空元素上。
+    R(`openDetail('2026901', false);`);
+    const fu = R(`$('modalRoot').innerHTML`);
+    ok(fu.indexOf('id="fuBox"') >= 0, '★ 详情页有跟进记录区块（id="fuBox"）');
+    ok(fu.indexOf('早就该跟了') >= 0, '内容显示出来');
+    ok(fu.indexOf('2099-12-31') >= 0, '「下次」日期显示出来');
+    ok(fu.indexOf('有到期的') >= 0, '★ 有到期条目时区块标题上有提示');
+
+    // ⑥ ★ 在**编辑态**加一条跟进，不能把未保存的字段编辑冲掉
+    //    （原来的 toggleStudentTag 是整体重渲染 openDetail，编辑态的草稿会被重置 —— 同一个毛病一起修）
+    R(`
+      openDetail('2026901', true);
+      draftSet('f','备注（保密）','未保存的改动');
+      $('fuText').value = '今天又谈了一次';
+      saveFollowUp();
+    `);
+    eq(R(`detailDraft && detailDraft.fields['备注（保密）']`), '未保存的改动',
+       '★ 编辑态加跟进 → 未保存的字段编辑没丢（就地刷新，不整体重渲染）');
+    eq(R(`parseFollowUps(S.students[0]).length`), 3, '跟进确实加上了');
+    eq(R(`detailEdit`), true, '仍停在编辑态');
+
+    // ⑦ 编辑态点关注标签同样不能冲掉草稿
+    R(`window.__calls = []; toggleStudentTag('2026901', '🎭');`);
+    eq(R(`detailDraft && detailDraft.fields['备注（保密）']`), '未保存的改动',
+       '★ 编辑态打标签也不冲掉草稿（同一类问题一起修）');
+    eq(R(`tagStr(S.students[0])`), '🎭', '标签照样打上了');
+    R(`S.students[0]['关注标签'] = null; detailDraft = null; closeModal();`);
+
+    // ⑧ 导出必须带上跟进记录（它是学生字段，会自动进 fieldOrderOf；再确认没被当"特殊字段"排掉）
+    ok(R(`fieldOrderOf([S.students[0]]).indexOf('跟进记录') >= 0`),
+       '★ 导出列里包含「跟进记录」（随学生表一起走，不用额外导一个文件）');
+    eq(R(`serializeFollowUps(parseFollowUps(S.students[0]))`), R(`serializeFollowUps(parseFollowUps(S.students[0]))`),
+       '往返稳定');
+
+    // ⑨ 它被当作"已知字段"（Excel 导回来不会被当成新字段）
+    ok(R(`KNOWN_FIELDS.has('跟进记录')`), '★ 跟进记录已登记为已知字段');
+  }
+
+/* ════════ [33] 跟进记录进「关注提醒」+ 可筛（升级清单 C 收尾） ════════ */
+  console.log('\n[33] 跟进记录：到期进「关注提醒」+ 侧栏可筛');
+  if(!R(`typeof presetById === 'function' && !!presetById('followdue')`)){
+    fail('预设 followdue 还没登记 —— 后续断言无法进行');
+  } else {
+    R(`
+      S.batches=[]; S.activeBatchId=null; S.students=[]; S.grades=[];
+      S.batches.push(makeBatch('跟进提醒','demo',[])); attachBatch(S.batches[0].id);
+      setStudents([
+        {'学号':'2026801','姓名':'甲','班级':'英语2401','跟进记录':'2026-01-01 谈过 → 2020-01-01'},
+        {'学号':'2026802','姓名':'乙','班级':'英语2401','跟进记录':'2026-01-01 谈过 → 2099-12-31'},
+        {'学号':'2026803','姓名':'丙','班级':'英语2401'}
+      ]);
+      S.grades.length=0; invalidateGradeMap();
+      S.quickView='all'; S.filters={}; S.classFilter='all'; S._search=''; S.view='dashboard';
+    `);
+    eq(R(`presetById('followdue').fn(S.students).length`), 1, '★ 「该跟进」只筛出下次跟进日已到 / 已过的人');
+    eq(R(`presetAvailable(presetById('followdue'))`), true, '本批有跟进记录 → 预设可用');
+
+    // 谁都没记过跟进 → 预设自动不占侧栏（need 生效）
+    R(`S.students.forEach(s=>{ delete s['跟进记录']; });`);
+    eq(R(`presetAvailable(presetById('followdue'))`), false, '★ 本批没人记过跟进 → 该预设不占侧栏');
+
+    // 关注提醒：出现"该跟进"且能跳到名单
+    R(`
+      S.students[0]['跟进记录'] = '2026-01-01 谈过 → 2020-01-01';
+      S.students[1]['跟进记录'] = '2026-01-01 谈过 → 2099-12-31';
+      renderDashboard();
+    `);
+    const dh33 = R(`$('dashBody').innerHTML`);
+    ok(dh33.indexOf('该跟进') >= 0, '★ 看板「关注提醒」里出现"该跟进"');
+    ok(dh33.indexOf("preset:'followdue'") >= 0, '★ 点它能跳到「该跟进」名单');
+    eq(R(`followUpDueList(S.students).length`), 1, '提醒里的条数与名单一致（只算到期的）');
+
+    // 侧栏也能看到这个视图
+    R(`S.view='list'; renderSidebar();`);
+    ok(R(`$('sidebar').innerHTML`).indexOf('该跟进') >= 0, '★ 侧栏「关注视图」里有「该跟进」');
+  }
+
   finish();
 })().catch(e => { console.error('测试执行出错：' + (e && e.stack || e)); process.exit(1); });
 
