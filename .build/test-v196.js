@@ -1337,6 +1337,85 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
     ok(bar.indexOf('clearSel()') >= 0, '「取消勾选」还在');
   }
 
+/* ════════ [29] 搜索：防抖 + 键盘唤起（升级清单 ②③） ════════
+     ② 仪表盘搜索每敲一个字就 `renderDashBody()`（重画所有图表）；而列表页的 quickSearch
+        只重绘 tbody（注释里写明"避免整页重绘导致输入框失焦"）—— 同一件事两处两种水平。
+     ③ 搜索框存在但没有键盘入口：没有 Cmd/Ctrl+K、没有 /，Esc 也不清空。 */
+  console.log('\n[29] 搜索：防抖 + ⌘K / 唤起 + Esc 清空');
+  if(R('typeof runPendingDashSearch') !== 'function' || R('typeof handleSearchShortcut') !== 'function'){
+    fail('搜索防抖/快捷键还没实现 —— 后续断言无法进行');
+  } else {
+    R(`
+      S.batches=[]; S.activeBatchId=null; S.students=[]; S.grades=[];
+      S.batches.push(makeBatch('搜索测试','demo',[])); attachBatch(S.batches[0].id);
+      setStudents([{'学号':'2026801','姓名':'甲','班级':'英语2401'}]);
+      S.view='dashboard'; S._search=''; $('modalRoot').innerHTML=''; $('confirmRoot').innerHTML='';
+      window.__rd = 0; window.__rdBak = renderDashBody;
+      renderDashBody = function(){ window.__rd++; return window.__rdBak.apply(null, arguments); };
+    `);
+
+    // ① 防抖：连续输入只重绘一次
+    R(`dashSearch('刘');`);
+    eq(R('window.__rd'), 0, '★ 敲第一个字不立刻重绘（旧行为是立刻重绘）');
+    eq(R(`S._search`), '刘', '搜索词照样立刻记下来（筛选状态不滞后）');
+    R(`dashSearch('刘奕'); dashSearch('刘奕涵');`);
+    eq(R('window.__rd'), 0, '★ 连续输入期间都不重绘');
+    R(`runPendingDashSearch();`);
+    eq(R('window.__rd'), 1, '★ 只在最后一次输入后重绘一次（3 次输入 → 1 次重绘）');
+    eq(R(`S._search`), '刘奕涵', '用的是最后一次的关键词');
+    // 非仪表盘视图不该被这个定时器重绘
+    R(`S.view='list'; window.__rd = 0; runPendingDashSearch();`);
+    eq(R('window.__rd'), 0, '不在仪表盘时不重绘（避免切页后还去画总览）');
+    R(`S.view='dashboard';`);
+
+    // ② ⌘K / Ctrl+K 唤起
+    R(`
+      window.__focused = false;
+      $('dashSearchInput').focus = function(){ window.__focused = true; };
+      $('dashSearchInput').select = function(){};
+    `);
+    eq(R(`handleSearchShortcut({key:'k', metaKey:true, target:{tagName:'BODY'}, preventDefault(){}})`), true,
+       '★ ⌘K 被接管');
+    eq(R('window.__focused'), true, '★ 焦点进了搜索框');
+    R(`window.__focused = false;`);
+    eq(R(`handleSearchShortcut({key:'k', ctrlKey:true, target:{tagName:'BODY'}, preventDefault(){}})`), true,
+       '★ Ctrl+K 同样有效（Windows）');
+
+    // ③ 弹窗盖着时不抢快捷键（否则会在弹窗里乱跳焦点）
+    R(`openDetail('2026801', false); window.__focused = false;`);
+    eq(R(`handleSearchShortcut({key:'k', metaKey:true, target:{tagName:'BODY'}, preventDefault(){}})`), false,
+       '★ 弹窗打开时不抢 ⌘K');
+    eq(R('window.__focused'), false, '焦点没被拽走');
+    R(`closeModal();`);
+
+    // ④ "/" 唤起：不在输入框里才行（否则会打不出斜杠）
+    eq(R(`handleSearchShortcut({key:'/', target:{tagName:'BODY'}, preventDefault(){}})`), true,
+       '★ 页面上按 / 能唤起搜索');
+    R(`window.__focused = false;`);
+    eq(R(`handleSearchShortcut({key:'/', target:{tagName:'INPUT'}, preventDefault(){}})`), false,
+       '★ 已经在输入框里时 / 不接管（否则斜杠打不出来）');
+    eq(R(`handleSearchShortcut({key:'/', target:{tagName:'TEXTAREA'}, preventDefault(){}})`), false,
+       '文本框里同样不接管');
+    eq(R(`handleSearchShortcut({key:'a', target:{tagName:'BODY'}, preventDefault(){}})`), false,
+       '★ 普通字符键不接管');
+
+    // ⑤ Esc 清空（仅当焦点就在搜索框里）
+    R(`S._search='刘奕涵'; $('dashSearchInput').value='刘奕涵'; document.activeElement = $('dashSearchInput'); window.__rd = 0;`);
+    eq(R(`handleSearchShortcut({key:'Escape', target:{tagName:'INPUT'}, preventDefault(){}})`), true,
+       '★ 焦点在搜索框时 Esc 被接管');
+    eq(R(`$('dashSearchInput').value`), '', '★ 搜索框被清空');
+    eq(R('window.__rd'), 1, '★ 清空后立刻重绘（不等防抖）');
+    R(`document.activeElement = {tagName:'BODY'};`);
+    eq(R(`handleSearchShortcut({key:'Escape', target:{tagName:'BODY'}, preventDefault(){}})`), false,
+       '焦点不在搜索框时 Esc 不接管（留给弹窗/其它用途）');
+
+    // ⑥ 两个搜索框都带 id（快捷键要能定位到它们）+ 启动时接上了监听
+    ok(appSrc.indexOf('id="dashSearchInput"') >= 0, '★ 仪表盘搜索框有 id');
+    ok(appSrc.indexOf('id="listSearchInput"') >= 0, '★ 列表页搜索框有 id');
+    ok(appSrc.indexOf('initShortcuts()') >= 0, '★ 启动时接上了快捷键监听');
+    R(`renderDashBody = window.__rdBak;`);
+  }
+
   finish();
 })().catch(e => { console.error('测试执行出错：' + (e && e.stack || e)); process.exit(1); });
 
