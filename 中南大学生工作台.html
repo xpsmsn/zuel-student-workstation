@@ -8053,6 +8053,24 @@ function mergeRowInto(old, r, cols){
   return old;
 }
 
+/* ── 勾选排除的字段（v1.9.6）──
+   确认页里取消勾选的列不参与导入；「学号」是合并主键，永远保留（防止有人把学号也塞进排除集）。
+   每条模式路径都必须走到它。目前有两处入口：
+   · doImportMerge（覆盖 / 新增合并）
+   · doImport 的「新建批次」分支（它不走 doImportMerge，所以必须自己调一次）
+   ⚠️ v2.1.x 修：原先只有 doImportMerge 调用它，而「新建批次」分支在它之前就 return 了，
+      于是**同一个勾选框在「新建批次」下完全无效**。现有测试恰好是直调 doImportMerge、
+      从没走过 doImport 的真实路径，所以这个缺口一直没被挡住。 */
+function filterSkippedCols(rows, cols){
+  const skip = (importState && importState.skipCols) || new Set();
+  skip.delete('学号');
+  if(!skip.size) return { rows, cols };
+  return {
+    rows: rows.map(r=>{ const o={}; Object.entries(r).forEach(([k,v])=>{ if(!skip.has(k)) o[k]=v; }); return o; }),
+    cols: cols.filter(c=>!skip.has(c))
+  };
+}
+
 /* ---------- 合并入库 ----------
    三种模式：
    · new       新建批次：本次行原样成为一份独立快照，不做任何合并
@@ -8061,8 +8079,8 @@ function mergeRowInto(old, r, cols){
    覆盖之所以不违反「不静默删除」铁律：它是用户在界面上显式选择 + 二次确认 +
    已自动备份的一次性授权动作，且备注按学号搬回、未匹配的会点名列出。 */
 function doImport(){
-  const rows = importState.rows;                 // 已归一的行
-  const cols = importState.cols || [];           // 本次表真实出现的列（归一后）
+  let rows = importState.rows;                   // 已归一的行
+  let cols = importState.cols || [];             // 本次表真实出现的列（归一后）
   const mode = importState.mode || 'append';
   const target = activeBatch();
 
@@ -8074,6 +8092,8 @@ function doImport(){
       toast(`批次数量已达上限（${MAX_BATCHES}），请先到批次管理中删除历史批次`);
       return;
     }
+    // v2.1.x：本分支不走 doImportMerge，必须自己过一次勾选排除（原先漏了，见 filterSkippedCols）
+    ({ rows, cols } = filterSkippedCols(rows, cols));
     /* v1.9.7：硬约束——「一个学号只会出现一次，不要出现重复」。
        原实现：CSV 内部有几条学号重复就原样收几条，导完后批次里会出现「同一个学生两条记录」。
        新实现：按学号 upsert（同 append 的合并口径），重复行按"已有则合并 / 没有则新增"处理，
@@ -8182,13 +8202,9 @@ function doImportMerge(rows, cols, mode, remarkMap, backupName, clearedCount, pr
     attachBatch(b.id);
   }
   /* v1.9.6：勾选排除的字段 —— 确认页里取消勾选的列不参与导入（学号是合并主键，永远保留）。
-     在这里统一过滤，三条模式路径（new / overwrite / append）就都不用各自处理。 */
-  const skip = (importState && importState.skipCols) || new Set();
-  skip.delete('学号');
-  if(skip.size){
-    rows = rows.map(r=>{ const o={}; Object.entries(r).forEach(([k,v])=>{ if(!skip.has(k)) o[k]=v; }); return o; });
-    cols = cols.filter(c=>!skip.has(c));
-  }
+     ⚠️ 原注释自称"三条模式路径（new / overwrite / append）就都不用各自处理"，这句话是错的：
+     新建批次不走本函数，得自己调一次（v2.1.x 已修，见 filterSkippedCols）。 */
+  ({ rows, cols } = filterSkippedCols(rows, cols));
   // v1.5 导入历史：进函数先冻结「导入前」的状态（覆盖模式此时学生已被清空，用传入的快照）
   const preStudents = mode === 'overwrite' ? (prevSnapshot || []).slice() : S.students.slice();
   const preBatchId = activeBatch() ? activeBatch().id : null;

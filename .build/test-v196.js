@@ -177,6 +177,24 @@ sandbox.__rows4 = [{ '学号':'2026009', '姓名':'赵六' }];
 R(`doImportMerge(window.__rows4, ['学号','姓名'], 'append', null, '', 0, null);`);
 eq(R('S.students.length'), 1, '即使有人把「学号」塞进排除集，导入仍按学号正常落库（代码里强制保留）');
 
+/* ⚠️ v2.1.x 修：勾选排除原先只在 doImportMerge 里生效，而「新建批次」走的是 doImport 的
+   独立分支、在过滤之前就 return 了 —— 同一个勾选框在「新建批次」下完全无效。
+   这里刻意走 doImport() 的真实路径（不是直调 doImportMerge），否则挡不住这条 bug。 */
+sandbox.__rowsNew = [ { '学号':'2026011', '姓名':'钱七', '民族':'回族' } ];
+R(`
+  S.batches = []; S.activeBatchId = null; S.students = [];
+  importState = { step:2, fileName:'新建批次.xlsx', header:[], cols:['学号','姓名','民族'],
+    emptyCols:[], rows: window.__rowsNew, mode:'new', headerIdx:0, rowNos:null,
+    kind:'student', skipCols:new Set(['民族']) };
+  doImport();
+`);
+eq(R('S.students.length'), 1, '「新建批次」正常落库 1 人');
+ok(R(`(S.students[0]||{})['民族'] == null`), '★ 「新建批次」也遵守取消勾选：被排除的民族没进来');
+eq(R(`(S.students[0]||{})['姓名']`), '钱七', '未排除的列照常导入');
+/* 静态断言：勾选排除必须两个入口都调用 —— 少一处就是这次这个 bug（定义 1 + 调用 2 = 3） */
+eq((appSrc.match(/filterSkippedCols\s*\(/g) || []).length, 3, '★ filterSkippedCols：1 个定义 + 2 处入口调用');
+ok(appSrc.indexOf('({ rows, cols } = filterSkippedCols(rows, cols))') >= 0, 'doImportMerge 走 filterSkippedCols');
+
 R(`
   S.batches = []; S.activeBatchId = null; S.students = [];
   importState = { step:2, fileName:'名册.xlsx', header:[], cols:['学号','姓名','政治面貌','民族'],
