@@ -410,12 +410,14 @@ def selftest():
     check(aliases.get("职务") == "班委", "别名「职务 → 班委」在（真实模板用的就是「职务」）")
     check("学号" in known and "班级" in known, "常见字段在已知清单里")
 
-    header = ("姓名", "学号", "住宿地址", "职务", "学籍状态", "", None)
+    header = ("姓名", "学号", "住宿地址", "职务", "教务系统内部编号XYZ", "", None)
     got = dict((raw, kind) for raw, kind, _ in classify(header, aliases, known))
     check(got.get("姓名") == "已认识", "普通字段 → 已认识")
     check(got.get("住宿地址") == "别名", "别名列 → 别名")
     check(got.get("职务") == "别名", "「职务」→ 别名（不是新字段）")
-    check(got.get("学籍状态") == "全新", "未认识的列 → 全新")
+    # ⚠️ 这个样本必须挑**永远不会被收录**的名字：原先这里写「学籍状态」，
+    #    片 3 把它收进 FIELD_GROUPS 之后这条自检就红了（夹具假设过期）。
+    check(got.get("教务系统内部编号XYZ") == "全新", "未认识的列 → 全新")
     check("" not in got, "空表头被跳过")
 
     # ── 表头判定：必须与原型 locateHeaderRow 同规则，逐条钉住 ──
