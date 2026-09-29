@@ -282,5 +282,88 @@ if(R('typeof sentinelToEmpty') !== 'function'){
      '哨兵词表/符号表是具名常量（.build/read-xlsx.py 会读它们做一致性核对）');
 }
 
+console.log('\n[9] 多工作表：多于一张有数据的表时，让用户选');
+/* 真实文件实证：主表 189 行，第二张 Sheet1 是 90 行班委名册（俄语专业）。
+   程序原先硬取 `wb.SheetNames[0]`：第二张静默丢掉；更危险的是——若某次导出的数据在第二张表，
+   程序会**静默读到空表**。现在多于一张「有数据」的表时先让用户选；只有一张时行为与以前一致。 */
+if(R('typeof sheetChoices') !== 'function'){
+  fail('多表选表还没实现（sheetChoices 不存在）—— 后续断言无法进行');
+} else {
+  /* 内置的 SheetJS 在**独立的 script 块**里（与应用块分开）——沙盒只加载了应用块，
+     所以这里要单独加载一次，才能在测试里用 XLSX.utils 现造 workbook。
+     （test-v196 §[11] 加载「内置表单模板」数据块时是同一手法。） */
+  if(R('typeof XLSX') === 'undefined'){
+    const xlsxSrc = blocks.filter(x => x.includes('sheet_to_json') && !x.includes('function doImport'))
+                          .sort((a, b) => b.length - a.length)[0];
+    if(!xlsxSrc) fail('找不到内联的 SheetJS 块');
+    else {
+      vm.runInContext(xlsxSrc, sandbox, { filename:'xlsx.js' });
+      pass('内联 SheetJS 块已载入沙盒（多表测试要用它现造 workbook）');
+    }
+  }
+  // 在沙盒里现造 workbook（用原型内联的同一份 SheetJS），不依赖真文件
+  const mkBook = sheets => R(`(function(){
+    const wb = XLSX.utils.book_new();
+${sheets.map(([n, aoa]) => `    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(${JSON.stringify(aoa)}), ${JSON.stringify(n)});`).join('\n')}
+    window.__wb = wb; return true;
+  })()`);
+
+  // ── 只有一张有数据的表：不该弹选择（旧行为不变）──
+  mkBook([['主表', [['学号', '姓名'], ['2026001', '甲'], ['2026002', '乙']]]]);
+  eq(R('sheetsNeedingPick(window.__wb).length'), 1, '单表 → 候选只有 1 张（不会弹选择）');
+  eq(R('defaultSheetName(sheetChoices(window.__wb))'), '主表', '单表 → 默认就是它');
+
+  // ── 两张都有数据：候选 2 张，概览要准 ──
+  mkBook([
+    ['主表', [['学号', '姓名', '班级'], ['2026001', '甲', '英语2401'], ['2026002', '乙', '英语2402']]],
+    ['班委名册', [['姓名', '专业', '职务'], ['丙', '俄语', '班长'], ['丁', '俄语', '团支书'], ['戊', '俄语', '学委']]]
+  ]);
+  eq(R('sheetsNeedingPick(window.__wb).length'), 2, '两张都有数据 → 候选 2 张（会弹选择）');
+  const ch = R('sheetChoices(window.__wb)');
+  eq(ch[0].name, '主表', '第 1 张的名字');
+  eq(ch[0].rows, 2, '第 1 张的数据行数（扣掉表头）');
+  eq(ch[0].header.join('/'), '学号/姓名/班级', '第 1 张的表头预览');
+  eq(ch[1].name, '班委名册', '第 2 张的名字');
+  eq(ch[1].rows, 3, '第 2 张的数据行数');
+  eq(ch[1].header.join('/'), '姓名/专业/职务', '第 2 张的表头预览');
+  eq(R('defaultSheetName(sheetChoices(window.__wb))'), '主表', '默认选第一张有数据的');
+
+  // ── 第一张是空表、第二张才有数据：不该硬取空的，且候选只有 1 张 ──
+  mkBook([
+    ['封面', [['学籍信息导出'], [null], [null]]],
+    ['数据', [['学号', '姓名'], ['2026001', '甲'], ['2026002', '乙']]]
+  ]);
+  eq(R('sheetsNeedingPick(window.__wb).length'), 1, '空封面 + 一张数据表 → 候选 1 张（封面不算）');
+  eq(R('defaultSheetName(sheetChoices(window.__wb))'), '数据', '★ 不会硬取那张空封面');
+
+  // ── 用户选了第二张：importState 必须来自第二张（这就是"让我选"的意义）──
+  R(`
+    S.batches = []; S.activeBatchId = null; S.students = [];
+    S.batches.push(makeBatch('选表测试','demo',[])); attachBatch(S.batches[0].id);
+  `);
+  R(`window.__ok = useSheet(window.__wb, '数据', '选表.xlsx');`);
+  eq(R('window.__ok'), true, 'useSheet 读第二张成功');
+  eq(R('importState.cols.join("/")'), '学号/姓名', '★ importState 用的是**第二张**的列');
+  eq(R('importState.rows.length'), 2, '★ importState 用的是第二张的行数');
+  R(`importState.mode='new'; doImport();`);
+  eq(R('S.students.length'), 2, '★ 落库的也是第二张那 2 个人（不是空封面的 0 人）');
+
+  /* ── 第一行是空的表（真实文件里第二张就是这样）：预览退到第一行有内容的行，
+        且**没有表头就不该扣掉一行**（否则 90 行的名册会报成 89 行）。
+        注意：这条放最后 —— 它会替换 window.__wb，别影响上面的断言。 ── */
+  mkBook([['名册', [[null, null, null], ['丙', '俄语', '班长'], ['丁', '俄语', '团支书']]]]);
+  const ch2 = R('sheetChoices(window.__wb)');
+  eq(ch2[0].header.join('/'), '丙/俄语/班长', '★ 表头行没有列名时，预览退到第一行有内容的行（否则用户认不出这是哪张表）');
+  eq(ch2[0].rows, 2, '★ 没认出表头就不扣那一行（这张表 2 行都是有内容的）');
+  eq(ch2[0].hasData, true, '该表算"有数据"（候选会带上它，用户能选）');
+
+  // ── 静态断言：两个入口都走同一套函数，别再造第二份 ──
+  ok((appSrc.match(/sheetsNeedingPick\s*\(/g) || []).length >= 3,
+     '★ sheetsNeedingPick：1 定义 + 至少 2 处入口调用（学生导入 / 成绩导入）');
+  eq((appSrc.match(/function useSheet\s*\(/g) || []).length, 1, '★ useSheet 只有一个定义');
+  ok(appSrc.indexOf('m.step===0') >= 0 && appSrc.indexOf('chooseSheet(') >= 0,
+     '选择工作表那一步的界面已接上（step 0 + chooseSheet）');
+}
+
 console.log(failN ? `\n共 ${failN} 项失败` : '\n全部通过 ✅');
 process.exit(failN ? 1 : 0);
