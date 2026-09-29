@@ -50,15 +50,43 @@ NAME_KEYS = ("姓名", "姓名1")
 SAMPLE_N = 6
 
 # 空值哨兵：语义是"空"，但导出表里写成了一个占位符。真实数据实证：住宿地址里出现过 "-"。
-# ⚠️ 这份清单要与原型里的 sentinelToEmpty() 保持一致 —— 两处不一致的话，
-#    工具会报"这列有 2 个哨兵"，而程序并不会清掉它们。
-SENTINEL_RE = re.compile(r"^(?:[-—–－~～/\\|]+|无|暂无|未定|待定|N/?A|n/?a|null|NULL|None|—)$")
+# ⚠️ 这两份清单**必须与原型里的 EMPTY_SENTINEL_WORDS / EMPTY_SENTINEL_SYMBOLS 一致**：
+#    工具报"这列有 N 个哨兵"，而程序做的是另一套判定的话，两边就对不上。
+#    selftest 里的 check_sentinel_parity() 会从原型读那两个常量来核对（防漂移）。
+SENTINEL_WORDS = ["无", "暂无", "未定", "待定", "n/a", "na", "null", "none"]
+SENTINEL_SYMBOLS = "-—–－~～/\\|"
 
 
 def is_sentinel(v):
     """这个值是不是「空值哨兵」（看着有值、其实是占位符）？"""
     s = norm(v)
-    return bool(s) and bool(SENTINEL_RE.match(s))
+    if not s:
+        return False
+    if s.lower() in SENTINEL_WORDS:
+        return True
+    return all(ch in SENTINEL_SYMBOLS for ch in s)
+
+
+def check_sentinel_parity():
+    """哨兵清单在 JS 与 Python 里各有一份（无法共用代码）→ 核对它们是否一致。
+
+    这正是"一条规则两份实现必然漂移"的典型场景（同 mergeRowInto 那一课的教训）：
+    既然不能共用，就用自检把"两处必须一致"钉住。返回 (True/False/None, 说明)。"""
+    p = find_prototype()
+    if not p:
+        return None, "找不到原型 HTML"
+    with open(p, encoding="utf-8") as f:
+        src = f.read()
+    mw = re.search(r"const\s+EMPTY_SENTINEL_WORDS\s*=\s*\[([^\]]*)\]", src)
+    ms = re.search(r"const\s+EMPTY_SENTINEL_SYMBOLS\s*=\s*'([^']*)'", src)
+    if not mw or not ms:
+        return None, "原型里找不到 EMPTY_SENTINEL_WORDS / EMPTY_SENTINEL_SYMBOLS（改名了？）"
+    js_words = [w.strip().strip("'\"") for w in mw.group(1).split(",") if w.strip()]
+    js_syms = ms.group(1).replace("\\\\", "\\")
+    same = (js_words == SENTINEL_WORDS and js_syms == SENTINEL_SYMBOLS)
+    detail = (f"JS 词表 {js_words} / 符号 {js_syms!r}；"
+              f"Python 词表 {SENTINEL_WORDS} / 符号 {SENTINEL_SYMBOLS!r}")
+    return same, detail
 
 
 def find_prototype():
@@ -421,6 +449,15 @@ def selftest():
                     ("A-1", False), ("-3", False), ("否", False), ("0", False)):
         check(is_sentinel(v) == want, f"哨兵判定 {v!r} → {want}")
     check(is_sentinel("否") is False, "「否」是有效取值，绝不能被当空（是否在校=否 要能被筛出来）")
+
+    # ── 防漂移：同一条哨兵规则在 JS 与 Python 各有一份实现，必须核对一致 ──
+    same, info = check_sentinel_parity()
+    if same is None:
+        check(False, "哨兵清单一致性核对：" + info)
+    else:
+        check(same, "哨兵清单与原型一致（一条规则两处实现，靠这条核对防漂移）")
+        if not same:
+            print("      " + info)
 
     # ── 两个列索引：这正是 --cross 首版静默跳过的原因，必须钉住 ──
     hdr9 = ("姓名", "学号", "住宿地址", "宿舍楼", "房间号", "手机号", "联系电话")

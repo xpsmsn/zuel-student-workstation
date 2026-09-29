@@ -3844,12 +3844,34 @@ function normalizeKey(h){
 const KNOWN_FIELDS = new Set([].concat(...FIELD_GROUPS.map(g=>g.keys))
   .concat(['电话','照片','转专业报名','转专业意向','国际班报名']));
 
+/* ---------- 空值哨兵：看着有值、其实是占位符（v2.1.x · 归一原则第 4 条） ----------
+   真实数据实证（学工系统导出模板 189 行）：住宿地址里出现过 "-"（2 行，走读/不住校）。
+   若把它当真值，宿舍看板会出现一个**叫「-」的房间**、查寝打分表也会带上它。
+   方向是安全的：**只清不填** —— 空值本来就不覆盖旧值（铁律②），所以清掉不会抹掉已有数据。
+
+   ⚠️ 这两个清单与 .build/read-xlsx.py 里的哨兵判定**必须一致**：那个工具扫真实表时会报
+      「这列有 N 个哨兵」，两边不一致的话，工具报的和程序做的就对不上。
+      read-xlsx.py 的 --selftest 会读这两个常量做一致性核对。 */
+const EMPTY_SENTINEL_WORDS = ['无', '暂无', '未定', '待定', 'n/a', 'na', 'null', 'none'];
+const EMPTY_SENTINEL_SYMBOLS = '-—–－~～/\\|';
+function sentinelToEmpty(v){
+  if(v == null) return null;
+  const s = String(v).trim();
+  if(!s) return null;
+  if(EMPTY_SENTINEL_WORDS.indexOf(s.toLowerCase()) >= 0) return null;
+  // 整串都由占位符号组成（"-" / "---" / "／"…）才算空 —— "A-1"、"-3" 不在此列
+  let allSymbols = true;
+  for(const ch of s){ if(EMPTY_SENTINEL_SYMBOLS.indexOf(ch) < 0){ allSymbols = false; break; } }
+  if(allSymbols) return null;
+  return s;
+}
+
 /* 把一行原始数据归一化：列名归一 + 同行同名冲突时优先取非空值 */
 function normalizeRow(raw){
   const out = {};
   Object.entries(raw).forEach(([k,v])=>{
     const nk = normalizeKey(k);
-    const nv = (v == null || v === '') ? null : v;
+    const nv = sentinelToEmpty(v);          // 占位符（"-"/"无"/"N/A"…）一律当空
     if(nk === '') return;
     if(!(nk in out)){ out[nk] = nv; return; }
     // 冲突：已有值为空、新值非空 → 取新值（对应方案 4.3 归一原则 3）

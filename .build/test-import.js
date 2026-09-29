@@ -255,5 +255,32 @@ eq((appSrc.match(/铁律①：备注永不覆盖/g) || []).length, 1, '★ 铁�
 ok(appSrc.indexOf('mergeRowInto(recMap.get(id)') >= 0, 'doImport 的 CSV 内合并走 mergeRowInto');
 ok(appSrc.indexOf('mergeRowInto(old, r, cols)') >= 0, 'doImportMerge 的合并走 mergeRowInto');
 
+console.log('\n[8] 空值哨兵：看着有值、其实是占位符（真实数据实证）');
+/* 学工系统导出的真实模板（189 行）里，住宿地址出现过 "-"（2 行，走读/不住校）。
+   若把它当真值：宿舍看板会出现一个叫「-」的房间，查寝打分表也会带上它。 */
+if(R('typeof sentinelToEmpty') !== 'function'){
+  fail('sentinelToEmpty 还没实现 —— 后续哨兵断言无法进行');
+} else {
+  const sent = v => R(`JSON.stringify(sentinelToEmpty(${JSON.stringify(v)}))`);
+  [['-', 'null'], ['—', 'null'], ['--', 'null'], ['/', 'null'], ['无', 'null'],
+   ['暂无', 'null'], ['N/A', 'null'], ['', 'null']].forEach(([v, w]) =>
+    eq(sent(v), w, `哨兵 ${JSON.stringify(v)} → 空`));
+  // ── 反向保护：这些看着"像空"其实是有效取值，绝不能被清掉 ──
+  [['否', '"否"'], ['0', '"0"'], ['A-1', '"A-1"'], ['-3', '"-3"'], ['滨湖1栋634-03', '"滨湖1栋634-03"']]
+    .forEach(([v, w]) => eq(sent(v), w, `★ 合法值不被误清：${JSON.stringify(v)}`));
+  eq(sent(null), 'null', 'null 仍是 null');
+
+  /* 走真实路径：一张住宿地址写 "-" 的表 → 归一后「宿舍」必须是空 → 落库后也得是空 */
+  parseSheet([['学号', '姓名', '住宿地址'], ['2026999', '走读生', '-']], '走读表.xlsx');
+  eq(R(`importState.rows[0]['宿舍'] === undefined || importState.rows[0]['宿舍'] === null`), true,
+     '★ 归一后「宿舍」为空（不再是 "-"，否则宿舍看板会多出一个叫「-」的房间）');
+  R(`importState.mode='new'; doImport();`);
+  eq(R(`(S.students.find(x=>String(x['学号'])==='2026999')||{})['宿舍'] == null`), true,
+     '★ 落库后仍是空');
+
+  ok(appSrc.indexOf('EMPTY_SENTINEL_WORDS') >= 0 && appSrc.indexOf('EMPTY_SENTINEL_SYMBOLS') >= 0,
+     '哨兵词表/符号表是具名常量（.build/read-xlsx.py 会读它们做一致性核对）');
+}
+
 console.log(failN ? `\n共 ${failN} 项失败` : '\n全部通过 ✅');
 process.exit(failN ? 1 : 0);
