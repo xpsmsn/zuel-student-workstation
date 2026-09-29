@@ -1023,6 +1023,26 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
      (appSrc.match(/S\.hiddenPresets = Array\.isArray\(d\.hiddenPresets\)/g) || []).length === 2,
      '★ 两处写出（本地存档 + 全量备份）+ 两处读入（本地加载 + 备份恢复）都写了');
   ok((appSrc.match(/hiddenPresets/g) || []).length >= 8, '状态管道五处齐全');
+  /* ⑤ 设置页那一块本身也要紧凑（用户 2026-09-30：内容不重要、却占很长空间）
+     原写法是 17 行 colrow 列表（每行还带"本批可用/原因"文字）→ 把侧栏的杂乱搬到了设置页。
+     改成一排可点的紧凑标签，并把"能不能用"收进 title。 */
+  R(`S.view = 'settings'; S.hiddenPresets = []; S.hideUnavailable = true; renderSettings();`);
+  const st = R(`$('mainArea').innerHTML`);
+  const chipN = (st.match(/class="pchip/g) || []).length;
+  ok(chipN >= 17, `★ 17 个视图用紧凑标签呈现（实测 ${chipN} 个）`);
+  ok(st.indexOf('colrow') < 0, '★ 不再用 17 行列表 —— 那才是占空间的写法');
+  ok(st.indexOf('全选') >= 0 && st.indexOf('全不选') >= 0, '提供「全选 / 全不选」（省掉 17 次点击）');
+  const s0 = st.indexOf('左侧「关注视图」显示哪些');
+  const s1i = st.indexOf('🎨 外观与主题');
+  ok(s0 > 0 && s1i > s0, '这一块在设置页里、且能被定位');
+  /* 空间用**渲染字符数**量化（视觉高度更直观但测不到：17 行 × 约 34px ≈ 580px，
+     改成一排标签后约 3 行 × 26px ≈ 78px）。原先实测 6006 字符，改成标签后 3000 出头。 */
+  ok(s1i - s0 < 4200, `★ 这一块渲染出来 ${s1i - s0} 字符（改之前实测 6006；阈值 4200 是防回退到行列表）`);
+  // 标签的开关态要看得出来（选中=品牌色实心，未选=灰）
+  R(`togglePresetVisible(${JSON.stringify(availP)}, false); renderSettings();`);
+  ok(/class="pchip[^"]*"/.test(R(`$('mainArea').innerHTML`)), '切换后标签仍带状态类');
+  R(`S.view = 'list'; S.hiddenPresets = []; togglePresetVisible(${JSON.stringify(availP)}, true);`);
+
   R(`S.hiddenPresets = []; delete S.hideUnavailable;`);
   }
 

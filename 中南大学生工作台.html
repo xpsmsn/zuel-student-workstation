@@ -665,6 +665,17 @@ html[data-theme="dark"] img.brand-logo{filter:brightness(1.5) saturate(1.05)}
 .donut-center-val{font-size:25px;font-weight:690;fill:var(--text);font-variant-numeric:tabular-nums}
 .donut-center-lab{font-size:11px;fill:var(--text-3)}
 .donut-legend{flex:1;min-width:132px;display:flex;flex-direction:column;gap:3px}
+/* v2.2：设置页「左侧关注视图」用的紧凑标签 —— 原先 17 行列表把侧栏的杂乱搬到了设置页，
+   用户 2026-09-30：内容不重要却占很长空间 → 改成一排可点的标签（灰=不显示，虚线=本批用不了）。 */
+.preset-chips{display:flex;flex-wrap:wrap;gap:6px}
+.pchip{
+  border:1px solid var(--line);background:var(--panel);color:var(--text-3);
+  border-radius:999px;padding:3px 10px;font-size:12.5px;line-height:1.6;
+  cursor:pointer;font-family:inherit;transition:.15s;
+}
+.pchip:hover{border-color:var(--brand);color:var(--brand)}
+.pchip.on{background:var(--brand-soft);border-color:var(--brand);color:var(--brand);font-weight:600}
+.pchip.unavail{opacity:.55;border-style:dashed}
 .lg-row{display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;
   font-size:12.5px;transition:.15s}
 .lg-click{cursor:pointer}
@@ -3238,19 +3249,19 @@ function renderSettings(){
         </div>
       </div>
     </div>
-    <div class="fieldset-hint" style="margin:12px 0 10px">
-      勾选要在左侧显示的视图。取消勾选<b>只是不显示入口</b> —— 数据、筛选、看板都不受影响，随时勾回来。
+    <div style="display:flex;align-items:baseline;gap:10px;margin:10px 0 6px;flex-wrap:wrap">
+      <span style="font-size:12.5px;color:var(--text-2)">点一下切换（灰 = 不显示；虚线 = 本批用不了，悬停看原因）</span>
+      <span style="flex:1"></span>
+      <button class="btn" style="padding:2px 8px;font-size:12px" onclick="showAllPresets(true)">全选</button>
+      <button class="btn" style="padding:2px 8px;font-size:12px" onclick="showAllPresets(false)">全不选</button>
     </div>
-    <div class="collist" style="max-height:none">
-      ${PRESETS.filter(p=>p.id!=='all').map(p=>`
-      <div class="colrow${!isHiddenPreset(p.id)?' on':''}">
-        <label class="colrow-chk">
-          <input type="checkbox" ${!isHiddenPreset(p.id)?'checked':''} onchange="togglePresetVisible(${jsq(p.id)}, this.checked)">
-          <span>${esc(p.label)}</span>
-        </label>
-        <span style="flex:1"></span>
-        <span class="colrow-miss">${esc(presetAvailable(p) ? '本批可用' : presetMissText(p))}</span>
-      </div>`).join('')}
+    <div class="preset-chips">
+      ${PRESETS.filter(p=>p.id!=='all').map(p=>{
+        const on = !isHiddenPreset(p.id), okA = presetAvailable(p);
+        // 只有"本批用不了"的标签才挂 title（能用的没必要，也省字符）
+        return `<button class="pchip${on?' on':''}${okA?'':' unavail'}"${
+          okA ? '' : ` title="${esc(p.label)}：${esc(presetMissText(p))}"`} onclick="togglePresetVisible(${jsq(p.id)}, ${on?'false':'true'})">${on?'✓ ':''}${esc(p.label)}</button>`;
+      }).join('')}
     </div>
   </div></div>
 
@@ -7422,6 +7433,13 @@ function togglePresetVisible(id, on){
 }
 function setHideUnavailable(v){
   S.hideUnavailable = !!v;
+  save();
+  renderSidebar();
+  if(S.view === 'settings') renderSettings();
+}
+/* 全选 / 全不选：「全不选」= 把所有预设都记进隐藏清单（比逐个点 17 次省事） */
+function showAllPresets(on){
+  S.hiddenPresets = on ? [] : PRESETS.filter(p=>p.id!=='all').map(p=>p.id);
   save();
   renderSidebar();
   if(S.view === 'settings') renderSettings();
