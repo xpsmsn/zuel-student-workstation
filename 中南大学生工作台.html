@@ -2332,6 +2332,38 @@ function deleteSelected(){
   });
 }
 
+/* v2.2（升级清单 B）：给所有勾选的学生打同一个标签。
+   语义与详情页的 toggleStudentTag 一致（存 emoji、可叠加、清空写 null），只多一条**批量口径**：
+   勾选的人**全都有**这个标签 → 这次算「取消」—— 否则再点一次毫无反应，会让人以为坏了。 */
+function bulkTag(emoji){
+  const arr = [...selRows].filter(s=>S.students.includes(s));
+  if(!arr.length){ toast('请先勾选学生'); return; }
+  const all = arr.every(s=>tagStr(s).indexOf(emoji) >= 0);
+  arr.forEach(s=>{
+    const cur = tagStr(s);
+    s['关注标签'] = (all ? cur.split(emoji).join('')
+                         : (cur.indexOf(emoji) >= 0 ? cur : cur + emoji)) || null;
+  });
+  save();
+  renderMain();
+  const lbl = emoji + (tagLabelOf(emoji) || '');
+  toast(all ? `已取消 ${arr.length} 人的 ${lbl}` : `已给 ${arr.length} 人打上 ${lbl}`);
+}
+
+/* v2.2（升级清单 B）：只导出勾选的学生（CSV，含成绩）。
+   复用现有的 mergedRows + downloadCsv —— 格式与「导出当前结果」完全一致，不另造一套导出。 */
+function exportSelected(){
+  const list = [...selRows].filter(s=>S.students.includes(s));
+  if(!list.length){ toast('请先勾选要导出的学生'); return; }
+  const rows = mergedRows(list, S.grades);
+  const csv = csvOf(rows);
+  const fileName = `所选学生_${todayStr()}.csv`;
+  downloadCsv(csv, fileName);
+  const b = activeBatch();
+  recordBackup({ type:'csv-batch', fileName, batchName: b?b.name:'', batchId: b?b.id:'', bytes: csv.length });
+  toast(`已导出所选的 ${rows.length} 条${hasGrade()?'（含成绩）':''}`);
+}
+
 /* ---------- 备份与恢复（全量 JSON，一份文件兜底） ---------- */
 function backupPayload(){
   return {
@@ -5551,10 +5583,17 @@ function renderList(){
 
   // 勾选批量操作条（勾了人才出现）
   if(selRows.size){
+    /* v2.2（升级清单 B）：原来这里只有「取消勾选 / 删除所选」。补上辅导员日常最常用的两件：
+       批量打标签（标签原来只能一个个进详情页点）+ 导出所选（复用现有导出，格式一致）。 */
+    const tgs = focusTags();
     h += `<div class="card">
-      <div class="card-body" style="display:flex;align-items:center;gap:10px;padding:10px 16px">
+      <div class="card-body" style="display:flex;align-items:center;gap:8px;padding:10px 16px;flex-wrap:wrap">
         <b style="font-size:13.5px">已勾选 ${selRows.size} 人</b>
+        ${tgs.length ? `<span style="font-size:12.5px;color:var(--text-3);margin-left:4px">打标签：</span>
+          ${tgs.map(t=>`<button class="tb-btn" title="给这 ${selRows.size} 人${selRows.size ? ' ' : ''}加上 / 去掉「${esc(t.label)}」"
+            onclick="bulkTag(${jsq(t.emoji)})">${t.emoji} ${esc(t.label)}</button>`).join('')}` : ''}
         <div style="flex:1"></div>
+        <button class="tb-btn" onclick="exportSelected()" title="只导出勾选的这些人（CSV，含成绩）">导出所选</button>
         <button class="tb-btn" onclick="clearSel()">取消勾选</button>
         <button class="tb-btn" style="color:var(--danger);border-color:var(--danger-line)" onclick="deleteSelected()">删除所选</button>
       </div></div>`;

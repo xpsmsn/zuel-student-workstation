@@ -1264,6 +1264,79 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
        '★ 引导里那段内联 keydown 已删除（不再各弹窗各写一套）');
   }
 
+/* ════════ [28] 批量操作：打标签 + 导出所选（升级清单 B） ════════
+     现状：勾选条只有「取消勾选」和「删除所选」；而打标签只能一个个进详情页点
+     （toggleStudentTag 是按单个学生的）。勾 20 个人打同一个标签 = 开 20 次弹窗。 */
+  console.log('\n[28] 批量操作：打标签 + 导出所选');
+  if(R('typeof bulkTag') !== 'function'){
+    fail('批量操作还没实现（bulkTag 不存在）—— 后续断言无法进行');
+  } else {
+    R(`
+      S.batches=[]; S.activeBatchId=null; S.students=[]; S.grades=[];
+      S.batches.push(makeBatch('批量测试','demo',[])); attachBatch(S.batches[0].id);
+      setStudents([
+        {'学号':'2026701','姓名':'甲','班级':'英语2401'},
+        {'学号':'2026702','姓名':'乙','班级':'英语2401'},
+        {'学号':'2026703','姓名':'丙','班级':'英语2402'}
+      ]);
+      S.grades.length=0; invalidateGradeMap();
+      S.quickView='all'; S.filters={}; S.classFilter='all'; S._search='';
+      S.view='list'; renderMain();
+      selRows.clear(); selRows.add(S.students[0]); selRows.add(S.students[1]);
+    `);
+    eq(R('selRows.size'), 2, '勾选了 2 人');
+
+    // ① 全都没有 → 全部加上；没勾的不动
+    R(`bulkTag('🎭');`);
+    eq(R(`tagStr(S.students[0])`), '🎭', '★ 勾选的第 1 人打上标签');
+    eq(R(`tagStr(S.students[1])`), '🎭', '★ 勾选的第 2 人也打上');
+    eq(R(`tagStr(S.students[2])`), '', '★ 没勾的人不受影响（不误伤）');
+
+    // ② 已有标签时再打 → 叠加，不覆盖
+    R(`bulkTag('⛄');`);
+    eq(R(`tagStr(S.students[0])`), '🎭⛄', '★ 再打一个标签是叠加（与详情页语义一致）');
+
+    // ③ 两个人都有这个标签 → 再点算"取消"（否则"点了没反应"会让人困惑）
+    R(`bulkTag('🎭');`);
+    eq(R(`tagStr(S.students[0])`), '⛄', '★ 全都有 → 再点是取消');
+    eq(R(`tagStr(S.students[1])`), '⛄', '★ 第 2 人也取消了 🎭');
+
+    // ④ 混合状态（部分有）→ 统一补上，而不是取消
+    R(`S.students[0]['关注标签'] = '🎭'; S.students[1]['关注标签'] = '⛄';`);
+    R(`selRows.clear(); selRows.add(S.students[0]); selRows.add(S.students[1]); bulkTag('🎭');`);
+    eq(R(`tagStr(S.students[0])`), '🎭', '★ 已有的不动');
+    eq(R(`tagStr(S.students[1])`), '⛄🎭', '★ 缺的那个被补上（追加在后）');
+
+    // ⑤ 清空后写 null（不是空字符串）—— 与既有约定一致
+    R(`S.students[1]['关注标签'] = '⛄'; selRows.clear(); selRows.add(S.students[1]); bulkTag('⛄');`);
+    eq(R(`S.students[1]['关注标签']`), null, '★ 清空后是 null（既有约定，不是空串）');
+
+    // ⑥ 导出所选：只导勾选的人
+    R(`
+      window.__dl = null; window.__dlBak = downloadCsv;
+      downloadCsv = function(csv, filename){ window.__dl = { csv: csv, filename: filename }; };
+      selRows.clear(); selRows.add(S.students[0]); selRows.add(S.students[2]);
+    `);
+    R(`exportSelected();`);
+    ok(R(`!!window.__dl && window.__dl.filename.indexOf('所选') >= 0`), '★ 文件名标明"所选"');
+    ok(R(`!!window.__dl && window.__dl.csv.indexOf('2026701') >= 0 && window.__dl.csv.indexOf('2026703') >= 0`),
+       '★ 勾选的两个人都在导出里');
+    ok(R(`!!window.__dl && window.__dl.csv.indexOf('2026702') < 0`), '★ 没勾的人不在导出里');
+    R(`downloadCsv = window.__dlBak;`);
+
+    // ⑦ 没勾选时给提示，不产生空文件
+    R(`window.__dl = null; selRows.clear(); exportSelected();`);
+    eq(R('window.__dl'), null, '★ 没勾选时不导出（不生成空文件）');
+
+    // ⑧ 批量条上确实有这些入口，且没挤掉原有的
+    R(`selRows.add(S.students[0]); S.view='list'; renderMain();`);
+    const bar = R(`(function(){ const h=$('mainArea').innerHTML; const i=h.indexOf('已勾选'); return i<0?'':h.slice(Math.max(0,i-400), i+1600); })()`);
+    ok(bar.indexOf('exportSelected()') >= 0, '★ 批量条上有「导出所选」');
+    ok(bar.indexOf('bulkTag(') >= 0, '★ 批量条上有打标签入口');
+    ok(bar.indexOf('deleteSelected()') >= 0, '「删除所选」还在（没被挤掉）');
+    ok(bar.indexOf('clearSel()') >= 0, '「取消勾选」还在');
+  }
+
   finish();
 })().catch(e => { console.error('测试执行出错：' + (e && e.stack || e)); process.exit(1); });
 
