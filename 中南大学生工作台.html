@@ -3922,13 +3922,33 @@ const MULTIVALUE_FIELDS = new Set(['关注标签', '管理老师']);
 /* 绩点预警阈值（4 分制）：低于它列入「绩点偏低」 */
 const LOW_GPA = 2.5;
 
+/* 「提前毕业」的判定 —— 用**相对口径**：该生的预计毕业年份早于本批最常见的那个年份。
+   为什么不用「≤ 今年+1」那种绝对口径：它会随年份漂移（到了 2028 年，「≤ 2029」会把整批人
+   都算进来，预设就失去意义）。相对口径语义稳定："比同批人早毕业"。
+   真实数据（189 行）：2028×188、2027×1 → 命中那 1 人。 */
+function gradYearOf(s){
+  const m = String((s && s['预计毕业年份']) == null ? '' : s['预计毕业年份']).match(/\d{4}/);
+  return m ? parseInt(m[0], 10) : NaN;
+}
+function batchGradYear(list){
+  const c = {};
+  (list || []).forEach(s=>{ const y = gradYearOf(s); if(!isNaN(y)) c[y] = (c[y] || 0) + 1; });
+  let best = NaN, bestN = 0;
+  Object.keys(c).forEach(k=>{ if(c[k] > bestN){ bestN = c[k]; best = parseInt(k, 10); } });
+  return best;
+}
+function isEarlyGrad(s){
+  const y = gradYearOf(s), mode = batchGradYear(S.students);   // 基准取**整批**，不取当前筛选后的列表
+  return !isNaN(y) && !isNaN(mode) && y < mode;
+}
+
 /* 预设视图
    · need       该视图依赖哪些【学生表】字段
    · gradeNeed  该视图依赖哪些【成绩表】指标
    · requireGrade 需要先导入成绩才有意义
    注意：列表页顶部的数字、看板的提醒都直接跳到这里，新增预设时请一并考虑落点。 */
 const PRESETS = [
-  {id:'all',       label:'全部学生',   fn:list=>list},
+  {id:'all',       label:'全部学生', always:true,   fn:list=>list},
   {id:'focus',     label:'需重点关注', fn:list=>list.filter(s=>hasFocus(s))},
   {id:'tagged',    label:'带标签学生', fn:list=>list.filter(s=>hasFocusTag(s))},
   {id:'fail',      label:'有不及格',   fn:list=>list.filter(s=>{const g=gradeOf(s); return !!g && gNum(g,'不及格门数')>0;}), gradeNeed:['不及格门数']},
@@ -3937,20 +3957,48 @@ const PRESETS = [
   {id:'noremark',  label:'未写备注',   fn:list=>list.filter(s=>!s['备注（保密）'])},
   {id:'hasremark', label:'已写备注',   fn:list=>list.filter(s=>s['备注（保密）'])},
   {id:'party',     label:'团员/党员',  fn:list=>list.filter(s=>/共青团员|党员/.test(s['政治面貌']||'')), need:['政治面貌']},
-  {id:'cadre',     label:'班委成员',   fn:list=>list.filter(s=>s['班委']), need:['班委']}
+  {id:'cadre',     label:'班委成员',   fn:list=>list.filter(s=>s['班委']), need:['班委']},
+
+  /* ── v2.2：真实导出表（学工系统 42 列）带来的预设 ──
+     判定式与**本批真实命中人数**都记在注释里（样本 189 行，见
+     docs/真实模板适配与查看体验-方案.md 第 2.1 节）。这一组都是"筛出少数人"的负向条件 ——
+     所以在单值常量列上会得到 **0**（而不是"全部人"），0 是正确答案、不该被置灰。
+     注意字段名一律用**归一后的内部名**（住宿地址→宿舍、身份证件号→证件号码、手机号→联系电话）。 */
+  {id:'xjabnormal', label:'学籍异常',      fn:list=>list.filter(s=>(s['学籍状态'] && s['学籍状态'] !== '在读') || s['是否在校'] === '否'), need:['学籍状态','是否在校']},
+  {id:'nodorm',     label:'不住校',        fn:list=>list.filter(s=>!s['宿舍']), need:['宿舍']},
+  {id:'dormnoin',   label:'不在校却有床位', fn:list=>list.filter(s=>s['是否在校'] === '否' && !!s['宿舍']), need:['是否在校','宿舍']},
+  {id:'second',     label:'第二学士学位',  fn:list=>list.filter(s=>String(s['学制'] || '') === '2' || /二/.test(String(s['班级'] || ''))), need:['学制','班级']},
+  {id:'nocontact',  label:'缺联系方式',    fn:list=>list.filter(s=>!s['联系电话']), need:['联系电话']},
+  {id:'noidno',     label:'无证件号',      fn:list=>list.filter(s=>!s['证件号码']), need:['证件号码']},
+  {id:'nowechat',   label:'缺微信号',      fn:list=>list.filter(s=>!s['微信号']), need:['微信号']},
+  {id:'earlygrad',  label:'提前毕业',      fn:list=>list.filter(s=>isEarlyGrad(s)), need:['预计毕业年份']}
 ];
 
 /* 某个预设当前是否可跳转 */
 function presetById(id){ return PRESETS.find(p=>p.id===id); }
 
+/* 这个预设在本批会不会"命中全部人"（= 等于没筛）。
+   典型来源：字段是**单值常量**（例如本批所有人都是同一个校区）。
+   ⚠️ 只判"命中全部"，**不判"命中 0"** —— 0 是有意义的答案（"本批没有这类学生"），
+   置灰会把它藏起来。另外空批次（还没导数据）也不判，否则所有预设都会被误置灰。 */
+function presetMatchesAll(p){
+  const all = S.students || [];
+  if(!all.length || typeof p.fn !== 'function') return false;
+  try{ return p.fn(all.slice()).length === all.length; }catch(e){ return false; }
+}
+
 /* 视图是否可用：
    · need         —— 依赖学生表字段，本批一个非空值都没有 → 置灰
    · gradeNeed    —— 依赖成绩表指标，本批成绩里没有该指标 → 置灰
-   · requireGrade —— 需先导入成绩（否则「暂无成绩」等于全部人，没有意义） */
+   · requireGrade —— 需先导入成绩（否则「暂无成绩」等于全部人，没有意义）
+   · v2.2：命中的是**全部学生** → 也置灰（点进去等于没筛；常量列上的预设就是这种）。
+     只有标了 `always:true` 的预设豁免 —— 目前只有「全部学生」本身。 */
 function presetAvailable(p){
+  if(!p) return false;
   if(p.requireGrade && !hasGrade()) return false;
   if(p.gradeNeed && !p.gradeNeed.some(gradeHasData)) return false;
   if(p.need && !p.need.some(fieldHasData)) return false;
+  if(!p.always && presetMatchesAll(p)) return false;
   return true;
 }
 
@@ -3959,6 +4007,9 @@ function presetMissText(p){
   // 先区分「整批都没导成绩」和「导了成绩但这一项是空的」——两者提示完全不同
   if(!hasGrade() && (p.gradeNeed || p.requireGrade)) return '尚未导入成绩';
   if(p.gradeNeed && !p.gradeNeed.some(gradeHasData)) return '成绩表未提供：' + p.gradeNeed.join('、');
+  // 字段在、但整批都没值 → 说字段名（比"筛不出人"更具体）
+  if(p.need && !p.need.some(fieldHasData)) return p.need.join('、');
+  if(presetMatchesAll(p)) return '本批学生全部符合（筛不出人）';
   if(p.need) return p.need.join('、');
   return '字段缺失';
 }
