@@ -5984,6 +5984,17 @@ function renderDashMetrics(){
     ${gradeMetrics}`;
 }
 
+/* 学籍异常的「为什么」：一句话说清是哪个信号触发的（可能同时命中多条）。
+   第三个信号值得单独点出来 —— 人已经不在校、床位还占着，这是最该被辅导员看到的一条。 */
+function xjReason(s){
+  if(!s) return '';
+  const why = [];
+  if(s['学籍状态'] && s['学籍状态'] !== '在读') why.push(`学籍状态：${s['学籍状态']}`);
+  if(s['是否在校'] === '否') why.push('不在校');
+  if(s['是否在校'] === '否' && dormKey(s)) why.push('且仍占床位');
+  return why.join(' · ');
+}
+
 function renderDashBody(){
   /* v2.2（片 5-B）：在**构建 HTML 之前**决定本次是否静音，构建完就把标记置上。
      于是：进入总览的第一次会播入场动画；之后每次筛选/搜索引起的重绘都带 no-anim、不再重播。 */
@@ -6099,6 +6110,25 @@ function renderDashBody(){
     !risk.length, {span:spanFor('list', risk.length), emptyText: hasScore ? '本批没有不及格或绩点偏低的学生' : scoreTip}));
   }
 
+  /* ── v2.2（方案 片 D）：学籍异常名单 ──
+     真实数据里这类人极少但必须看见：学籍状态 在读187/保留学籍2、是否在校 是187/否2
+     （保留学籍的那 2 位同时也不在校，其中 1 位床位还占着）。与「学业预警名单」同一套样式，
+     点名字直接进详情；只有 1 类/没有该字段时不出现（不虚报）。 */
+  if(fieldHasData('学籍状态') || fieldHasData('是否在校')){
+    const xj = searched.filter(s => (s['学籍状态'] && s['学籍状态'] !== '在读') || s['是否在校'] === '否');
+    cards.push(dashCard('学籍异常', xj.length ? `共 ${xj.length} 人 · 点名字看详情` : '本批没有',
+      xj.length ? `<div class="warn-list">${xj.slice(0,8).map(s=>`
+        <button class="warn-row" onclick="openDetail(${jsq(String(s['学号']||''))})">
+          <span class="warn-name">${esc(studentName(s) || '（无姓名）')}</span>
+          <span class="warn-cls">${esc(s['班级'] || '')}</span>
+          <span class="warn-why">${esc(xjReason(s))}</span>
+        </button>`).join('')}${
+        xj.length > 8 ? `<div style="font-size:11.5px;color:var(--text-3);text-align:center;padding-top:2px">
+          还有 ${xj.length - 8} 人</div>` : ''}</div>` : '',
+      !xj.length, {span:spanFor('list', xj.length),
+        emptyText:'本批学生的学籍状态都是「在读」，且都在校'}));
+  }
+
   cards.push(dashCard('关注提醒', `${alerts.length} 项待处理`,
     alerts.length ? `<div class="alert-list">${alerts.map(a=>`
       <div class="alert-row ${a.act?'clickable':''}" ${a.act?`onclick="${a.act}"`:''}>
@@ -6144,6 +6174,31 @@ function renderDashBody(){
     cards.push(dashCard('民族构成', `${nation.length} 个民族 · 便于民族学生关怀`,
       hBarChart(nation.slice(0,8)), false, {span:spanFor('hbar', Math.min(nation.length, 8))}));
   }
+  /* ── v2.2（方案 片 D）：宿舍楼分布 ──
+     v0.5 曾以"一栋楼装百余人、太碎"删掉它 —— 但那是**旧表**从「宿舍」键硬解析楼栋的结果。
+     这份模板**直接给了「宿舍楼」列**（真实数据 4 类：132/41/13/1），分布合理、看得懂，
+     所以恢复；楼栋口径一律走 dormBuilding()，与宿舍看板同源（不另造一套切分规则）。
+     旧表形态（只有「宿舍」= 100栋-101）也能解析出楼栋 ✓。只有 1 栋时不出现（没有分布可言）。 */
+  const blds = (() => {
+    const c = {};
+    searched.forEach(s => { const b = dormBuilding(dormKey(s)); if(b) c[b] = (c[b] || 0) + 1; });
+    return Object.keys(c).map(k => ({label:k, value:c[k]}))
+                 .sort((a,b) => b.value - a.value || natCmp(a.label, b.label));
+  })();
+  if(multi(blds)){
+    cards.push(dashCard('宿舍楼分布', `${blds.length} 栋 · 覆盖 ${blds.reduce((a,b)=>a+b.value,0)} 人`,
+      hBarChart(blds), false, {span:spanFor('hbar', blds.length)}));
+  }
+
+  /* ── v2.2（方案 片 D）：户口性质 ── 资助认定常用（真实数据 非农84 / 农业80）。
+     字段名是「入学前户口性质」，显示名用简称；点图例可按它筛选（FILTER_FIELDS 里同键同标签）。 */
+  const hukou = groupCount(searched, '入学前户口性质');
+  if(fieldHasData('入学前户口性质') && multi(hukou)){
+    cards.push(dashCard('户口性质', `${hukou.length} 类 · 点击图例筛选`,
+      donutChart(hukou, {field:'入学前户口性质', centerLab:'人', onClick:true}), false,
+      {span:spanFor('donut', hukou.length)}));
+  }
+
   if(hasPol && multi(pol)){
     cards.push(dashCard('政治面貌构成', `${pol.length} 类 · 点击图例筛选`,
       donutChart(pol, {field:'政治面貌', centerLab:'人', onClick:true}), false, {span:spanFor('donut', pol.length)}));

@@ -856,6 +856,61 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
     R(`$('dashBody').clientWidth = 0;`);
   }
 
+  /* ════════ [22] 新增看板卡：学籍异常 / 户口性质 / 宿舍楼分布（方案 片 D） ════════
+     三张卡都基于真实导出表的分布（学籍状态 在读187/保留学籍2、是否在校 是187/否2、
+     入学前户口性质 非农84/农业80、宿舍楼 滨湖1栋132/滨湖2栋41/环湖3栋13/临湖6栋1）。 */
+  console.log('\n[22] 新增看板卡（片 D）：学籍异常 / 户口性质 / 宿舍楼分布');
+  R(`
+    S.batches = []; S.activeBatchId = null; S.students = []; S.grades = [];
+    S.batches.push(makeBatch('新卡测试','demo',[])); attachBatch(S.batches[0].id);
+    setStudents([
+      {'学号':'2026901','姓名':'甲','班级':'英语2401','学籍状态':'在读','是否在校':'是','宿舍楼':'滨湖1栋','房间号':'634','床位号':'01','入学前户口性质':'农业家庭户口'},
+      {'学号':'2026902','姓名':'乙','班级':'英语2401','学籍状态':'在读','是否在校':'是','宿舍楼':'滨湖1栋','房间号':'634','床位号':'02','入学前户口性质':'非农业家庭户口'},
+      {'学号':'2026903','姓名':'丙','班级':'英语2402','学籍状态':'在读','是否在校':'是','宿舍楼':'滨湖2栋','房间号':'412','床位号':'03','入学前户口性质':'农业家庭户口'},
+      {'学号':'2026904','姓名':'丁','班级':'英语2402','学籍状态':'保留学籍','是否在校':'否','宿舍楼':'环湖3栋','房间号':'101','床位号':'04','入学前户口性质':'非农业家庭户口'},
+      {'学号':'2026905','姓名':'戊','班级':'英语2403','学籍状态':'在读','是否在校':'是','宿舍':'100栋-101'}
+    ]);
+    S.grades.length = 0; invalidateGradeMap();
+    S.quickView='all'; S.filters={}; S.classFilter='all'; S._search='';
+  `);
+  const cardOf = (h, title) => {
+    const i = h.indexOf(`<div class="card-title">${title}</div>`);
+    return i < 0 ? null : h.slice(Math.max(0, i - 300), i + 1600);
+  };
+  R(`renderDashboard();`);
+  const c22 = R(`$('dashBody').innerHTML`);
+
+  // ── ① 学籍异常名单卡 ──
+  const ab = cardOf(c22, '学籍异常');
+  ok(ab !== null, '★ 出现「学籍异常」卡');
+  ok(ab !== null && ab.indexOf('丁') >= 0, '★ 名单里点到了那位"保留学籍 + 不在校"的学生');
+  ok(ab !== null && ab.indexOf('甲') < 0, '正常在读且在校的学生不进名单');
+  ok(ab !== null && /dash-card span-5/.test(ab), '名单卡是半行（span 5）');
+  ok(ab !== null && ab.indexOf('保留学籍') >= 0 && ab.indexOf('不在校') >= 0, '说清了原因（学籍状态 / 不在校）');
+
+  // ── ② 户口性质环形卡 ──
+  const hk = cardOf(c22, '户口性质');
+  ok(hk !== null, '★ 出现「户口性质」卡');
+  ok(hk !== null && hk.indexOf('农业家庭户口') >= 0 && hk.indexOf('非农业家庭户口') >= 0, '两类户口都在');
+  ok(hk !== null && /dash-card span-5/.test(hk), '环形卡是半行（环形固定 172px 不放大 → 绝不进整行）');
+  ok(hk !== null && hk.indexOf('donut-svg') >= 0, '用的是环形图');
+
+  // ── ③ 宿舍楼分布横条卡（含旧表形态：只有「宿舍」列也要能解析出楼栋）──
+  const bl = cardOf(c22, '宿舍楼分布');
+  ok(bl !== null, '★ 出现「宿舍楼分布」卡（v0.5 删过，现按新模板恢复）');
+  ['滨湖1栋','滨湖2栋','环湖3栋'].forEach(b => ok(bl !== null && bl.indexOf(b) >= 0, `楼栋「${b}」在分布里`));
+  ok(bl !== null && bl.indexOf('100栋') >= 0,
+     '★ 旧表形态（只有「宿舍」= 100栋-101）也解析出了楼栋 —— 与宿舍看板同一口径 dormBuilding()');
+  ok(bl !== null && bl.indexOf('hbar-list') >= 0,
+     '这张用的是横向条形（正向断言 —— 用"不含 donut"会因为切片越界框到下一张卡而误判）');
+  eq(R("dormBuilding(dormKey({'宿舍':'滨湖1栋634-03'}))"), '滨湖1栋', '楼栋口径：从「宿舍」键里取第一段');
+
+  // ── 反向保护：本批没有该字段就不该凭空出现（不虚报）──
+  R(`S.students.forEach(s => { delete s['入学前户口性质']; }); renderDashboard();`);
+  ok(cardOf(R(`$('dashBody').innerHTML`), '户口性质') === null, '★ 本批没有「入学前户口性质」→ 不出现该卡');
+  R(`S.students.forEach(s => { delete s['学籍状态']; delete s['是否在校']; }); renderDashboard();`);
+  ok(cardOf(R(`$('dashBody').innerHTML`), '学籍异常') === null, '★ 本批没有学籍/在校字段 → 不出现「学籍异常」卡');
+
   finish();
 })().catch(e => { console.error('测试执行出错：' + (e && e.stack || e)); process.exit(1); });
 
