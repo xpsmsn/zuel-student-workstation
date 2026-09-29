@@ -1193,6 +1193,77 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
     R(`window.askConfirm = window.__oldAsk;`);
   }
 
+  /* ════════ [27] 弹窗键盘可用性（升级清单 A） ════════
+     现状：全文 17 个弹窗里，**只有「新手引导」**支持 Esc 与焦点陷阱（写死在 bindOnboardingControls 里）；
+     其余（详情页 / 列设置 / 字段设置 / 导入向导 / 确认框…）鼠标能关、**键盘关不掉**，
+     而且 Tab 会穿透到底层主界面。
+     改法：抽成一个**全局**键盘处理 modalKeydown(e)，对全部弹窗生效（含以后新增的）。
+     ⚠️ 必须抽成具名函数才测得动 —— document 级监听在沙盒里触发不了。 */
+  console.log('\n[27] 弹窗键盘可用性：Esc 关闭 + Tab 焦点陷阱（全部弹窗）');
+  if(R('typeof modalKeydown') !== 'function'){
+    fail('键盘处理还没实现（modalKeydown 不存在）—— 后续断言无法进行');
+  } else {
+    R(`
+      S.batches=[]; S.activeBatchId=null; S.students=[]; S.grades=[];
+      S.batches.push(makeBatch('键盘测试','demo',[])); attachBatch(S.batches[0].id);
+      setStudents([{'学号':'2026991','姓名':'甲','班级':'英语2401'}]);
+      $('modalRoot').innerHTML=''; $('confirmRoot').innerHTML='';
+    `);
+
+    // ① 没有弹窗时不接管按键（别把页面上的正常按键吞掉）
+    eq(R(`modalKeydown({key:'Escape', preventDefault(){}})`), false, '没有弹窗时 Esc 不接管');
+
+    // ② 详情页：Esc 关掉
+    R(`openDetail('2026991', false);`);
+    ok(R(`$('modalRoot').innerHTML.length > 0`), '详情页已打开');
+    eq(R(`modalKeydown({key:'Escape', preventDefault(){}})`), true, '★ Esc 被接管');
+    eq(R(`$('modalRoot').innerHTML`), '', '★ Esc 关掉了详情页');
+
+    // ③ 另一个弹窗（列设置）同样支持 —— 证明覆盖的不只是详情页
+    R(`openColSettings();`);
+    ok(R(`$('modalRoot').innerHTML.length > 0`), '列设置已打开');
+    eq(R(`modalKeydown({key:'Escape', preventDefault(){}})`), true, '★ 列设置也能用 Esc 关');
+    eq(R(`$('modalRoot').innerHTML`), '', '★ 列设置被 Esc 关掉');
+
+    // ④ 确认框叠在弹窗之上：Esc 只关最上层（确认框），底下的弹窗要留着
+    R(`openDetail('2026991', false); askConfirm({title:'测试确认', html:'x'});`);
+    ok(R(`$('confirmRoot').innerHTML.length > 0`), '确认框已打开（z-index:600 盖在上面）');
+    R(`modalKeydown({key:'Escape', preventDefault(){}});`);
+    eq(R(`$('confirmRoot').innerHTML`), '', '★ Esc 先关最上层的确认框');
+    ok(R(`$('modalRoot').innerHTML.length > 0`), '★ 底下的详情页还在（没有一起关掉）');
+    R(`modalKeydown({key:'Escape', preventDefault(){}});`);
+    eq(R(`$('modalRoot').innerHTML`), '', '再按一次才关详情页');
+
+    // ⑤ Tab 焦点陷阱 —— 判断逻辑是纯函数 nextTabIndex()，直接断言
+    //    （`$` 是顶层 const，测试里伪造不了，所以把"该聚焦谁"的判断与 DOM 查询分开）
+    eq(R('nextTabIndex(3, -1, false)'), 0, '★ 焦点在弹窗外 → 拉进第一个');
+    eq(R('nextTabIndex(3, -1, true)'), 2, '★ 焦点在弹窗外 + Shift → 拉进最后一个');
+    eq(R('nextTabIndex(3, 2, false)'), 0, '★ 末尾 Tab → 回到开头（不穿透到底层页面）');
+    eq(R('nextTabIndex(3, 0, true)'), 2, '★ 开头 Shift+Tab → 跳到末尾');
+    eq(R('nextTabIndex(3, 1, false)'), -1, '★ 中间态不接管（交给浏览器正常走）');
+    eq(R('nextTabIndex(3, 1, true)'), -1, '中间态 Shift 也不接管');
+    eq(R('nextTabIndex(0, -1, false)'), -1, '弹窗里没有可聚焦元素 → 不接管（不误吞 Tab）');
+
+    // 行为层：量不到可聚焦元素时不接管（沙盒里的 stub 元素正好是这种情况）
+    R(`openDetail('2026991', false); document.activeElement = { tagName:'BODY' };`);
+    eq(R(`modalKeydown({key:'Tab', preventDefault(){}})`), false,
+       '★ 量不到可聚焦元素时不接管 Tab');
+    ok(R(`modalFocusables($('modalRoot')).length`) === 0, 'modalFocusables 对 stub 弹窗返回空（安全降级）');
+    R(`modalKeydown({key:'Escape', preventDefault(){}});`);
+    R(`openDetail('2026991', false);`);
+    eq(R(`modalKeydown({key:'a', preventDefault(){}})`), false, '普通字符键不接管');
+    R(`modalKeydown({key:'Escape', preventDefault(){}});`);
+
+    // ⑥ 全局监听装好了吗（沙盒里 document 监听触发不了，所以查"是否接上"）
+    eq(R('typeof initModalKeyboard'), 'function', '有 initModalKeyboard()');
+    ok(appSrc.indexOf('initModalKeyboard()') >= 0, '★ 启动时接上了全局键盘监听');
+
+    // ⑦ 引导弹窗原本那套内联键盘处理已抽走（避免两条键盘路径并存）
+    ok(appSrc.indexOf('bindOnboardingControls') >= 0, '引导的控件绑定还在（只抽走键盘那段）');
+    ok(appSrc.indexOf("modal.addEventListener('keydown'") < 0,
+       '★ 引导里那段内联 keydown 已删除（不再各弹窗各写一套）');
+  }
+
   finish();
 })().catch(e => { console.error('测试执行出错：' + (e && e.stack || e)); process.exit(1); });
 

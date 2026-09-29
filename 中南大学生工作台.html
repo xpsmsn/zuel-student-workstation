@@ -2177,6 +2177,70 @@ function showNotice(title, html, okText){
   </div>`;
 }
 
+/* ---------- 弹窗的键盘可用性（v2.2 升级清单 A） ----------
+   现状：全文 17 个弹窗里**只有「新手引导」**支持 Esc 与焦点陷阱（写死在 bindOnboardingControls 里），
+   其余（详情页 / 列设置 / 字段设置 / 导入向导 / 确认框…）鼠标能关、**键盘关不掉**，
+   且 Tab 会穿透到底层主界面。这里改成**全局一处处理**，对全部弹窗生效（含以后新增的），
+   不必每个弹窗各写一遍。
+   ⚠️ 抽成具名函数 modalKeydown(e) 是为了**可测** —— document 级监听在测试沙盒里触发不了。
+   层级：确认框 / 「只告知」框共用 #confirmRoot 且 z-index:600，盖在 #modalRoot 之上，
+   所以 Esc 一律先关最上面那一层。 */
+const MODAL_STACK = [
+  { id:'modalRoot',   close:()=>closeModal() },
+  { id:'confirmRoot', close:()=>closeConfirm() }
+];
+const FOCUSABLE_SEL = 'button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+/* 当前最上层打开的弹窗（数组顺序 = 由下到上，所以倒着找） */
+function topOpenModal(){
+  for(let i = MODAL_STACK.length - 1; i >= 0; i--){
+    const el = $(MODAL_STACK[i].id);
+    if(el && el.innerHTML && String(el.innerHTML).length) return { el, close: MODAL_STACK[i].close };
+  }
+  return null;
+}
+/* 弹窗内可聚焦的元素（隐藏的不算） */
+function modalFocusables(el){
+  if(!el) return [];
+  const box = (typeof el.querySelector === 'function' ? el.querySelector('.modal') : null) || el;
+  const list = (box && typeof box.querySelectorAll === 'function') ? box.querySelectorAll(FOCUSABLE_SEL) : null;
+  return list ? [...list].filter(x => x && (x.offsetParent === undefined || x.offsetParent !== null)) : [];
+}
+/* 算 Tab 之后该聚焦谁 —— 返回下标，-1 表示"不接管，交给浏览器"。
+   抽成**纯函数**（完全不碰 DOM）是为了可测：`$` 是顶层 const，测试里伪造不了它，
+   所以判断逻辑必须与 DOM 查询分开，否则核心规则根本测不到。 */
+function nextTabIndex(count, idx, shift){
+  if(!count || count < 1) return -1;
+  if(idx < 0) return shift ? count - 1 : 0;        // 焦点在弹窗外 → 拉进来
+  if(!shift && idx === count - 1) return 0;        // 末尾 → 回到开头
+  if(shift && idx === 0) return count - 1;         // 开头 → 跳到末尾
+  return -1;                                       // 中间态交给浏览器
+}
+/* 全局键盘处理：Esc 关最上层；Tab 限制在最上层内（焦点若在弹窗外则先拉进来）。
+   返回 true 表示"已接管"。抽出来是为了可测。 */
+function modalKeydown(e){
+  if(!e || !e.key) return false;
+  const top = topOpenModal();
+  if(!top) return false;                       // 没弹窗就别接管页面上的正常按键
+  if(e.key === 'Escape'){
+    if(e.preventDefault) e.preventDefault();
+    top.close();
+    return true;
+  }
+  if(e.key !== 'Tab') return false;
+  const f = modalFocusables(top.el);
+  if(!f.length) return false;                  // 量不到可聚焦元素 → 不误吞 Tab
+  const act = (typeof document !== 'undefined' && document.activeElement) || null;
+  const ti = nextTabIndex(f.length, f.indexOf(act), !!e.shiftKey);
+  if(ti < 0) return false;                     // 中间态交给浏览器
+  if(e.preventDefault) e.preventDefault();
+  if(typeof f[ti].focus === 'function') f[ti].focus();
+  return true;
+}
+function initModalKeyboard(){
+  if(typeof document === 'undefined' || typeof document.addEventListener !== 'function') return;
+  document.addEventListener('keydown', e => { modalKeydown(e); });
+}
+
 /* ---------- 撤销快照：删除前把整个批次表拍下来，30 秒内可一键还原 ---------- */
 let undoSnap = null, undoTimer = null;
 function snapshotForUndo(label){
@@ -4859,28 +4923,10 @@ function bindOnboardingControls(){
     });
   });
 
-  const focusables = () => [...modal.querySelectorAll(
-    'button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
-  )].filter(el => el.offsetParent !== null);
+  const focusables = () => modalFocusables(root);   // v2.2：与全局键盘处理共用同一处实现
 
-  if(typeof modal.addEventListener === 'function'){
-    modal.addEventListener('keydown', e => {
-      if(e.key === 'Escape'){
-        e.preventDefault();
-        closeModal();
-        return;
-      }
-      if(e.key !== 'Tab') return;
-      const list = focusables();
-      if(!list.length) return;
-      const first = list[0], last = list[list.length - 1];
-      if(e.shiftKey && document.activeElement === first){
-        e.preventDefault(); last.focus();
-      }else if(!e.shiftKey && document.activeElement === last){
-        e.preventDefault(); first.focus();
-      }
-    });
-  }
+  /* v2.2：这里原本还有一段 Esc + Tab 焦点陷阱（只对引导生效）。已抽成全局的
+     modalKeydown()/initModalKeyboard()，对**全部弹窗**生效 —— 所以那段删掉，避免两条键盘路径并存。 */
 
   const initial = root.querySelector('[data-wiz-action="skip"]') || focusables()[0];
   if(initial && typeof initial.focus === 'function') initial.focus();
@@ -9412,6 +9458,7 @@ function demoGrades(students){
   if(pre && pre !== S.theme){ try{ localStorage.setItem('cw_theme', S.theme);}catch(e){} }
   applyTheme(S.theme || 'light');
   initResponsive();
+  initModalKeyboard();   // v2.2：弹窗的 Esc 关闭 + Tab 焦点陷阱（全局一处，覆盖所有弹窗）
   initLogin();
 })();
 </script>
