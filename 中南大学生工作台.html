@@ -6415,6 +6415,9 @@ function applyAll(){
     if(!vals.length) return;
     list = list.filter(s=>vals.some(v=>{
       if(v === '__EMPTY__') return !s[k];
+      /* v2.3.1：宿舍按「房间」筛（与宿舍看板同一个 dormKey）。
+         不能比 s['宿舍'] 原值 —— 原值含床位，一人一值，筛宿舍会变成筛人。 */
+      if(k === '宿舍') return dormKey(s) === v;
       const cur = String(s[k] == null ? '' : s[k]);
       /* v1.9.8：「关注标签」一个字段里塞多个 emoji（如 🎭⛄），必须按「包含」匹配；
          其余字段仍是等值匹配（同字段多值=或，不同字段=且）。 */
@@ -6463,28 +6466,42 @@ function _snapshotPos(){
   const h = _scrollHost();
   if(!h) return null;
   const canScroll = h.scrollHeight - h.clientHeight;
+  /* v2.3.2：顺带记下「筛选下拉面板自己的滚动位置」。
+     .fd-list 是独立滚动容器（max-height:264px + overflow-y:auto），
+     整页重绘后它会重建并回到顶部 —— 老师勾了靠后的选项却看不到自己勾了什么。 */
+  const fl = document.querySelector('.fdrop-panel.open .fd-list');
   return { top: h.scrollTop, left: h.scrollLeft, win: window.scrollY || 0,
            ratio: canScroll > 0 ? h.scrollTop / canScroll : 0,
+           fdTop: fl ? fl.scrollTop : 0,
            focus: _focusPath(document.activeElement) };
 }
 function _restorePos(snap){
   if(!snap) return;
   const h = _scrollHost();
   if(h){
-    const canScroll = h.scrollHeight - h.clientHeight;
+    const canScroll = Math.max(0, h.scrollHeight - h.clientHeight);
     if(canScroll > 0){
-      /* 内容变短很多时按比例锚定（例如筛选后只剩 3 行），
-         否则会落在空白区，视觉上像是跳到了不该在的位置。 */
-      const target = canScroll < snap.top * 0.6
-        ? Math.round(canScroll * Math.min(1, snap.ratio))
-        : snap.top;
+      /* 按「相对位置」还原，而不是绝对像素。
+         从长列表筛到短列表时（例如 189 人 → 2 人），绝对像素会落在空白区或被夹到 0，
+         观感上就是「页面被弹回顶部」；按比例则停在原来相对的位置上。
+         新旧内容长度接近时用绝对值，避免比例换算带来的漂移。 */
+      const shrunk = canScroll < snap.top;
+      const target = shrunk ? Math.round(canScroll * Math.min(1, snap.ratio)) : snap.top;
       h.scrollTop = Math.max(0, Math.min(target, canScroll));
       h.scrollLeft = snap.left || 0;
     }else{
-      h.scrollTop = 0;
+      h.scrollTop = 0;      // 内容不足一屏，本来就不该有滚动
     }
   }
   if(snap.win) window.scrollTo(0, snap.win);
+  /* v2.3.2：还原筛选面板内部滚动位置（钳到上界，勾选项始终可见） */
+  if(snap.fdTop){
+    const fl = document.querySelector('.fdrop-panel.open .fd-list');
+    if(fl){
+      const max = Math.max(0, fl.scrollHeight - fl.clientHeight);
+      fl.scrollTop = Math.min(snap.fdTop, max);
+    }
+  }
   if(snap.focus){
     const host = document.getElementById('mainArea');
     const nodes = host ? [...host.querySelectorAll('input,select,textarea,button,[tabindex]')] : [];
@@ -6678,7 +6695,10 @@ function renderList(){
         ${filterDrop('性别', '性别', ['男','女'])}
         ${filterDrop('政治面貌', '政治面貌',
             [...new Set(S.students.map(s=>s['政治面貌']).filter(Boolean))].sort().concat(['__EMPTY__']))}
-        ${filterDrop('宿舍', '宿舍', [...new Set(S.students.map(s=>s['宿舍']).filter(Boolean))].sort())}
+        <!-- v2.3.1：原来用 s['宿舍'] 原值（含床位，如「滨湖1栋634-03」），每人一个
+             → 「选宿舍」实际变成「选某个人」。改用 dormKey()（房间级），
+             显示成「滨湖1栋634」这种口头说法。 -->
+        ${filterDrop('宿舍', '宿舍', dormKeyOptions(), dormDisplayName)}
         ${filterDrop('关注标签', '关注标签', focusTags().map(t=>t.emoji))}
         <button class="btn" style="height:34px" onclick="openCustomFilter()">+ 添加条件</button>
       </div>
@@ -8078,7 +8098,9 @@ function renderActiveChips(list){
   Object.entries(S.filters).forEach(([k,raw])=>{
     const vals = Array.isArray(raw) ? raw : (raw ? [raw] : []);
     vals.forEach(v=>{
-      const disp = v==='__EMPTY__' ? '未填写' : v;
+      /* v2.3.2：宿舍的内部值是 dormKey（「滨湖1栋-640」），
+         展示时要转成口头说法（「滨湖1栋640」）——与下拉面板里的选项保持一致。 */
+      const disp = v === '__EMPTY__' ? '未填写' : (k === '宿舍' ? dormDisplayName(v) : v);
       parts.push(`<span class="chip on">${esc(k)}：${esc(disp)} <span class="x"
         onclick="event.stopPropagation();removeFilterValue(${jsq(k)},${jsq(v)})">×</span></span>`);
     });
@@ -8090,6 +8112,37 @@ function renderActiveChips(list){
     parts.push(`<span class="chip chip-add" onclick="applySavedFilter(${i})">★ ${esc(f.name)}</span>`);
   });
   return parts.join('');
+}
+
+/* 宿舍筛选选项（v2.3.1）
+   —— 内部值 = dormKey（「滨湖1栋-634」），显示值 = 「滨湖1栋634」。
+   排序按楼栋在前、房号按数字在后 —— 否则 110 会排在 2 前面。 */
+function dormDisplayName(key){
+  return String(key == null ? '' : key).replace(/\s*-\s*/g, '');
+}
+function dormKeyOptions(){
+  const seen = new Set();
+  S.students.forEach(function(s){
+    const k = dormKey(s);
+    /* 「-」是"没填宿舍"的意思（真实数据里出现过原文就是「-」的学生），
+       不能当成一个叫「-」的房间 —— 归到 __EMPTY__，面板上显示「未填写」。 */
+    if(!k || k === '-' || !/[\d]/.test(k)) return;
+    seen.add(k);
+  });
+  return [...seen].sort(function(a, b){
+    const ia = a.indexOf('-'), ib = b.indexOf('-');
+    const ba = ia > 0 ? a.slice(0, ia) : a;
+    const bb = ib > 0 ? b.slice(0, ib) : b;
+    if(ba !== bb) return ba.localeCompare(bb, 'zh-CN');
+    const na = ia > 0 ? Number(a.slice(ia + 1)) : 0;
+    const nb = ib > 0 ? Number(b.slice(ib + 1)) : 0;
+    return (na || 0) - (nb || 0) || a.localeCompare(b);
+  });
+  /* 有人没填宿舍时才加这一项，避免每批数据都多个用不上的「未填写」 */
+  if(S.students.some(function(s){ const k = dormKey(s); return !k || k === '-' || !/[\d]/.test(k); })){
+    seen.add('__EMPTY__');
+  }
+  return [...seen];
 }
 
 /* ---------- 筛选操作 ---------- */
@@ -8146,15 +8199,19 @@ function filterMark(k,v){
    就由 paintFilterDrop() 就地同步勾选态。两种路径共用同一个函数。 */
 let _fdOpen = null;                       // 当前展开的字段名（null = 都收起）
 
-function filterDrop(field, label, values){
+/* v2.3.1：增加可选第 4 参 displayName —— 只改「显示成什么」，
+   参与匹配的仍是原值。宿舍筛选用它把「滨湖1栋-634」显示成「滨湖1栋634」。
+   ⚠ 不要把值本身换成显示名：显示名反推回 key 有歧义（楼栋名本身带数字）。 */
+function filterDrop(field, label, values, displayName){
+  const disp = displayName || (v => v);
   const cur = filterValues(field);
-  const shown = cur.map(v => v === '__EMPTY__' ? '未填写' : v);
+  const shown = cur.map(v => v === '__EMPTY__' ? '未填写' : disp(v));
   const items = values.map(v => {
     const hit = cur.indexOf(v) >= 0;
     return `<label class="fd-item${hit ? ' on' : ''}">
       <input type="checkbox" data-v="${esc(v)}" ${hit ? 'checked' : ''}
         onchange="toggleFilterValue(${jsq(field)}, ${jsq(v)})">
-      <span>${esc(v === '__EMPTY__' ? '未填写' : v)}</span></label>`;
+      <span>${esc(v === '__EMPTY__' ? '未填写' : disp(v))}</span></label>`;
   }).join('');
   return `<div class="fgroup">
     <span class="flabel">${esc(label)}</span>
@@ -8217,8 +8274,39 @@ function toggleFilterValue(k, v){
   if(i >= 0) cur.splice(i, 1); else cur.push(v);
   if(cur.length) S.filters[k] = cur; else delete S.filters[k];
   _fdOpen = k;                       // 记住是哪个面板：整页重绘后要恢复展开
+  /* v2.3.2：先记下这个面板内部的滚动位置。
+     .fd-list 是独立滚动容器（max-height:264px），面板重建后会回到顶部 ——
+     老师勾了靠后的选项却看不到自己勾了什么（附图就是这个现象）。 */
+  const fl0 = document.querySelector('.fdrop-panel.open .fd-list');
+  const fdTop0 = fl0 ? fl0.scrollTop : 0;
+  /* 勾到第几项也要记：新面板里若因筛选而变短，位置会变，用项序更稳 */
+  const itemIdx0 = fl0 ? [...fl0.querySelectorAll('.fd-item')].findIndex(l => {
+    const inp = l.querySelector('input'); return inp && inp.getAttribute('data-v') === v;
+  }) : -1;
+
   afterFilterChange();
   paintFilterDrop();                 // 总览页不重绘筛选栏，靠它就地同步勾选态
+
+  /* v2.3.2：列表页整页重绘后，面板是收起的（class 里没有 open），
+     这里显式重新展开并把列表滚回原处 —— 优先按「项序」定位，
+     因为筛选后选项数量会变，字节偏移不可靠。 */
+  requestAnimationFrame(function(){
+    const drop = document.querySelector('.fdrop[data-field="' + k + '"]');
+    if(drop){
+      const panel = drop.querySelector('.fdrop-panel');
+      if(panel) panel.classList.add('open');
+      const fl = drop.querySelector('.fd-list');
+      if(fl){
+        let target = fdTop0;
+        if(itemIdx0 >= 0){
+          const items = [...fl.querySelectorAll('.fd-item')];
+          const it = items[itemIdx0];
+          if(it) target = Math.max(0, it.offsetTop - fl.clientHeight / 2 + it.offsetHeight / 2);
+        }
+        fl.scrollTop = Math.max(0, Math.min(target, fl.scrollHeight - fl.clientHeight));
+      }
+    }
+  });
 }
 /* 清掉某一个字段的全部取值（面板保持展开，方便重选） */
 function clearFilterField(k){
