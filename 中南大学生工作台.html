@@ -2020,7 +2020,12 @@ tbody tr:hover{background-image:none}
   white-space:nowrap;
 }
 .award-table td.aw-status{width:160px; min-width:160px; text-align:center; vertical-align:middle}
-.award-table th.aw-status{width:160px; text-align:center}
+/* ⚠️ th 必须也写 vertical-align:middle。
+   旧样式里有一条 `.aw-status{vertical-align:top}`（当初为警报换行加的，警报已删但规则还在），
+   它选择器不含 th/td，比下面这条弱；可上面那条只声明了 text-align，
+   于是 th 落回 top → 表头文字比其他列高 11px，肉眼看就是「不一致」。
+   这里 th/td 一起写死，任何旧规则都覆盖不掉。 */
+.award-table th.aw-status{width:160px; text-align:center; vertical-align:middle}
 /* 保留旧类名（不再渲染元素，但规则留着以防别处引用） */
 .aw-award-tag{
   gap:var(--space-sm);
