@@ -6771,7 +6771,16 @@ function colDrop(i, ev){
 function colToggle(i, on){
   const k = colDraft[i];
   if(on) colOn.add(k); else colOn.delete(k);
-  renderColSettings();
+  /* v2.2.1 修：原来这里调 renderColSettings() 整体重绘弹窗，
+     每次勾选 innerHTML 被换掉、滚动位置归零 → 勾后面的列时列表「跳回第一列」。
+     现在只切换这一行的高亮，不重绘；滚动位置与鼠标焦点都保持不变。 */
+  const list = document.querySelector('.collist');
+  if(list){
+    const row = list.children[i];
+    if(row) row.classList.toggle('on', !!on);
+  }else{
+    renderColSettings();          // 兜底：结构不在时仍能正确重绘
+  }
 }
 function colMove(i, d){
   const j = i + d;
