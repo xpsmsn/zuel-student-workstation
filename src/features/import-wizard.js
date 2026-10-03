@@ -73,7 +73,10 @@ function excelRowNo(idx){
   return idx + ((importState && importState.headerIdx) || 0) + 2;
 }
 
-function buildImportState(rawHeader, rawRows, fileName, headerIdx, rowNos){
+/** 把「表头 + 原始行」整理成 importState（学生导入唯一的「表 → importState」入口）。
+ *      @param noRender true = 只填状态不弹界面（统一入口要给自己的预览）
+ *      @returns importState（历史上它不返回任何东西，这里补上 —— 少一次「拿返回值」的坑） */
+function buildImportState(rawHeader, rawRows, fileName, headerIdx, rowNos, noRender){
   const cols = [];                        // 归一后的列（去重）
   const headerMap = rawHeader.map(h=>{
     const raw = String(h == null ? '' : h).trim();
@@ -102,7 +105,13 @@ function buildImportState(rawHeader, rawRows, fileName, headerIdx, rowNos){
   importState.emptyCols = cols.filter(c => !rows.some(r => r[c] != null && r[c] !== ''));
   importState.skipCols = new Set();      // v1.9.6：换文件后重置勾选，默认全部导入
   importState.step = 2;
-  renderImport();
+
+  /* ⚠️ renderImport() 会把整个弹窗换掉。统一入口
+     （features/import-unified.js 的 renderUnifiedPreview）想先给用户看一份
+     「对上几个 / 认不出几个」的预览再进下一步，所以那边需要**只填不渲染**。
+     用 noRender 开关，而不是在调用方 hack 时序 —— 副作用顺序很难猜。 */
+  if (!noRender) renderImport();
+  return importState;
 }
 
 /* openImport() 已移入 features/import-unified.js ——

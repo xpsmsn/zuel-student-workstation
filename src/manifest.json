@@ -56,7 +56,8 @@
       "file": "domain/field-schema.js",
       "layer": "L2 domain",
       "deps": [
-        "core.state"
+        "core.state",
+        "kernel.00-kernel"
       ]
     },
     {

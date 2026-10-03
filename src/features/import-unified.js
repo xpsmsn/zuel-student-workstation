@@ -193,9 +193,16 @@ function renderUnifiedPreview() {
     return;
   }
 
-  /* 认出人之后，按普通路径解析（有学号走 buildRawRows，按学号剥汇总行） */
+  /* 认出人之后，按普通路径解析（有学号走 buildRawRows，按学号剥汇总行）
+     ⚠️ buildImportState 的两个「特点」害过我一次，写在这里免得再踩：
+       ① 它**只往全局 importState 里写，自己不返回任何东西**（返回 undefined）
+       ② 它结尾会调 renderImport()，**把当前弹窗整个换掉**
+     所以这里要的是它的副作用（importState 被填好），不是返回值。
+     同理 kind 也要从 importState 上读，不是从返回值读。 */
   const { rows, rowNos } = buildRawRows(arr, hdr, rawHeader);
-  const parsed = buildImportState(rawHeader, rows, unifiedImport.fileName, hdr, rowNos);
+  buildImportState(rawHeader, rows, unifiedImport.fileName, hdr, rowNos, true);
+  const st = importState;                       // buildImportState 已把结果写在这里
+  const parsed = { kind: st.kind, rows: st.rows, cols: st.cols, emptyCols: st.emptyCols, header: st.header };
   unifiedImport.kind = parsed.kind || 'student';
   unifiedImport.parsed = parsed;
 
@@ -221,6 +228,38 @@ function renderUnifiedPreview() {
   });
 
   const isGrades = parsed.kind === 'grades';
+
+  /* ⚠️ 学号被 Excel 存成数字的话，精度在**导出那一刻**就丢了，
+     unscientific 只能补零、补不出丢掉的那几位。
+     所以这里不只是提示，而是**直接拦住**「下一步」：
+     放行的话，这一批人会被当成新学生加进来 —— 一次误操作就多出几十个重复学生，
+     而且要靠人工一个一个删。宁可让用户回 Excel 改一列格式重导一次。 */
+  const sciLoss = detectSciNotationLoss(parsed.cols, parsed.rows || []);
+  const sciKeys = sciLoss.map(x => '「' + x.key + '」').join('');
+  const sciN = sciLoss.reduce((a, x) => a + x.count, 0);
+  const sciWarn = sciLoss.length ? `
+      <div class="hint" style="border-color:var(--danger-line);background:var(--danger-soft)">
+        <b>${sciKeys}这一列在 Excel 里被存成了数字，${sciN} 行的学号已经丢了几位</b><br>
+        Excel 把 <code>202625420001</code> 存成 <code>2.02625E+11</code> 时，后几位就丢了，我补不回来。<br>
+        <b>请先在 Excel 里把这一列设为「文本」，重新导出一次。</b>
+        现在继续导入的话，这 ${sciN} 个人会被当成新学生加进来。
+      </div>` : '';
+  if (sciLoss.length && okBtn) {
+    okBtn.style.display = 'none';
+    /* 弹窗底部给一个「我知道风险，仍然导入」的兜底 ——
+       拦住是默认，但不该剥夺用户的选择权（比如他确认过原表其实没问题）。 */
+    const foot = document.querySelector('#modalRoot .modal-foot');
+    if (foot && !foot.querySelector('[data-force]')) {
+      const b = document.createElement('button');
+      b.className = 'btn';
+      b.textContent = '仍然导入';
+      b.setAttribute('data-force', '1');
+      b.style.marginRight = 'auto';
+      b.onclick = () => { const x = document.getElementById('uiOk'); if (x) x.style.display = 'inline-flex'; b.remove(); };
+      foot.insertBefore(b, foot.firstChild);
+    }
+  }
+
   body.innerHTML = `
     ${filebox(hdr)}
     <div class="hint" style="border-color:var(--brand-line);background:var(--brand-soft)">
@@ -234,6 +273,7 @@ function renderUnifiedPreview() {
       ${rb(misses.length, '认不出（会新增）', misses.length ? 'var(--brand-deep)' : 'var(--text-3)')}
       ${rb(parsed.cols.length, '字段', 'var(--text-3)')}
     </div>
+    ${sciWarn}
     ${parsed.emptyCols.length ? `<div class="hint">
       有 <b>${parsed.emptyCols.length}</b> 列在这张表里整列为空（${parsed.emptyCols.slice(0, 6).map(esc).join('、')}${parsed.emptyCols.length > 6 ? ' …' : ''}），
       不带信息也不会覆盖旧值，下一步可以取消勾选。</div>` : ''}

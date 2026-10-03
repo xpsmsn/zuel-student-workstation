@@ -112,16 +112,91 @@ function sentinelToEmpty(v){
   return s;
 }
 
-/* 把一行原始数据归一化：列名归一 + 同行同名冲突时优先取非空值 */
+/* ════════════════════════════════════════════════════════════════════════
+   修回「科学计数法」的学号 / 证件号
+   ────────────────────────────────────────────────────────────────────────
+   这是真实学工表里最常见、也最坑的一个问题（2026-10-03 实测确认）：
+
+     Excel 里学号 202625420001 被存成「数值」→ 读出来变成 **2.02625E+11**
+
+   后果特别严重：学号是唯一主键，一旦变成科学计数法，
+   **这个学生对不上任何人** —— 轻则认成新学生、重则一个人凭空多出一条。
+   而且表上看着「有数据」，不报任何错。
+
+   为什么在这里修（而不是只在导入预览里修）：
+   normalizeRow 是**所有**导入路径的必经之处（学生表 / 成绩表 / 无模板表），
+   在这儿修一次，全覆盖；而且写进去的档案值也是对的，不只是预览对。
+
+   认得出来的形态（都是「明显不该是科学计数法」的）：
+     2.02625E+11  /  2.0262542E8  /  1.23457E+15
+   判据：含 E/e 且尾数能还原成 10~20 位的纯数字。
+   ⚠️ 「1.5E+10」这种尾数太短的**不还原** —— 那可能是真数据（如 15 亿），
+      乱还原会把一个数改错，比不改更糟。
+   ════════════════════════════════════════════════════════════════════════ */
+
+/** 学号 / 考生号 / 证件号这类「长数字」列：把科学计数法还原回原始数字串 */
+const LONG_NUM_KEYS = ['学号', '考生号', '证件号码', '身份证件号', '身份证号', '学籍号', '工号', '职工号', '学号/职工号'];
+
+function unscientific(v){
+  if (v == null) return v;
+  const s = String(v).trim();
+  if (!/[eE]/.test(s)) return v;                    // 绝大多数值走这条早退
+
+  const m = s.match(/^([+-]?)(\d+)(?:\.(\d+))?[eE]([+-]?\d+)$/);
+  if (!m) return v;                                 // 不是这个形态 → 别动
+  const sign = m[1], intPart = m[2], decPart = m[3] || '', exp = Number(m[4]);
+
+  // 还原成普通数字串（用字符串运算，不走 Number —— 12 位以上会丢精度）
+  const digits = intPart + decPart;
+  const pointPos = intPart.length + exp;            // 小数点应该在第几位
+  let out;
+  if (pointPos <= 0) out = '0.' + '0'.repeat(-pointPos) + digits;
+  else if (pointPos >= digits.length) out = digits + '0'.repeat(pointPos - digits.length);
+  else out = digits.slice(0, pointPos) + '.' + digits.slice(pointPos);
+
+  // 只接受还原出来是 6~20 位纯数字的（学号、身份证都是这个量级）。
+  // 位数不对说明它本来就不是「长数字」，不该动。
+  const bare = out.replace('.', '').replace(/^0+/, '');
+  if (bare.length < 6 || bare.length > 20) return v;
+  return sign + bare;
+}
+
+/** 这张表里的学号列**是不是**中过科学计数法的毒**。
+   用途：在导入预览里明确告诉用户「Excel 把学号存成了数字，后几位已经丢了，
+   请在 Excel 里把这一列改成文本再导出」—— 因为这时候**自动还原是不可靠的**。
+
+   ⚠️ 为什么必须说清楚：Excel 存数字那一刻精度就丢了（202625420001 → 2.02625E+11），
+      还原只能补零，**补不出丢掉的那几位**。所以真正可靠的办法是改 Excel 单元格格式。
+      这条提示的价值就在于：不让用户以为「导进去都对了」，结果批量产生重复学生。 */
+function detectSciNotationLoss(cols, rows){
+  const list = cols || [];
+  const lost = [];
+  list.forEach(k => {
+    if (LONG_NUM_KEYS.indexOf(k) < 0) return;
+    /* 判据：unscientific 还原之后仍然「末尾一串零」且总长 >= 10 ——
+       这就是 Excel 存数字时把精度截掉、只能补零的痕迹。
+       注意不能只看有没有 E：unscientific 已经把 E 拿掉了。 */
+    const zeros = rows.filter(r => {
+      const v = String(r[k] == null ? '' : r[k]);
+      return /0{4,}$/.test(v) && v.length >= 10;
+    }).length;
+    if (zeros > 0) lost.push({ key: k, count: zeros });
+  });
+  return lost;
+}
+
+/* 把一行原始数据归一化：列名归一 + 长数字修复 + 同行同名冲突时优先取非空值 */
 function normalizeRow(raw){
   const out = {};
   Object.entries(raw).forEach(([k,v])=>{
     const nk = normalizeKey(k);
     const nv = sentinelToEmpty(v);          // 占位符（"-"/"无"/"N/A"…）一律当空
     if(nk === '') return;
-    if(!(nk in out)){ out[nk] = nv; return; }
+    // 学号/证件号这类长数字：先修回科学计数法（见上方 unscientific 的说明）
+    const val = LONG_NUM_KEYS.indexOf(nk) >= 0 ? unscientific(nv) : nv;
+    if(!(nk in out)){ out[nk] = val; return; }
     // 冲突：已有值为空、新值非空 → 取新值（对应方案 4.3 归一原则 3）
-    if((out[nk] == null || out[nk] === '') && nv != null) out[nk] = nv;
+    if((out[nk] == null || out[nk] === '') && val != null) out[nk] = val;
   });
   return out;
 }
