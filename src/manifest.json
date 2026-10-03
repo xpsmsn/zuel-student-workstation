@@ -423,6 +423,7 @@
         "core.state",
         "core.ui-kit",
         "features.filter",
+        "features.quick-find",
         "kernel.00-kernel",
         "shell.router",
         "views.dashboard",
@@ -501,6 +502,7 @@
         "domain.field-schema",
         "domain.roster",
         "features.import",
+        "features.import-unified",
         "features.modals",
         "features.multisheet",
         "kernel.00-kernel",
@@ -523,6 +525,15 @@
       "layer": "L2 domain",
       "deps": [
         "domain.field-schema"
+      ]
+    },
+    {
+      "id": "domain.custom-table",
+      "file": "domain/custom-table.js",
+      "layer": "L2 domain",
+      "deps": [
+        "domain.field-schema",
+        "kernel.00-kernel"
       ]
     },
     {
@@ -561,8 +572,7 @@
       "layer": "L2 domain",
       "deps": [
         "kernel.00-kernel"
-      ],
-      "orderDeps": []
+      ]
     },
     {
       "id": "features.reset",
@@ -764,10 +774,9 @@
         "core.persist",
         "core.state",
         "core.ui-kit",
+        "domain.custom-table",
         "domain.field-schema",
-        "domain.parse-grade",
         "domain.roster",
-        "domain.table-detect",
         "features.import",
         "features.import-wizard",
         "features.modals",
@@ -777,6 +786,18 @@
         "shell.app-shell",
         "shell.router",
         "views.list"
+      ]
+    },
+    {
+      "id": "features.quick-find",
+      "file": "features/quick-find.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.state",
+        "core.ui-kit",
+        "features.modals",
+        "kernel.00-kernel",
+        "views.student-detail"
       ]
     }
   ]

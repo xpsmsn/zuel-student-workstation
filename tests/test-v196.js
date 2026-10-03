@@ -1379,12 +1379,19 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
       $('dashSearchInput').focus = function(){ window.__focused = true; };
       $('dashSearchInput').select = function(){};
     `);
-    eq(R(`handleSearchShortcut({key:'k', metaKey:true, target:{tagName:'BODY'}, preventDefault(){}})`), true,
-       '★ ⌘K 被接管');
-    eq(R('window.__focused'), true, '★ 焦点进了搜索框');
+    /* v3（2026-10-03）：⌘K / Ctrl+K / / 已由 features/quick-find.js 的
+       handleFindShortcut 接管 —— 它弹的是「快速查找」面板，不是页内搜索框。
+       原因：辅导员日常第一件事是「学生出事了最快查到他所有信息」，
+       而页内搜索只匹配 5 个字段，恰好漏掉家长电话/宿舍/证件号/生源地。
+       断言跟着改 —— 守的是「任何页面按 ⌘K 都能唤起查找」这件事本身。 */
+    eq(R(`handleFindShortcut({key:'k', metaKey:true, target:{tagName:'BODY'}, preventDefault(){}})`), true,
+       '★ ⌘K 唤起快速查找');
+    eq(R(`!!$('qfInput')`), true, '★ 查找面板已打开且输入框存在');
+    R(`closeModal();`);
     R(`window.__focused = false;`);
-    eq(R(`handleSearchShortcut({key:'k', ctrlKey:true, target:{tagName:'BODY'}, preventDefault(){}})`), true,
+    eq(R(`handleFindShortcut({key:'k', ctrlKey:true, target:{tagName:'BODY'}, preventDefault(){}})`), true,
        '★ Ctrl+K 同样有效（Windows）');
+    R(`closeModal();`);
 
     // ③ 弹窗盖着时不抢快捷键（否则会在弹窗里乱跳焦点）
     R(`openDetail('2026801', false); window.__focused = false;`);
@@ -1394,8 +1401,9 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
     R(`closeModal();`);
 
     // ④ "/" 唤起：不在输入框里才行（否则会打不出斜杠）
-    eq(R(`handleSearchShortcut({key:'/', target:{tagName:'BODY'}, preventDefault(){}})`), true,
-       '★ 页面上按 / 能唤起搜索');
+    eq(R(`handleFindShortcut({key:'/', target:{tagName:'BODY'}, preventDefault(){}})`), true,
+       '★ 页面上按 / 能唤起快速查找');
+    R(`closeModal();`);
     R(`window.__focused = false;`);
     eq(R(`handleSearchShortcut({key:'/', target:{tagName:'INPUT'}, preventDefault(){}})`), false,
        '★ 已经在输入框里时 / 不接管（否则斜杠打不出来）');

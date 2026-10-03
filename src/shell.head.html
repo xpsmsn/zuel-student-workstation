@@ -1415,6 +1415,15 @@ thead th{font-weight:600}
     </button>
     <div class="logo"><img class="logo-mark brand-logo" alt="中南财经政法大学校徽"><span class="logo-text">中南大学生工作台</span></div>
     <div class="week-chip" id="weekChip" onclick="openWeekCalibrate()" title="当前学期与周次 · 点击可校正周数（放假/停课对不上时）"></div>
+    <!-- v3：快速查找常驻顶栏。
+         辅导员日常第一件事是「学生出事了，最快查到他所有信息」——
+         这件事不能只靠快捷键（很多人不知道有快捷键），
+         也不能藏在侧栏深处。它跟「导入」是同一个量级的入口。 -->
+    <button class="tb-find" onclick="openQuickFind()" title="查找学生（⌘K 或 /）">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2.3" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+      <span>找学生</span>
+    </button>
     <div class="topbar-spacer"></div>
     <div class="quote-bar" id="quoteBar" title="点击换一句">
       <span class="quote-text" id="quoteText"></span>

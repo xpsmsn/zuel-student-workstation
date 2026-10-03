@@ -140,3 +140,123 @@
   display: flex; gap: 7px; justify-content: flex-end;
   padding-top: 8px; margin-top: 6px; border-top: 1px solid var(--line);
 }
+/* ════════════════════════════════════════════════════════════════════════
+   导入中心
+   ────────────────────────────────────────────────────────────────────────
+   按「多久做一次」分三段，而不是按「功能属于哪类」。
+   辅导员一年导一次的成绩，和每天查一个人的动线，混在一起就都不好用。
+   ════════════════════════════════════════════════════════════════════════ */
+.ic-sec{margin-bottom:18px}
+.ic-sec:last-child{margin-bottom:0}
+.ic-sec-h{
+  display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;
+  font-size:12.5px;font-weight:600;color:var(--text-2);margin-bottom:9px;
+}
+.ic-sec-h span{font-size:11.5px;font-weight:400;color:var(--text-3)}
+
+.ic-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:640px){.ic-grid{grid-template-columns:1fr}}
+
+/* 卡片：整块可点，标题 + 一句「什么时候用」 */
+.ic-card{
+  display:flex;flex-direction:column;gap:4px;align-items:flex-start;
+  padding:12px 14px;border:1px solid var(--line);border-radius:10px;
+  background:var(--panel);text-align:left;cursor:pointer;transition:.15s;
+  min-height:44px;                    /* 触屏最小点击区 */
+}
+.ic-card:hover{border-color:var(--brand);background:var(--brand-soft)}
+.ic-card:active{transform:scale(.995)}
+.ic-label{font-size:13.5px;font-weight:550;color:var(--text);line-height:1.3}
+.ic-card:hover .ic-label{color:var(--brand-deep)}
+.ic-hint{font-size:11.5px;color:var(--text-3);line-height:1.5}
+
+/* 「自动识别」小角标 */
+.ic-auto{
+  display:inline-block;padding:1px 6px;border-radius:20px;
+  background:var(--brand-soft);color:var(--brand-deep);
+  font-size:10.5px;font-weight:500;
+}
+
+/* 身份列改选按钮组 */
+.ic-idpick{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.ic-idopt{
+  padding:4px 10px;border:1px solid var(--line);border-radius:20px;
+  background:var(--panel);color:var(--text-2);font-size:12px;cursor:pointer;
+  transition:.15s;min-height:30px;
+}
+.ic-idopt:hover{border-color:var(--brand);color:var(--brand)}
+.ic-idopt.on{background:var(--brand);border-color:var(--brand);color:var(--on-brand);font-weight:500}
+
+/* ════════════════════════════════════════════════════════════════════════
+   快速查找（⌘K / /）
+   ────────────────────────────────────────────────────────────────────────
+   学生出事了要最快查到所有信息 —— 家长/电话/宿舍/证件/生源地
+   必须在**一屏之内**看全，不能还要点进详情页翻。
+   ════════════════════════════════════════════════════════════════════════ */
+.qf-head{
+  display:flex;align-items:center;gap:10px;padding:14px 16px;
+  border-bottom:1px solid var(--line);color:var(--text-3);
+}
+.qf-head input{
+  flex:1;min-width:0;border:0;background:transparent;outline:none;
+  font-size:16px;font-family:inherit;color:var(--text);
+}
+.qf-head input::placeholder{color:var(--text-3)}
+.qf-x{
+  width:26px;height:26px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+  border:0;border-radius:50%;background:var(--hover);color:var(--text-2);
+  font-size:16px;line-height:1;cursor:pointer;
+}
+.qf-x:hover{background:var(--line);color:var(--text)}
+
+.qf-body{max-height:min(62vh,520px);overflow:auto;padding:8px}
+.qf-empty{padding:26px 16px;text-align:center;color:var(--text-3);font-size:13px;line-height:1.8}
+.qf-more{padding:9px 12px;font-size:11.5px;color:var(--text-3);text-align:center}
+
+/* 一条结果：姓名 + 学号一行，下面是这一摊「出事时要看的」标签 */
+.qf-row{
+  padding:10px 12px;border-radius:10px;cursor:pointer;
+  border:1px solid transparent;transition:background .12s;
+}
+.qf-row:hover{background:var(--hover)}
+.qf-row.active{background:var(--brand-soft);border-color:var(--brand-line)}
+.qf-name{
+  display:flex;align-items:baseline;gap:8px;
+  font-size:14px;font-weight:550;color:var(--text);margin-bottom:5px;
+}
+.qf-sid{font-size:11.5px;font-weight:400;color:var(--text-3);font-variant-numeric:tabular-nums}
+.qf-tags{display:flex;flex-wrap:wrap;gap:5px}
+/* 标签：字段名淡、内容实 —— 扫一眼就知道有什么 */
+.qf-tag{
+  display:inline-flex;align-items:baseline;gap:4px;
+  padding:2px 7px;border-radius:6px;background:var(--bg-sub,var(--hover));
+  font-size:12px;color:var(--text-2);
+}
+.qf-tag i{font-style:normal;font-size:10.5px;color:var(--text-3)}
+.qf-none{color:var(--text-3);font-style:italic}
+
+/* ════════════════════════════════════════════════════════════════════════
+   顶栏「找学生」按钮
+   ────────────────────────────────────────────────────────────────────────
+   日常最高频的两件事：找学生、导入。两者必须是同量级的入口 ——
+   一个在顶栏另一个在侧栏深处，等于告诉用户「找人不重要」。
+   ════════════════════════════════════════════════════════════════════════ */
+.tb-find{
+  display:inline-flex;align-items:center;gap:6px;
+  height:32px;padding:0 12px;margin-right:8px;
+  border:1px solid var(--line);border-radius:16px;
+  background:var(--panel);color:var(--text-2);
+  font-size:12.5px;font-family:inherit;cursor:pointer;transition:.15s;
+  white-space:nowrap;
+}
+.tb-find:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
+.tb-find:active{transform:scale(.98)}
+/* 窄屏：只留图标，别把顶栏挤爆 */
+@media (max-width:760px){
+  .tb-find span{display:none}
+  .tb-find{width:32px;padding:0;justify-content:center}
+}
+/* 桌面端隐藏顶栏金句条上的「换一句」不必要，这里只管查找按钮 */
+
+/* 拖拽高亮：把文件拖到虚线框上时给出反馈 */
+.drop.drag{border-color:var(--brand);background:var(--brand-soft)}

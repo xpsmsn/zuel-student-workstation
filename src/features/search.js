@@ -27,18 +27,9 @@ function handleSearchShortcut(e){
   const tag = String(t.tagName || '').toLowerCase();
   const typing = tag === 'input' || tag === 'textarea' || t.isContentEditable === true;
   const box = currentSearchBox();
-  if((e.metaKey || e.ctrlKey) && String(e.key).toLowerCase() === 'k'){
-    if(topOpenModal() || !box) return false;    // 弹窗盖着时不抢（否则焦点会在弹窗里乱跳）
-    if(e.preventDefault) e.preventDefault();
-    if(box.focus) box.focus();
-    if(box.select) box.select();
-    return true;
-  }
-  if(e.key === '/' && !typing && !topOpenModal() && box){
-    if(e.preventDefault) e.preventDefault();
-    if(box.focus) box.focus();
-    return true;
-  }
+  /* v3：⌘K 与 / 已由 features/quick-find.js 的 handleFindShortcut 接管
+     （任何页面都能唤起、且搜全字段）。这里只留 Esc 清空页内搜索框，
+     免得两个快捷键打架 —— 一个弹面板、一个聚焦输入框，同时存在很怪。 */
   if(e.key === 'Escape' && !topOpenModal() && box && typeof document !== 'undefined' && document.activeElement === box){
     if(e.preventDefault) e.preventDefault();
     box.value = '';
@@ -48,9 +39,20 @@ function handleSearchShortcut(e){
   }
   return false;
 }
+/* v3（2026-10-03）：全局「快速查找」独立成一个面板，⌘K / / 由它接管。
+   原因：辅导员日常第一件事是「学生出事了要最快查到他所有信息」，
+   而这里的 searchList() 只匹配 5 个字段（姓名/学号/考生号/电话），
+   恰好漏掉了出事时最要紧的家长电话、宿舍、证件号、生源地。
+   详见 features/quick-find.js。
+
+   原来的 ⌘K 只在「当前页面有搜索框」时才生效 —— 也就是说在总览页、
+   宿舍看板、校历这些页面按 ⌘K 什么都不会发生。现在任何位置都能唤起。 */
 function initShortcuts(){
   if(typeof document === 'undefined' || typeof document.addEventListener !== 'function') return;
-  document.addEventListener('keydown', e => { handleSearchShortcut(e); });
+  document.addEventListener('keydown', e => {
+    if (handleFindShortcut(e)) return;   // 快速查找优先
+    handleSearchShortcut(e);             // 页内搜索（列表/总览的输入框）
+  });
 }
 function dashPreset(id){ S.quickView = id; S.classFilter='all'; renderSidebar(); renderMain(); }
 

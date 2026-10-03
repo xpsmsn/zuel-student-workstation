@@ -1719,6 +1719,127 @@ thead th{font-weight:600}
   display: flex; gap: 7px; justify-content: flex-end;
   padding-top: 8px; margin-top: 6px; border-top: 1px solid var(--line);
 }
+/* ════════════════════════════════════════════════════════════════════════
+   导入中心
+   ────────────────────────────────────────────────────────────────────────
+   按「多久做一次」分三段，而不是按「功能属于哪类」。
+   辅导员一年导一次的成绩，和每天查一个人的动线，混在一起就都不好用。
+   ════════════════════════════════════════════════════════════════════════ */
+.ic-sec{margin-bottom:18px}
+.ic-sec:last-child{margin-bottom:0}
+.ic-sec-h{
+  display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;
+  font-size:12.5px;font-weight:600;color:var(--text-2);margin-bottom:9px;
+}
+.ic-sec-h span{font-size:11.5px;font-weight:400;color:var(--text-3)}
+
+.ic-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:640px){.ic-grid{grid-template-columns:1fr}}
+
+/* 卡片：整块可点，标题 + 一句「什么时候用」 */
+.ic-card{
+  display:flex;flex-direction:column;gap:4px;align-items:flex-start;
+  padding:12px 14px;border:1px solid var(--line);border-radius:10px;
+  background:var(--panel);text-align:left;cursor:pointer;transition:.15s;
+  min-height:44px;                    /* 触屏最小点击区 */
+}
+.ic-card:hover{border-color:var(--brand);background:var(--brand-soft)}
+.ic-card:active{transform:scale(.995)}
+.ic-label{font-size:13.5px;font-weight:550;color:var(--text);line-height:1.3}
+.ic-card:hover .ic-label{color:var(--brand-deep)}
+.ic-hint{font-size:11.5px;color:var(--text-3);line-height:1.5}
+
+/* 「自动识别」小角标 */
+.ic-auto{
+  display:inline-block;padding:1px 6px;border-radius:20px;
+  background:var(--brand-soft);color:var(--brand-deep);
+  font-size:10.5px;font-weight:500;
+}
+
+/* 身份列改选按钮组 */
+.ic-idpick{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.ic-idopt{
+  padding:4px 10px;border:1px solid var(--line);border-radius:20px;
+  background:var(--panel);color:var(--text-2);font-size:12px;cursor:pointer;
+  transition:.15s;min-height:30px;
+}
+.ic-idopt:hover{border-color:var(--brand);color:var(--brand)}
+.ic-idopt.on{background:var(--brand);border-color:var(--brand);color:var(--on-brand);font-weight:500}
+
+/* ════════════════════════════════════════════════════════════════════════
+   快速查找（⌘K / /）
+   ────────────────────────────────────────────────────────────────────────
+   学生出事了要最快查到所有信息 —— 家长/电话/宿舍/证件/生源地
+   必须在**一屏之内**看全，不能还要点进详情页翻。
+   ════════════════════════════════════════════════════════════════════════ */
+.qf-head{
+  display:flex;align-items:center;gap:10px;padding:14px 16px;
+  border-bottom:1px solid var(--line);color:var(--text-3);
+}
+.qf-head input{
+  flex:1;min-width:0;border:0;background:transparent;outline:none;
+  font-size:16px;font-family:inherit;color:var(--text);
+}
+.qf-head input::placeholder{color:var(--text-3)}
+.qf-x{
+  width:26px;height:26px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+  border:0;border-radius:50%;background:var(--hover);color:var(--text-2);
+  font-size:16px;line-height:1;cursor:pointer;
+}
+.qf-x:hover{background:var(--line);color:var(--text)}
+
+.qf-body{max-height:min(62vh,520px);overflow:auto;padding:8px}
+.qf-empty{padding:26px 16px;text-align:center;color:var(--text-3);font-size:13px;line-height:1.8}
+.qf-more{padding:9px 12px;font-size:11.5px;color:var(--text-3);text-align:center}
+
+/* 一条结果：姓名 + 学号一行，下面是这一摊「出事时要看的」标签 */
+.qf-row{
+  padding:10px 12px;border-radius:10px;cursor:pointer;
+  border:1px solid transparent;transition:background .12s;
+}
+.qf-row:hover{background:var(--hover)}
+.qf-row.active{background:var(--brand-soft);border-color:var(--brand-line)}
+.qf-name{
+  display:flex;align-items:baseline;gap:8px;
+  font-size:14px;font-weight:550;color:var(--text);margin-bottom:5px;
+}
+.qf-sid{font-size:11.5px;font-weight:400;color:var(--text-3);font-variant-numeric:tabular-nums}
+.qf-tags{display:flex;flex-wrap:wrap;gap:5px}
+/* 标签：字段名淡、内容实 —— 扫一眼就知道有什么 */
+.qf-tag{
+  display:inline-flex;align-items:baseline;gap:4px;
+  padding:2px 7px;border-radius:6px;background:var(--bg-sub,var(--hover));
+  font-size:12px;color:var(--text-2);
+}
+.qf-tag i{font-style:normal;font-size:10.5px;color:var(--text-3)}
+.qf-none{color:var(--text-3);font-style:italic}
+
+/* ════════════════════════════════════════════════════════════════════════
+   顶栏「找学生」按钮
+   ────────────────────────────────────────────────────────────────────────
+   日常最高频的两件事：找学生、导入。两者必须是同量级的入口 ——
+   一个在顶栏另一个在侧栏深处，等于告诉用户「找人不重要」。
+   ════════════════════════════════════════════════════════════════════════ */
+.tb-find{
+  display:inline-flex;align-items:center;gap:6px;
+  height:32px;padding:0 12px;margin-right:8px;
+  border:1px solid var(--line);border-radius:16px;
+  background:var(--panel);color:var(--text-2);
+  font-size:12.5px;font-family:inherit;cursor:pointer;transition:.15s;
+  white-space:nowrap;
+}
+.tb-find:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
+.tb-find:active{transform:scale(.98)}
+/* 窄屏：只留图标，别把顶栏挤爆 */
+@media (max-width:760px){
+  .tb-find span{display:none}
+  .tb-find{width:32px;padding:0;justify-content:center}
+}
+/* 桌面端隐藏顶栏金句条上的「换一句」不必要，这里只管查找按钮 */
+
+/* 拖拽高亮：把文件拖到虚线框上时给出反馈 */
+.drop.drag{border-color:var(--brand);background:var(--brand-soft)}
+
 </style>
 
 </head>
@@ -1738,6 +1859,15 @@ thead th{font-weight:600}
     </button>
     <div class="logo"><img class="logo-mark brand-logo" alt="中南财经政法大学校徽"><span class="logo-text">中南大学生工作台</span></div>
     <div class="week-chip" id="weekChip" onclick="openWeekCalibrate()" title="当前学期与周次 · 点击可校正周数（放假/停课对不上时）"></div>
+    <!-- v3：快速查找常驻顶栏。
+         辅导员日常第一件事是「学生出事了，最快查到他所有信息」——
+         这件事不能只靠快捷键（很多人不知道有快捷键），
+         也不能藏在侧栏深处。它跟「导入」是同一个量级的入口。 -->
+    <button class="tb-find" onclick="openQuickFind()" title="查找学生（⌘K 或 /）">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2.3" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+      <span>找学生</span>
+    </button>
     <div class="topbar-spacer"></div>
     <div class="quote-bar" id="quoteBar" title="点击换一句">
       <span class="quote-text" id="quoteText"></span>
@@ -3142,6 +3272,232 @@ function restoreLibraryPresets(key){
   });
   if(n){ save(); }
   return n;
+}
+
+
+/* ═══ module: domain.custom-table  [L2 domain] ═══ */
+/* ════════════════════════════════════════════════════════════════════════
+   domain/custom-table.js —— 无模板表格：认出结构（纯函数）
+   ────────────────────────────────────────────────────────────────────────
+   辅导员 2026-10-03 提出的核心痛点：
+
+     「党团发展的表格、班委的信息表格，或者一些其他非常个性化的表格，
+       但是所有这些表格其实没有一个规范的模板。」
+
+   现有三种表（学生表 / 成绩表 / 政治面貌名册）都有固定列名，靠列名就能认。
+   但上面这些表**每学年、每个学院都不一样**，列名可能是「入党时间」
+   「担任职务」「团费收缴情况」…… 没有共同特征，**靠列名认不出来**。
+
+   ── 那怎么办：换个认法 ────────────────────────────────────────────────
+   唯一稳定的东西是**有一列能对上人**。所以本模块不问「这是什么表」，
+   而是回答三个更基础的问题：
+
+     ① 哪一列能当身份（学号？考生号？身份证？姓名+唯一组合？）
+     ② 剩下这些列叫什么（原样保留，不改名 —— 原始列是铁律）
+     ③ 有几行真的能对上人（对不上的是否点名？）
+
+   「能对上人」这一步是关键：它让任意表格都能安全地并进现有数据，
+   而不是新建一个平行名单 —— 后者会变成第二份真相，那是最坏的结果。
+
+   ⚠️ 纯函数、零 DOM。可在 node 里直接测。
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── 身份列的候选（按可靠度排序）──
+   顺序有讲究：学号是唯一主键，身份证唯一但不该在界面展示，
+   姓名几乎必然重复（重名），只能当「辅助确认」不能当主键。 */
+const ID_COL_CANDIDATES = [
+  { col: '学号',       kind: 'sid',  reliable: true  },
+  { col: '学号/职工号', kind: 'sid', reliable: true  },
+  { col: '考生号',     kind: 'exam', reliable: true  },
+  { col: '身份证件号', kind: 'id',  reliable: true  },
+  { col: '身份证号',   kind: 'id',  reliable: true  },
+  { col: '学籍号',     kind: 'sid', reliable: true  },
+  { col: '姓名',       kind: 'name', reliable: false },   // 重名很多，只能配班级用
+];
+
+/* 常见「附在自定义表里」但属于学生档案的列 ——
+   这些列出现时，要按档案字段合并，而不是留在自定义表里。
+   理由：同一个信息存两处，两处会不一致。 */
+const PROFILE_COLS = [
+  '政治面貌', '民族', '籍贯', '生源地', '家庭住址', '父亲电话', '母亲电话',
+  '家长电话', '父亲姓名', '母亲姓名', '宿舍', '宿舍楼', '房间号', '床位',
+  '床位号', '班级', '专业', '院系', '邮箱', '电子信箱', '备注（保密）', '备注',
+];
+
+/**
+ * 猜一猜这张表能靠哪一列认人。
+ * @param {string[]} cols 已归一化的列名
+ * @returns 猜出的身份列描述；猜不出返回 null。
+ *          withClass=true 表示这一列单独不够，得配合班级才唯一
+ */
+function guessIdCol(cols) {
+  const list = cols || [];
+  for (const cand of ID_COL_CANDIDATES) {
+    if (list.indexOf(cand.col) >= 0) {
+      /* 「姓名」重名多，只有同时有班级列才算可靠 */
+      const withClass = cand.kind === 'name' && list.indexOf('班级') >= 0;
+      return {
+        col: cand.col,
+        kind: cand.kind,
+        reliable: cand.reliable || withClass,
+        withClass,
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * 猜出表头行在哪一行。
+ *
+ * 为什么不直接用第 1 行：这些个性化表往往第一行是标题
+ *（如「XX学院2026届学生党团发展情况表」），第二行才是列名。
+ *
+ * 判据：得分最高的一行 —— 有几个单元格是「短文本且互不相同」
+ * 的？那才像列名。标题行通常一整行合并成一个长单元格。
+ */
+function guessHeaderRow(arr) {
+  const limit = Math.min((arr || []).length, 12);
+  let best = { idx: 0, score: -1 };
+
+  for (let i = 0; i < limit; i++) {
+    const row = (arr[i] || []).map(c => String(c == null ? '' : c).trim());
+    const filled = row.filter(c => c !== '');
+    if (filled.length < 2) continue;
+
+    /* 标题行特征：整行只有一两个长文本（是标题），不像列名 */
+    const longs = filled.filter(c => c.length > 12).length;
+    if (filled.length <= 2 && longs >= 1) continue;
+
+    /* 得分：非空单元格越多越好，但要惩罚「长文本占比高」 */
+    const uniq = new Set(filled).size;
+    const avgLen = filled.reduce((s, c) => s + c.length, 0) / filled.length;
+    const score = filled.length + uniq * 0.5 - (avgLen > 10 ? 3 : 0) - longs * 2;
+
+    if (score > best.score) best = { idx: i, score };
+  }
+  return best.idx;
+}
+
+/**
+ * 解析一张无模板表格。
+ *
+ * @param {any[][]} arr    整表的二维数组
+ * @param {number}  headerIdx 表头在第几行（0-based），由 guessHeaderRow 给出
+ * @param {string[]} rawCols 表头行原样取的列名（未归一）
+ * @param {string[]} normCols 归一后的列名
+ * @param {object}  idCol   guessIdCol 的结果
+ */
+function parseCustomTable(arr, headerIdx, rawCols, normCols, idCol) {
+  const rows = [], skipped = [];
+  const dataStart = (headerIdx == null ? 0 : headerIdx) + 1;   // 表头之后才是数据
+  const nameCol = normCols.indexOf('姓名');
+  const classCol = normCols.indexOf('班级');
+
+  for (let i = dataStart; i < (arr || []).length; i++) {
+    const r = arr[i] || [];
+    if (!r.some(c => c != null && String(c).trim() !== '')) continue;   // 空行
+
+    const o = {};
+    rawCols.forEach((h, j) => {
+      if (h) o[h] = (r[j] == null ? '' : r[j]);
+    });
+
+    const key = String(o[idCol.col] == null ? '' : o[idCol.col]).trim();
+    if (!key) {
+      /* 没有身份值 → 不敢认作数据行。
+         典型是表尾的「合计」「统计日期」这类。**点名**而不是悄悄丢掉。 */
+      const text = rawCols.map(h => o[h]).filter(v => v !== '').slice(0, 3).join(' / ');
+      skipped.push({ row: i + 1, text: text || '（空行）', why: '没有' + idCol.col });
+      continue;
+    }
+
+    /* 表尾的「合计」「小计」「总计」行：第一格写着字，不是学号。
+       真实数据里这类行后面还挂着「162人」「2欠缴」这类统计 ——
+       留着会被当成一个学生，而「合计」永远匹配不上任何人，只会让
+       「对不上」的名单里凭空多一行噪音。
+       但仍要**点名**丢掉（铁律④：可回溯，不静默删除）。 */
+    if (/^(合计|小计|总计|统计|备注|说明|填表人|填表日期)$/.test(key)) {
+      const text = rawCols.map(h => o[h]).filter(v => v !== '').slice(0, 4).join(' / ');
+      skipped.push({ row: i + 1, text, why: '表尾汇总行' });
+      continue;
+    }
+
+    /* 姓名 + 班级的组合要一起带出去（重名时靠它区分） */
+    if (idCol.withClass && classCol >= 0) {
+      o['__班级'] = String(o['班级'] == null ? '' : o['班级']).trim();
+    }
+    if (nameCol >= 0) o['__姓名'] = String(o['姓名'] == null ? '' : o['姓名']).trim();
+
+    rows.push(o);
+  }
+
+  /* 哪些列属于「学生档案」（要合并进去），哪些是真正的自定义列（另存） */
+  const profileCols = rawCols.filter(h => PROFILE_COLS.indexOf(normalizeKey(h)) >= 0);
+  const customCols = rawCols.filter(h => profileCols.indexOf(h) < 0);
+
+  return { rows, skipped, profileCols, customCols };
+}
+
+/**
+ * 干跑一遍匹配：这些人能对上现有数据吗？
+ *
+ * ⚠️ 这一步必须在写入前给用户看 —— 因为「对不上」有两种截然不同的含义：
+ *   · 这些人本来就不在你的学生库里（新生转专业、外聘教师）→ 可以不管
+ *   · 他们本来在，但你这份表学号写法不一样（多了空格、Excel 存成数字变科学计数）→ 会丢数据
+ * 分不清这两种就导入，是最容易出事的地方。
+ */function matchAgainstStudents(customRows, students, idCol) {
+  const keyOf = s => {
+    const v = {
+      sid:  s['学号'],
+      exam: s['考生号'],
+      id:   s['证件号码'] || s['身份证件号'] || s['身份证号'],
+      name: s['姓名'] || s['姓名1'],
+    }[idCol.kind];
+    return String(v == null ? '' : v).trim();
+  };
+  const studentsByKey = new Map();
+  (students || []).forEach(s => {
+    const k = keyOf(s);
+    if (k) studentsByKey.set(k, s);
+    /* 重名的按「姓名+班级」建第二次索引 */
+    if (idCol.kind === 'name') {
+      const k2 = k + '|' + String(s['班级'] == null ? '' : s['班级']).trim();
+      if (k) studentsByKey.set(k2, s);
+    }
+  });
+
+  const rowKey = r => {
+    const base = String(r[idCol.col] == null ? '' : r[idCol.col]).trim();
+    if (idCol.kind === 'name' && r['__班级']) return base + '|' + String(r['__班级']).trim();
+    return base;
+  };
+
+  const matched = [], orphans = [];
+  customRows.forEach(r => {
+    const s = studentsByKey.get(rowKey(r));
+    if (s) matched.push({ row: r, student: s });
+    else orphans.push(r);
+  });
+
+  /* 形态相似的键：提示「可能是写法不同，不是真的没有这个人」。
+     例如 Excel 把学号 2023011234 存成了 2.02301E+09。 */
+  const suspicious = orphans.filter(o => {
+    const k = String(o[idCol.col] == null ? '' : o[idCol.col]).trim();
+    if (!k) return false;
+    const digits = k.replace(/\D/g, '');
+    if (digits.length < 6) return false;
+    for (const sk of studentsByKey.keys()) {
+      if (sk.replace(/\D/g, '') === digits) return true;
+    }
+    return false;
+  });
+
+  return {
+    matched, orphans, suspicious,
+    total: customRows.length,
+    hitRate: customRows.length ? matched.length / customRows.length : 0,
+  };
 }
 
 
@@ -6888,69 +7244,66 @@ async function deleteBackup(bid){
 
 /* ═══ module: features.import-unified  [L5 feature] ═══ */
 /* ════════════════════════════════════════════════════════════════════════
-   features/import-unified.js —— 统一数据导入口
-   ────────────────────────────────────────────────────────────────────────
-   v2.3（2026-10-03 用户要求）：
-   原来有**两个**入口 ——「导入学生表」和「导入成绩单」，两套 UI、两条流程，
-   12 个调用点散落在各处。用户的判断很对：
+   features/import-unified.js —— 唯一的导入口
+   ─────────────────────────────────────────────────────────────────═══════
+   辅导员 2026-10-03 说了两次，第二遍才说透：
 
-     「所有的信息录入其实都在一个入口，都是围绕学号进行数据的更新。」
+     第一次：「所有的信息录入其实都在一个入口，都是围绕学号进行数据的更新。」
+     第二次：「入口到看一下有没有什么办法集中在一个地方？」
 
-   合并成一条流水线：
+   我第一遍做成了「一个入口 + 六个分类 + 让人选类型」，他立刻推翻了：
+   **把简单的事做复杂了。** 那是我的错 —— 分类是我替用户做的决定。
 
-       选文件 → 自动认出这是什么表 → 确认 → 按学号写进去
+   正确的模型只有一句话：
 
-   ── 为什么能合并（不是硬凑） ────────────────────────────────────────
-   两件事的本质完全一样：**把一张表按学号 upsert 进当前批次**。
-   差别只在「写进哪一层数据」：
-     · 学生表 / 名册 → 写 S.students（档案字段）
-     · 成绩表       → 写 S.grades（成绩指标，**不碰档案**）
+       丢一张表进来 → 有姓名或学号就认人 → 认得出的更新，认不出的新增
 
-   成绩必须单独存是硬约束（ADR-0005）：成绩一旦复制进学生记录，
-   「只更新成绩」就会把 41 列档案抹平。所以统一的是**流程**，不是**存储**。
+   就这样。程序自己去认，界面不问他。
 
-   ── 复用而非重写 ──────────────────────────────────────────────────────
-   解析逻辑沿用既有的 buildImportState() / parseGradeSheet() / detectSheetKind()，
-   这里只做「选文件 → 认类型 → 分派」。任何解析规则的修正仍然只有一处，
-   不会出现两条路径走样（v2.1.x 的教训）。
+   ── 所以这个文件里没有的东西（曾经都有过）───────────────────────────
+     ✗ 分类卡片（每年一次 / 每学期一次 / 随时可导）
+     ✗ 让用户选「这是学生表还是成绩表」
+     ✗ 让用户选「哪一列是学号」
+   全删了。「无模板的表格」这件事**在底层解决**，不在界面上摆一个选项。
+
+   ── 那底层怎么统一？───────────────────────────────────────────────────
+   判据不是「这张表叫什么」，而是「这一列能不能认人」：
+     有学号 → 按学号认（最稳）
+     只有姓名 → 按姓名+班级认（重名也能区分）
+   认得出人，就往对应的学生身上合并；认不出但有姓名的，当新学生加进来。
+   至于「成绩要不要单独存」——那是**另一条铁律**（ADR-0005），
+   不是分类问题：认出来是成绩列就写成绩层，是档案列就写档案，互不干扰。
+
+   ── 唯一保留的一处提问 ────────────────────────────────────────────────
+   「这份表跟当前批次是什么关系」：合并 / 覆盖 / 新建批次。
+   理由：这三者的后果差别很大（覆盖会清掉旧数据），值得问一句。
+   其余一律不问。
    ════════════════════════════════════════════════════════════════════════ */
 
 let unifiedImport = { fileName: '', sheetName: '', arr: null, kind: null, auto: false, parsed: null };
 
-const KIND_LABEL = {
-  student: '学生信息表',
-  grades:  '成绩信息表',
-  roster:  '名册（政治面貌名单）',
-};
-
 /** 这个类型会写进哪一层 —— 界面上要明说，不能让用户猜 */
 function kindTarget(kind) {
-  return kind === 'grades'
-    ? '成绩<b>单独保存</b>，不会改动任何学生档案字段'
-    : '学生档案字段（姓名 / 班级 / 宿舍 / 联系方式 …）';
+  if (kind === 'grades') return '成绩<b>单独保存</b>，不会改动任何学生档案字段';
+  return '学生档案（姓名 / 班级 / 宿舍 / 联系方式 …）';
 }
 
 /* ── 入口 ────────────────────────────────────────────────────────────── */
 
 /**
- * 唯一的导入口。所有「导入」按钮都调它。
- * @param {string} [hint] 顶部一句提示（例如「本批还没有成绩，先导成绩表」）
+ * 唯一的导入口。**所有**「导入」按钮都调它，界面不问任何问题。
+ * @param {string} [hint] 顶部一句提示（例如从列表工具条点过来的）
  */
 function openImport(hint) {
   closeSidebar();
   const b = activeBatch();
   unifiedImport = { fileName: '', sheetName: '', arr: null, kind: null, auto: false, parsed: null };
 
-  const pick = dropHtml(
-    '选择要导入的表（.xlsx / .xls / .csv）',
-    b ? `当前批次「${esc(b.name)}」· ${b.students.length} 人。学生表和成绩表都能自动认出来`
-      : '还没有任何批次。选一份学生信息表就会新建一个批次');
-
-  const body = b
-    ? (hint ? `<div class="hint">${hint}</div>` : '') + pick
-    : `<div class="hint" style="border-color:var(--warn-line);background:var(--warn-soft)">
-         还没有任何数据批次。选一份<b>学生信息表</b>就会新建一个批次。
-       </div>` + pick;
+  const body = `
+    ${hint ? `<div class="hint">${hint}</div>` : ''}
+    ${b ? `<div class="hint">当前批次「<b>${esc(b.name)}</b>」· ${b.students.length} 人</div>` : ''}
+    ${dropHtml('把表拖进来，或点这里选文件',
+      '学生表、成绩单、党团发展表、班委信息表… 都能认。认得出学号或姓名就会对上人，对不上的会新增。')}`;
 
   $('modalRoot').innerHTML = `
   <div class="mask" onclick="if(event.target===this)closeModal()">
@@ -6962,7 +7315,7 @@ function openImport(hint) {
       <div class="modal-body" id="uiBody">${body}</div>
       <div class="modal-foot">
         <button class="btn" onclick="closeModal()">取消</button>
-        <button class="btn pri" id="uiOk" style="display:none" onclick="doUnifiedImport()">确认导入</button>
+        <button class="btn pri" id="uiOk" style="display:none" onclick="doUnifiedImport()">下一步</button>
       </div>
     </div>
   </div>`;
@@ -6970,18 +7323,34 @@ function openImport(hint) {
 
 function dropHtml(title, sub) {
   return `
-    <div class="drop" onclick="document.getElementById('uiFileInput').click()" role="button" tabindex="0">
+    <div class="drop" onclick="document.getElementById('uiFileInput').click()" role="button" tabindex="0"
+         ondragover="event.preventDefault();this.classList.add('drag')"
+         ondragleave="this.classList.remove('drag')"
+         ondrop="event.preventDefault();this.classList.remove('drag');handleUnifiedDrop(event)">
       <div class="drop-t">${title}</div>
       <div class="drop-s">${sub}</div>
     </div>
     <input type="file" id="uiFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleUnifiedFile(event)">`;
 }
 
+/** 拖进来的文件 */
+function handleUnifiedDrop(e) {
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!f) return;
+  readUnifiedFile(f);
+}
+
+
+
 /* ── 读文件 → 认类型 ────────────────────────────────────────────────── */
 
 function handleUnifiedFile(e) {
   const f = e.target.files[0];
   if (!f) return;
+  readUnifiedFile(f);
+}
+
+function readUnifiedFile(f) {
   if (!/\.(xlsx|xls|csv)$/i.test(f.name)) { toast('请选择 .xlsx / .xls / .csv 文件'); return; }
   if (typeof XLSX === 'undefined') { toast('当前环境缺少表格解析库'); return; }
 
@@ -6997,7 +7366,7 @@ function handleUnifiedFile(e) {
     }
     try {
       /* 一份导出里可能有多张表（真实数据：学生表 189 行 + 班委名册 90 行）。
-         有多张有数据的表时沿用既有的选择流程，不在这里另造一套。 */
+         有多张有数据的表时沿用既有的选择流程，不另造一套。 */
       const cands = sheetsNeedingPick(wb);
       if (cands.length > 1) { openSheetChooser(cands, wb, f.name); return; }
 
@@ -7026,94 +7395,111 @@ function openSheetChooser(cands, wb, fileName) {
 
 /* ── 确认页 ─────────────────────────────────────────────────────────── */
 
+/**
+ * 读完表之后做三件事，**顺序不能换**：
+ *   ① 找到表头在哪一行
+ *   ② 找到哪一列能认人（有学号最好，没有就姓名+班级）
+ *   ③ 拿这列去对当前批次，算出「对上几个 / 对不上几个」
+ *
+ * 第 ③ 步的结果就是要给用户看的全部。不再问「这是学生表还是成绩表」——
+ * 因为不管是哪种，处理方式都一样：按认出的这一列把人找出来。
+ * 唯一还要分的是「写进档案还是写进成绩」，而那个由**列名本身**决定
+ * （出现加权平均成绩这类列就走成绩层），不问他。
+ */
 function renderUnifiedPreview() {
   const body = $('uiBody');
   if (!body) return;
   const okBtn = $('uiOk');
-  if (okBtn) okBtn.style.display = 'inline-flex';
+  if (okBtn) { okBtn.style.display = 'inline-flex'; okBtn.textContent = '下一步'; }
 
-  /* 先按「学生表」的口径探一次表头，拿到列名才能判类型 */
-  const hdr = locateHeaderRow(unifiedImport.arr);
-  const rawHeader = (unifiedImport.arr[hdr] || []).map(x => String(x == null ? '' : x));
+  const arr = unifiedImport.arr;
+  const hdr = guessHeaderRow(arr);              // 前几行可能是标题带，得自己找
+  const rawHeader = (arr[hdr] || []).map(x => String(x == null ? '' : x));
   const normCols = [];
   rawHeader.forEach(h => { const n = normalizeKey(h); if (n && normCols.indexOf(n) === -1) normCols.push(n); });
-  const kind = detectSheetKind(normCols);
-  unifiedImport.kind = kind;
-  unifiedImport.auto = true;
 
+  const idCol = guessIdCol(normCols);
+  unifiedImport.headerIdx = hdr;
+  unifiedImport.rawHeader = rawHeader;
+  unifiedImport.normCols = normCols;
+
+  if (!idCol) {
+    /* 认不出人 → 什么都做不了，只能说清楚缺什么。
+       这是唯一值得中断的情况：没有身份列，这张表跟现有数据毫无关系。 */
+    if (okBtn) okBtn.style.display = 'none';
+    body.innerHTML = `
+      ${filebox(hdr)}
+      <div class="hint" style="border-color:var(--warn-line);background:var(--warn-soft)">
+        <b>这张表里找不到能认出人的列</b><br>
+        需要 <b>学号</b> 或 <b>姓名</b>（配合班级更好）。没有这两列，
+        就没法知道这一行是谁。<br>
+        现在的列：${rawHeader.filter(Boolean).slice(0, 12).map(esc).join('、')}
+      </div>`;
+    return;
+  }
+
+  /* 认出人之后，按普通路径解析（有学号走 buildRawRows，按学号剥汇总行） */
+  const { rows, rowNos } = buildRawRows(arr, hdr, rawHeader);
+  const parsed = buildImportState(rawHeader, rows, unifiedImport.fileName, hdr, rowNos);
+  unifiedImport.kind = parsed.kind || 'student';
+  unifiedImport.parsed = parsed;
+
+  const sidOf = s => String(s['学号'] == null ? '' : s['学号']).trim();
+  const nameOf = s => String(s['姓名'] || s['姓名1'] || '').trim();
+  const known = new Map();
+  S.students.forEach(s => {
+    if (sidOf(s)) known.set('s:' + sidOf(s), s);
+    if (nameOf(s)) known.set('n:' + nameOf(s) + '|' + String(s['班级'] || '').trim(), s);
+    if (nameOf(s) && !known.has('n:' + nameOf(s))) known.set('n:' + nameOf(s), s);
+  });
+
+  const hasSid = idCol.kind !== 'name';
+  let hit = 0;
+  const misses = [];
+  parsed.rows.forEach(r => {
+    const k = hasSid
+      ? 's:' + String(r['学号'] == null ? '' : r['学号']).trim()
+      : 'n:' + String(r['姓名'] || r['姓名1'] || '').trim() + '|' + String(r['班级'] || '').trim();
+    const k2 = hasSid ? null : 'n:' + String(r['姓名'] || r['姓名1'] || '').trim();
+    if (known.has(k) || (k2 && known.has(k2))) hit++;
+    else misses.push(r);
+  });
+
+  const isGrades = parsed.kind === 'grades';
   body.innerHTML = `
+    ${filebox(hdr)}
+    <div class="hint" style="border-color:var(--brand-line);background:var(--brand-soft)">
+      ${isGrades
+        ? `认出这是<b>成绩表</b> —— 成绩会单独保存，不改动任何学生档案字段。`
+        : `认出这是<b>学生信息表</b> —— 按<b>${esc(idCol.col)}</b>对上人，已有的更新、认不出的新增。`}
+    </div>
+    <div class="result-row" style="margin:14px 0">
+      ${rb(parsed.rows.length, '数据行', 'var(--brand)')}
+      ${rb(hit, '已经对上', hit ? 'var(--ok)' : 'var(--warn)')}
+      ${rb(misses.length, '认不出（会新增）', misses.length ? 'var(--brand-deep)' : 'var(--text-3)')}
+      ${rb(parsed.cols.length, '字段', 'var(--text-3)')}
+    </div>
+    ${parsed.emptyCols.length ? `<div class="hint">
+      有 <b>${parsed.emptyCols.length}</b> 列在这张表里整列为空（${parsed.emptyCols.slice(0, 6).map(esc).join('、')}${parsed.emptyCols.length > 6 ? ' …' : ''}），
+      不带信息也不会覆盖旧值，下一步可以取消勾选。</div>` : ''}
+    ${misses.length ? `<div class="hint">
+      认不出的 ${misses.length} 行会**新建成学生**：${misses.slice(0, 6).map(r => esc(nameOf(r) || r['学号'] || '?')).join('、')}${misses.length > 6 ? ' …' : ''}
+      ${activeBatch() ? '' : '<br>当前还没有任何批次，这批人会直接成为新批次。'}
+    </div>` : ''}`;
+}
+
+function filebox(hdr) {
+  return `
     <div class="filebox" style="margin-bottom:14px">
       <div class="file-ico">X</div>
       <div style="flex:1;min-width:0">
         <div class="file-name">${esc(unifiedImport.fileName)}</div>
         <div class="file-meta">${unifiedImport.sheetName ? '工作表「' + esc(unifiedImport.sheetName) + '」 · ' : ''}表头在第 ${hdr + 1} 行</div>
       </div>
-    </div>
-
-    <div class="hint" style="border-color:var(--brand-line);background:var(--brand-soft)">
-      <b>认出这是「${KIND_LABEL[kind]}」</b>（自动识别）· 写入${kindTarget(kind)}
-    </div>
-
-    <div style="margin-top:14px" id="uiDetail"></div>`;
-
-  runUnifiedParse(kind, hdr, rawHeader);
-}
-
-/** 按类型算清楚「会写进多少人」 */
-function runUnifiedParse(kind, hdr, rawHeader) {
-  const detail = $('uiDetail');
-  if (!detail) return;
-  const arr = unifiedImport.arr;
-
-  if (kind === 'grades') {
-    const p = parseGradeSheet(arr);
-    if (!p.ok) { detail.innerHTML = `<div class="hint">${esc(p.reason)}</div>`; return; }
-    unifiedImport.parsed = p;
-    const sidOf = r => String(r && r['学号'] != null ? r['学号'] : '').trim();
-    const sids = new Set(S.students.map(s => sidOf(s)).filter(Boolean));
-    const matched = p.rows.filter(r => sids.has(sidOf(r))).length;
-    const orphan = p.rows.length - matched;
-    detail.innerHTML = `
-      <div class="result-row" style="margin-bottom:12px">
-        ${rb(p.rows.length, '成绩记录', 'var(--brand)')}
-        ${rb(matched, '按学号匹配上', 'var(--ok)')}
-        ${rb(orphan, '学生表中没有', orphan ? 'var(--warn)' : 'var(--text-3)')}
-        ${rb(S.students.length, '本批学生', 'var(--text-3)')}
-      </div>
-      <div class="hint">
-        成绩表结构比较脏（开头有标题带、末尾有合计行），都已自动跳过 ·
-        表头在第 ${p.headerIdx + 1} 行${p.dropped.length ? ` · 跳过 ${p.dropped.length} 行非数据行` : ''}<br>
-        识别到的列：${p.header.filter(Boolean).slice(0, 12).map(esc).join('、')}${p.header.length > 12 ? ' …' : ''}<br>
-        本次表里没出现的学号，其原有成绩<b>保留不动</b>。
-      </div>
-      ${orphan ? `<div class="hint" style="border-color:var(--warn-line);background:var(--warn-soft)">
-        有 ${orphan} 条成绩在学生表里找不到对应学号，仍会保存但不会显示在任何学生详情里。
-      </div>` : ''}`;
-    return;
-  }
-
-  // 学生表 / 名册：交给既有解析，并算出命中情况
-  const { rows, rowNos } = buildRawRows(arr, hdr, rawHeader);
-  const ok = buildImportState(rawHeader, rows, unifiedImport.fileName, hdr, rowNos);
-  unifiedImport.parsed = ok;   // buildImportState 已把结果写进 importState
-  const sidOf = r => String(r && r['学号'] != null ? r['学号'] : '').trim();
-  const sids = new Set(S.students.map(s => sidOf(s)).filter(Boolean));
-  const exist = ok.rows.filter(x => sids.has(sidOf(x))).length;
-
-  detail.innerHTML = `
-    <div class="result-row" style="margin-bottom:12px">
-      ${rb(ok.rows.length, '有效数据行', 'var(--brand)')}
-      ${rb(exist, '按学号命中', 'var(--ok)')}
-      ${rb(ok.rows.length - exist, '新学号', (ok.rows.length - exist) ? 'var(--brand-deep)' : 'var(--text-3)')}
-      ${rb(ok.cols.length, '字段数', 'var(--text-3)')}
-    </div>
-    <div class="hint">
-      ${ok.emptyCols.length ? `有 <b>${ok.emptyCols.length}</b> 列在这张表里整列为空，导入时会勾掉 —— 不带来新信息也不覆盖旧值。<br>` : ''}
-      已有学号按<b>按列合并</b>更新：备注永不覆盖、本表没出现的列原样保留。<br>
-      下一步可以选「合并到当前批次 / 覆盖当前批次 / 新建批次」。
     </div>`;
 }
 
+/** 按类型算清楚「会写进多少人」 */
 function rb(v, l, color) {
   return `<div class="result-box"><div class="v" style="color:${color}">${v}</div><div class="l">${l}</div></div>`;
 }
@@ -7150,14 +7536,20 @@ function doUnifiedImport() {
     return;
   }
 
-  /* 学生表 / 名册：buildImportState 已经把 importState 填好了，
-     直接跳到模式选择那一步（合并 / 覆盖 / 新建）。 */
+  /* 其余都走这一条：把 importState 交给既有向导，去选「合并 / 覆盖 / 新建」。
+     为什么党团表、班委表也走这里 —— 因为它们认得出人，
+     认得出人的表就该按列合并进档案，**不需要**「附加表」那一层。
+     曾经设计过「自定义列存成独立附加表」，是过度设计：
+     多一个地方存同一批人的信息，两处迟早会不一致。 */
   if (!importState.rows || !importState.rows.length) { toast('这个表里没有可导入的数据行'); return; }
   importState.step = 2;
   importState.mode = activeBatch() ? (importState.mode || 'append') : 'new';
   closeModal();
   renderImport();
 }
+
+
+
 
 
 /* ═══ module: features.import-wizard  [L5 feature] ═══ */
@@ -8748,6 +9140,226 @@ function handleFile(e){
 }
 
 
+/* ═══ module: features.quick-find  [L5 feature] ═══ */
+/* ════════════════════════════════════════════════════════════════════════
+   features/quick-find.js —— 全局快速查找学生
+   ────────────────────────────────────────────────────────────────────────
+   辅导员 2026-10-03 的原话，这是本模块存在的理由：
+
+     「学生出了事，我要尽快的查询到学生所有的信息，比如家长、电话、宿舍、
+       身份证、生源地等等等等。」
+
+   ── 现有搜索为什么不够 ────────────────────────────────────────────────
+   features/filter.js 的 searchList() 只匹配 5 个字段：姓名 / 学号 / 考生号 / 电话。
+   而出事的时候要查的恰恰是它**没覆盖**的那些 —— 家长电话、宿舍、身份证、生源地。
+
+   而且路径太长：先进列表页 → 在列表上方那个输入框里打字 → 再点开详情。
+   「出了事」的时候，每多一步都是代价。
+
+   ── 本模块做三件事 ────────────────────────────────────────────────────
+   ① **全字段匹配**：任何一列里能搜到都算命中（按学号前缀 > 姓名 > 其他排序）
+   ② **任何位置唤起**：⌘/Ctrl+K 或直接按 / —— 不管当前在哪个页面
+   ③ **档案一屏全显**：回车即开档案卡，家长/电话/宿舍/证件/生源地全在一屏里，
+      **不用再点进详情页翻**
+
+   ⚠️ 边界：证件号也参与搜索，但**不在结果里明文显示**（只显示后 4 位）。
+      理由：这是本机应用，但屏幕是会被别人看到的。
+   ════════════════════════════════════════════════════════════════════════ */
+
+/** 搜索时优先看哪些列 —— 决定结果的排序，也决定「搜什么最快」 */
+const FIND_PRIORITY = ['学号', '姓名', '姓名1', '考生号', '证件号码', '身份证件号', '身份证号'];
+
+/** 档案卡上要一屏显示的字段（辅导员出事时第一个要看的那几项） */
+const FIND_CARD_FIELDS = [
+  { label: '家长电话', cols: ['家长电话', '父亲电话', '母亲电话', '联系电话', '电话'] },
+  { label: '宿舍',     cols: ['宿舍', '宿舍楼'] },
+  { label: '证件号码', cols: ['证件号码', '身份证件号', '身份证号'], mask: true },
+  { label: '生源地',   cols: ['生源地', '籍贯'] },
+  { label: '家庭住址', cols: ['家庭住址', '户籍所在地'] },
+  { label: '政治面貌', cols: ['政治面貌'] },
+  { label: '班级',     cols: ['班级'] },
+  { label: '专业',     cols: ['专业'] },
+];
+
+let _findTimer = null;
+
+/**
+ * 全字段搜索。
+ * @param {string} q 关键词
+ * @returns {{student:object, score:number, hitField:string}[]}
+ */
+function quickFind(q) {
+  const kw = String(q == null ? '' : q).trim();
+  if (!kw) return [];
+  const lower = kw.toLowerCase();
+  const out = [];
+
+  (S.students || []).forEach(s => {
+    let best = null;
+    for (const k of Object.keys(s)) {
+      const v = s[k];
+      if (v == null || v === '') continue;
+      const sv = String(v);
+      const low = sv.toLowerCase();
+      if (low.indexOf(lower) < 0) continue;
+
+      /* 打分：命中优先级靠前的列、排头的，排在前面。
+         学号前缀命中给最高分 —— 输个「2024」就应该是那批 2024 级在最上面。 */
+      const pi = FIND_PRIORITY.indexOf(k);
+      let score;
+      if (pi === 1 || pi === 2) score = 1000;                 // 姓名
+      else if (pi === 0) score = low.indexOf(lower) === 0 ? 1200 : 900;   // 学号
+      else if (pi >= 0) score = 800 - pi * 10;
+      else score = 500;
+      if (!best || score > best.score) best = { score, hitField: k };
+    }
+    if (best) out.push({ student: s, score: best.score, hitField: best.hitField });
+  });
+
+  out.sort((a, b) => b.score - a.score || studentName(a.student).localeCompare(studentName(b.student), 'zh'));
+  return out;
+}
+
+/* ── 面板 ────────────────────────────────────────────────────────────── */
+
+function openQuickFind() {
+  const students = (S.students || []).length;
+  $('modalRoot').innerHTML = `
+  <div class="mask" onclick="if(event.target===this)closeModal()">
+    <div class="modal" style="max-width:600px" onclick="event.stopPropagation()">
+      <div class="qf-head">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2.3" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+        <input id="qfInput" placeholder="姓名 / 学号 / 电话 / 家长 / 宿舍 / 生源地 / 证件号"
+               autocomplete="off" spellcheck="false" oninput="quickFindInput(this.value)">
+        <button class="qf-x" onclick="closeModal()" aria-label="关闭">×</button>
+      </div>
+      <div class="qf-body" id="qfBody">
+        ${students ? '' : '<div class="qf-empty">还没有学生数据。先从顶栏「导入数据」导一份。</div>'}
+      </div>
+    </div>
+  </div>`;
+  const inp = $('qfInput');
+  if (inp) { inp.focus(); inp.select(); }
+  /* ⌘K / / 唤起后，任何后续按键都归这个框管 —— 尤其 Enter / 上下键 */
+  if (typeof document !== 'undefined') {
+    document.addEventListener('keydown', quickFindKeys);
+  }
+}
+
+function closeQuickFind() {
+  if (typeof document !== 'undefined') document.removeEventListener('keydown', quickFindKeys);
+}
+
+/* 防抖 120ms：打「李」时可能匹配上百人，没必要每次都重画 */
+function quickFindInput(v) {
+  clearTimeout(_findTimer);
+  _findTimer = setTimeout(() => renderQuickFind(v), 120);
+}
+
+function renderQuickFind(q) {
+  const body = $('qfBody');
+  if (!body) return;
+  const hits = quickFind(q);
+
+  if (!String(q || '').trim()) {
+    body.innerHTML = '<div class="qf-empty">输入姓名、学号，或者任何你记得的信息 — 家长电话、宿舍、生源地、证件号都能搜</div>';
+    return;
+  }
+  if (!hits.length) {
+    body.innerHTML = `<div class="qf-empty">没找到「${esc(String(q))}」<br><span style="font-size:11.5px">本批 ${S.students.length} 人。可以试试只输姓，或者学号后几位。</span></div>`;
+    return;
+  }
+
+  const show = hits.slice(0, 12);
+  body.innerHTML = show.map((h, i) => quickFindRow(h, i === 0)).join('')
+    + (hits.length > show.length
+        ? `<div class="qf-more">还有 ${hits.length - show.length} 人没显示，继续打字缩小范围</div>` : '');
+}
+
+/** 一行结果。**把家长电话/宿舍/证件/生源地直接摊在这一行** ——
+    出了事的时候，一屏之内就要看够，不用点进去。 */
+function quickFindRow(h, active) {
+  const s = h.student;
+  const bits = FIND_CARD_FIELDS.map(f => {
+    const col = f.cols.find(c => s[c] != null && String(s[c]).trim() !== '');
+    if (!col) return '';
+    const raw = String(s[col]).trim();
+    const shown = f.mask ? maskId(raw) : raw;
+    return `<span class="qf-tag"><i>${f.label}</i>${esc(shown)}</span>`;
+  }).filter(Boolean).join('');
+
+  return `<div class="qf-row${active ? ' active' : ''}" data-i="${h.sid || ''}"
+      onclick="openStudentFromFind(${esc(String(s['学号'] == null ? '' : s['学号']))})"
+      onmouseover="qfHover(this)">
+    <div class="qf-name">${esc(studentName(s))}<span class="qf-sid">${esc(s['学号'] || '')}</span></div>
+    <div class="qf-tags">${bits || '<span class="qf-tag qf-none">这一条只有很少的字段</span>'}</div>
+  </div>`;
+}
+
+function qfHover(el) {
+  const body = $('qfBody');
+  if (!body) return;
+  [...body.querySelectorAll('.qf-row')].forEach(r => r.classList.remove('active'));
+  el.classList.add('active');
+}
+
+/** 证件号打码：只留后 4 位。屏幕会被别人看到。 */
+function maskId(v) {
+  const s = String(v);
+  if (s.length <= 4) return s;
+  return '****' + s.slice(-4);
+}
+
+/** 从搜索结果直接打开档案（不进列表页） */
+function openStudentFromFind(sid) {
+  closeQuickFind();
+  if (!sid) return;
+  const s = (S.students || []).find(x => String(x['学号'] == null ? '' : x['学号']).trim() === String(sid).trim());
+  if (!s) { toast('这条已经不在当前批次里了'); return; }
+  /* 详情页本来就按学号定位（openDetail(sid)），直接用它 —— 不用绕 S.view */
+  openDetail(sid);
+}
+
+/* ── 键盘 ────────────────────────────────────────────────────────────── */
+
+function quickFindKeys(e) {
+  if (e.key === 'Escape') { e.preventDefault(); closeModal(); return; }
+  const body = $('qfBody');
+  if (!body) return;
+  const rows = [...body.querySelectorAll('.qf-row')];
+  const cur = rows.findIndex(r => r.classList.contains('active'));
+  if (e.key === 'ArrowDown') { e.preventDefault(); qfHover(rows[Math.min(cur + 1, rows.length - 1)] || rows[0]); return; }
+  if (e.key === 'ArrowUp')   { e.preventDefault(); qfHover(rows[Math.max(cur - 1, 0)] || rows[0]); return; }
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const el = rows[cur >= 0 ? cur : 0];
+    if (el) el.click();
+  }
+}
+
+/** ⌘/Ctrl+K 或 / —— 任何页面都能唤起。返回 true 表示已接管。 */
+function handleFindShortcut(e) {
+  if (!e || !e.key) return false;
+  const t = e.target || {};
+  const tag = String(t.tagName || '').toLowerCase();
+  const typing = tag === 'input' || tag === 'textarea' || t.isContentEditable === true;
+
+  if ((e.metaKey || e.ctrlKey) && String(e.key).toLowerCase() === 'k') {
+    if (typing) return false;
+    e.preventDefault();
+    if ($('qfInput')) closeModal(); else openQuickFind();
+    return true;
+  }
+  if (e.key === '/' && !typing && !topOpenModal()) {
+    e.preventDefault();
+    openQuickFind();
+    return true;
+  }
+  return false;
+}
+
+
 /* ═══ module: features.quote-rotation  [L5 feature] ═══ */
 /* ---------- 新手引导与金句轮换 ----------
    金句数据（QUOTES）已移入 src/data/quotes.js —— 它是启动时就要用的纯数据，
@@ -9208,18 +9820,9 @@ function handleSearchShortcut(e){
   const tag = String(t.tagName || '').toLowerCase();
   const typing = tag === 'input' || tag === 'textarea' || t.isContentEditable === true;
   const box = currentSearchBox();
-  if((e.metaKey || e.ctrlKey) && String(e.key).toLowerCase() === 'k'){
-    if(topOpenModal() || !box) return false;    // 弹窗盖着时不抢（否则焦点会在弹窗里乱跳）
-    if(e.preventDefault) e.preventDefault();
-    if(box.focus) box.focus();
-    if(box.select) box.select();
-    return true;
-  }
-  if(e.key === '/' && !typing && !topOpenModal() && box){
-    if(e.preventDefault) e.preventDefault();
-    if(box.focus) box.focus();
-    return true;
-  }
+  /* v3：⌘K 与 / 已由 features/quick-find.js 的 handleFindShortcut 接管
+     （任何页面都能唤起、且搜全字段）。这里只留 Esc 清空页内搜索框，
+     免得两个快捷键打架 —— 一个弹面板、一个聚焦输入框，同时存在很怪。 */
   if(e.key === 'Escape' && !topOpenModal() && box && typeof document !== 'undefined' && document.activeElement === box){
     if(e.preventDefault) e.preventDefault();
     box.value = '';
@@ -9229,9 +9832,20 @@ function handleSearchShortcut(e){
   }
   return false;
 }
+/* v3（2026-10-03）：全局「快速查找」独立成一个面板，⌘K / / 由它接管。
+   原因：辅导员日常第一件事是「学生出事了要最快查到他所有信息」，
+   而这里的 searchList() 只匹配 5 个字段（姓名/学号/考生号/电话），
+   恰好漏掉了出事时最要紧的家长电话、宿舍、证件号、生源地。
+   详见 features/quick-find.js。
+
+   原来的 ⌘K 只在「当前页面有搜索框」时才生效 —— 也就是说在总览页、
+   宿舍看板、校历这些页面按 ⌘K 什么都不会发生。现在任何位置都能唤起。 */
 function initShortcuts(){
   if(typeof document === 'undefined' || typeof document.addEventListener !== 'function') return;
-  document.addEventListener('keydown', e => { handleSearchShortcut(e); });
+  document.addEventListener('keydown', e => {
+    if (handleFindShortcut(e)) return;   // 快速查找优先
+    handleSearchShortcut(e);             // 页内搜索（列表/总览的输入框）
+  });
 }
 function dashPreset(id){ S.quickView = id; S.classFilter='all'; renderSidebar(); renderMain(); }
 
