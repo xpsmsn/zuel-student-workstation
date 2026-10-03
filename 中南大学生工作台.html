@@ -1347,6 +1347,236 @@ thead th{font-weight:600}
 .cal-mask img{max-width:1080px;width:100%;height:auto;border-radius:10px;background:#fff;box-shadow:0 24px 64px rgba(0,0,0,.35)}
 .cal-mask-tip{position:sticky;top:0;text-align:center;color:#fff;font-size:13px;margin-bottom:10px;opacity:.85;cursor:pointer}
 </style>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     Notion 风格设计系统 · 纯 CSS 覆盖层（2026-10-03）
+     只改样式：不新增/删除任何 DOM 节点、不改 class/id、不碰事件与逻辑。
+     追加在最后 = 覆盖前面同优先级的旧规则。
+     栅格：8 / 16 / 24 / 32 / 40px。圆角：控件 6 / 卡片·弹窗 12 / 单元格 0。
+     ══════════════════════════════════════════════════════════════════ -->
+<style id="notion-system">
+/* ── ① 设计令牌（规范原值）───────────────────────────── */
+:root{
+  --bg-page:#ffffff; --bg-card:#ffffff; --bg-sidebar:#fbfbfa; --bg-hover:#f7f6f3;
+  --text-primary:#37352f; --text-secondary:#787774; --border:#e9e9e7;
+  --accent:#2383e2;
+  --success-bg:#e6f4ea; --success-text:#2ea866;
+  --warn-bg:#fef3e6;    --warn-text:#df7b00;
+  --danger-bg:#fdebeb;  --danger-text:#e03e3e;
+  --radius-card:12px; --radius-btn:6px; --radius-cell:0px;
+  --space-sm:8px; --space-md:16px; --space-lg:24px; --space-xl:32px; --space-2xl:40px;
+  /* 同族补充值（仅从上述色板推导，未引入新色相） */
+  --bg-thead:#f1f1ef;          /* 表头：比 hover 深一档，仍属中性灰家族 */
+  --accent-strong:#1b6fc4;     /* 主按钮 hover：仅加深强调色 */
+  --accent-soft:#e9f2fc;       /* 强调色浅底（选中行/标签用） */
+  --text-muted:#9b9a97;        /* 辅助小字 */
+  --font-stack:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  --shadow-float:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.08); /* 仅弹窗/下拉 */
+  --page-max:1200px;           /* 全宽（大表格）；窄版 900px 见文末说明 */
+}
+/* ── ② 暗色（规范写法 + 本项目实际机制 data-theme）── */
+:root.dark{
+  --bg-page:#2f3437; --bg-card:#373c3f; --bg-sidebar:#2b2f31; --bg-hover:#42474a;
+  --text-primary:#e3e2e0; --text-secondary:#9b9a97; --border:#4a4f52; --accent:#3b94e8;
+  --bg-thead:#3d4245; --accent-strong:#5aa8ee; --accent-soft:#2f3d4a;
+  --text-muted:#7d7c79; --shadow-float:0 1px 3px rgba(0,0,0,.30),0 1px 2px rgba(0,0,0,.36);
+}
+
+/* ── ③ 旧令牌映射到新色板：整站自动换成 Notion 色调，无需改任何 markup ── */
+:root{
+  --bg:var(--bg-page); --panel:var(--bg-card); --subtle:var(--bg-thead); --hover:var(--bg-hover);
+  --input:var(--bg-card); --line:var(--border); --line-2:var(--border);
+  --text:var(--text-primary); --text-2:var(--text-secondary); --text-3:var(--text-muted);
+  --brand:var(--accent); --brand-deep:var(--accent-strong); --brand-soft:var(--accent-soft);
+  --ok:var(--success-text); --ok-soft:var(--success-bg);
+  --warn:var(--warn-text); --warn-soft:var(--warn-bg);
+  --danger:var(--danger-text); --danger-soft:var(--danger-bg);
+  --warn-text:var(--warn-text);
+  --mask:rgba(0,0,0,.22);
+  --radius:var(--radius-card);
+  --shadow:none;            /* 规则③：卡片默认无阴影 */
+  --ring:transparent;       /* 规则⑧：聚焦取消外发光 */
+  color-scheme:light;
+}
+/* 关键修正：规范写的是 :root.dark，但本项目切换主题用的是 data-theme 属性
+   （applyTheme → documentElement.setAttribute('data-theme', t)），
+   所以暗色色板**必须**在 data-theme 选择器下再声明一次，否则暗色不生效。 */
+html[data-theme="dark"]{
+  --bg-page:#2f3437; --bg-card:#373c3f; --bg-sidebar:#2b2f31; --bg-hover:#42474a;
+  --text-primary:#e3e2e0; --text-secondary:#9b9a97; --border:#4a4f52; --accent:#3b94e8;
+  --success-bg:#2c3f33; --success-text:#5cc98a; --warn-bg:#4a3a24; --warn-text:#e0a94a;
+  --danger-bg:#4a2c2c; --danger-text:#e06a6a;
+  --bg-thead:#3d4245; --accent-strong:#5aa8ee; --accent-soft:#2f3d4a;
+  --text-muted:#7d7c79;
+  --shadow-float:0 1px 3px rgba(0,0,0,.30),0 1px 2px rgba(0,0,0,.36);
+  --bg:var(--bg-page); --panel:var(--bg-card); --subtle:var(--bg-thead); --hover:var(--bg-hover);
+  --input:var(--bg-card); --line:var(--border); --line-2:var(--border);
+  --text:var(--text-primary); --text-2:var(--text-secondary); --text-3:var(--text-muted);
+  --brand:var(--accent); --brand-deep:var(--accent-strong); --brand-soft:var(--accent-soft);
+  --ok:var(--success-text); --ok-soft:var(--success-bg);
+  --warn:var(--warn-text); --warn-soft:var(--warn-bg);
+  --danger:var(--danger-text); --danger-soft:var(--danger-bg);
+  --shadow:none; --ring:transparent; color-scheme:dark;
+}
+
+/* ── ④ 字体层级（规则⑥）────────────────────────────── */
+body{
+  font-family:var(--font-stack);
+  font-size:15px; font-weight:400; line-height:1.5;
+  color:var(--text-primary); background:var(--bg-page);
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+.page-title{font-size:24px;font-weight:600;line-height:1.3;letter-spacing:-.2px;color:var(--text-primary)}
+.card-title,.li-title,.award-title{font-size:18px;font-weight:600;line-height:1.35;color:var(--text-primary)}
+.modal-title{font-size:18px;font-weight:600;line-height:1.35}
+small,.u-hint-quiet,.rsn,.tag{font-size:13px;line-height:1.4;font-weight:400}
+b,strong{font-weight:600}
+
+/* ══════════════════════════════════════════════════════════════════
+   ⑤ 表格系统（本次重点：Notion 式数据表）
+   · 只保留水平分割线，零竖线、零外框、零单元格圆角
+   · 表头浅灰底、13px/600；正文 15px/400/1.5
+   · 行 hover 只变背景色
+   · padding 8px×16px（8 栅格）
+   ══════════════════════════════════════════════════════════════════ */
+table{
+  width:100%; border-collapse:collapse; border:0; background:transparent;
+  font-family:var(--font-stack); font-size:15px; line-height:1.5; font-weight:400;
+  font-variant-numeric:tabular-nums; box-shadow:none; text-shadow:none;
+  table-layout:auto;
+}
+/* 单元格：去边框、去圆角、去底色 —— 竖线在这里被彻底消灭 */
+table th,table td{
+  border:0; border-radius:var(--radius-cell); background:transparent;
+  box-shadow:none; text-shadow:none;
+  vertical-align:middle; white-space:nowrap;
+}
+/* 表头：浅灰底 + 一条下边线；sticky 保留（滚动长表时表头不飞） */
+thead th,.award-table th,.map-tbl th{
+  position:sticky; top:0; z-index:2;
+  background:var(--bg-thead);
+  color:var(--text-secondary);
+  font-size:13px; font-weight:600; line-height:1.4; text-align:left;
+  padding:8px 16px;
+  border-bottom:1px solid var(--border);
+  white-space:nowrap;
+}
+/* 正文单元格 */
+tbody td,.award-table td,.map-tbl td{
+  padding:8px 16px;
+  font-size:15px; font-weight:400; line-height:1.5; color:var(--text-primary);
+  border-bottom:1px solid var(--border);
+  background:transparent;
+}
+/* 行：默认与 hover 都不加装饰；hover 仅背景 */
+table tbody tr,tbody tr,.award-table tr,.map-tbl tr{
+  background:transparent; box-shadow:none;
+  transition:background .12s linear;
+}
+table tbody tr:hover,tbody tr:hover,.award-table tbody tr:hover,.map-tbl tr:hover{
+  background:var(--bg-hover);
+}
+/* hover 时单元格保持透明，否则行底色会被单元格盖住 */
+table tbody tr:hover td,tbody tr:hover td{background:transparent}
+/* 末行不画线（Notion 表尾无线） */
+table tbody tr:last-child td,tbody tr:last-child td{border-bottom:0}
+/* 可排序表头：hover 只变背景（不再变蓝字） */
+thead th.sortable{cursor:pointer;user-select:none}
+thead th.sortable:hover{background:var(--bg-hover);color:var(--text-primary)}
+thead th.sortable.on{color:var(--text-primary)}
+.sort-ind{font-size:13px;margin-left:8px;opacity:.35}
+.sort-ind.on{opacity:.8}
+/* 数字列：右对齐 + 等宽数字（对账目最友好） */
+table td.num,table td.c.num,table .aw-num,table .mono,td.mono,th.mono{
+  text-align:right; font-variant-numeric:tabular-nums;
+}
+table .mono{font-family:var(--font-stack);font-size:15px}   /* 去掉等宽字体，保留数字对齐 */
+/* 表尾汇总行：弱化但仍可读（Notion 数字行惯例） */
+table tfoot td{background:transparent;font-weight:600;border-top:1px solid var(--border);border-bottom:0}
+/* 表格容器：不加框、不加圆角，只负责横向滚动 */
+.tbl-wrap{border:0;border-radius:0;background:transparent;overflow-x:auto;box-shadow:none}
+/* 表内标签：浅底深字、无描边、6px 圆角（规则⑨） */
+table .tag,.tag{
+  display:inline-block; padding:3px 8px; border:0; border-radius:6px;
+  font-size:13px; font-weight:400; line-height:1.4; background:var(--bg-hover); color:var(--text-secondary);
+}
+table .tag.blue,.tag.blue{background:var(--accent-soft);color:var(--accent-strong)}
+table .tag.green,.tag.green{background:var(--success-bg);color:var(--success-text)}
+table .tag.orange,.tag.orange{background:var(--warn-bg);color:var(--warn-text)}
+table .tag.red,.tag.red{background:var(--danger-bg);color:var(--danger-text)}
+/* 表内小字（备注、原因、空值提示） */
+.rsn{max-width:240px;font-size:13px;color:var(--text-secondary)}
+.rsn.empty{color:var(--text-muted);font-style:normal}
+/* 姓名/学号列：姓名正常、学号次要 */
+table td.c.idx,table td.mono{color:var(--text-secondary)}
+/* 表内下拉（评选「拟定」列）：36px 高、6px 圆角、去发光 */
+.aw-select,table select{
+  height:36px;padding:0 8px;border:1px solid var(--border);border-radius:6px;
+  background:var(--bg-card);color:var(--text-primary);
+  font-family:var(--font-stack);font-size:15px;box-shadow:none;
+}
+.aw-select:focus,table select:focus{outline:none;box-shadow:none;border-color:var(--accent)}
+/* 表格专用工具类（若存在） */
+.ls-table,.list-table,.dash-table,.data-table{border:0;border-collapse:collapse;box-shadow:none}
+
+/* ── ⑥ 交互限制（规则⑧）：hover 只许变背景，聚焦只许变色 ── */
+input,select,textarea,.input{
+  height:36px;padding:0 10px;border:1px solid var(--border);border-radius:6px;
+  background:var(--bg-card);color:var(--text-primary);
+  font-family:var(--font-stack);font-size:15px;box-shadow:none;
+}
+input:focus,select:focus,textarea:focus,.input:focus{
+  outline:none;box-shadow:none;border-color:var(--accent);
+}
+input::placeholder,textarea::placeholder{color:var(--text-muted)}
+/* 禁止一切 hover 位移/放大/旋转/发光（只保留背景色变化） */
+[class]:hover{transform:none;text-shadow:none;filter:none}
+[class]:hover *{text-shadow:none}
+/* 按钮：只改圆角/阴影/配色，不动尺寸（避免布局位移） */
+.btn,.u-btn,.tb-btn{border-radius:6px;box-shadow:none;background:var(--bg-card);color:var(--accent);border:1px solid var(--border)}
+.btn:hover,.u-btn:hover,.tb-btn:hover{background:var(--bg-hover);color:var(--accent);box-shadow:none}
+.btn.pri,.u-btn-primary,.tb-btn.primary{
+  background:var(--accent);border:1px solid var(--accent);color:#fff;box-shadow:none;
+}
+.btn.pri:hover,.u-btn-primary:hover,.tb-btn.primary:hover{background:var(--accent-strong);border-color:var(--accent-strong);color:#fff}
+/* 文字按钮：无边框无底色，hover 浅灰 */
+.btn.ghost,.u-btn-ghost,.ls-active-clear{border-color:transparent;background:transparent;color:var(--text-secondary)}
+.btn.ghost:hover,.u-btn-ghost:hover{background:var(--bg-hover);color:var(--text-primary)}
+
+/* ── ⑦ 卡片 / 弹窗 / 下拉（规则③⑤）────────────────── */
+.card,.u-card,.panel{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;box-shadow:none}
+.card:hover,.u-card:hover{box-shadow:none;transform:none;border-color:var(--border)}
+.modal,.mask>div{
+  background:var(--bg-card);border-radius:12px;box-shadow:var(--shadow-float);
+  border:1px solid var(--border);
+}
+.fdrop-panel{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-float)}
+.mask{background:rgba(0,0,0,.22)}
+
+/* ── ⑧ 侧边导航（规则⑨）────────────────────────────── */
+.sidebar,#sidebar{background:var(--bg-sidebar)}
+.side-item{border-radius:6px;color:var(--text-primary);transition:background .12s linear}
+.side-item:hover{background:var(--bg-hover)}
+.side-item.active{
+  background:var(--bg-hover);color:var(--text-primary);font-weight:600;
+  box-shadow:inset 3px 0 0 var(--accent);   /* 左侧短主色竖线（纯 CSS，不加节点） */
+}
+.side-label{color:var(--text-muted);font-size:13px;font-weight:600;letter-spacing:.4px}
+
+/* ── ⑨ 页面布局（规则⑩）────────────────────────────── */
+#mainArea{
+  max-width:var(--page-max);margin:0 auto;
+  padding:var(--space-lg);   /* 24px：区块垂直/水平基准间距 */
+}
+.page-title{margin:var(--space-lg) 0 var(--space-md)}
+.card{margin-bottom:var(--space-lg)}
+.card-body{padding:var(--space-md)}
+
+/* ── ⑩ 禁用项守卫（规则⑪）──────────────────────────── */
+table,.tbl-wrap,.card,.modal,.side-item,.btn{background-image:none}
+table *{box-shadow:none!important;text-shadow:none}
+tbody tr:hover{background-image:none}
+</style>
 </head>
 <body>
 
@@ -6352,7 +6582,9 @@ function buildDormCheckHtml(o){
     h1 { margin-top:0; }
     body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   }
-</style></head><body>
+</style>
+
+</head><body>
 <div class="bar">
   <button class="pri" onclick="window.print()">打印（A4 横向）</button>
   <button onclick="window.close()">关闭</button>
