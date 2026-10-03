@@ -17,6 +17,22 @@
 }catch(e){}})();</script>
 <style>
 /* ============ 主题变量 · 明亮（默认） ============ */
+/* ══════════════════════════════════════════════════════════════════
+   视觉契约（v2.1.1 固定，改界面先读这里）
+   ──────────────────────────────────────────────────────────────────
+   对标：Notion 式温暖极简（外壳、留白、边框）+ Stripe 式表格纪律（数据区）。
+
+   六条铁律：
+   ① 间距走 4px 网格：4 / 8 / 12 / 16 / 20 / 24，不用别的值
+   ② 圆角只有三档：卡片 8px · 控件(按钮/输入) 6px · 胶囊/徽标 999px
+   ③ 阴影只给浮层（弹窗/下拉/浮条），页面内元素用 1px 边框分层，
+      不用阴影 —— 「安静的外壳」
+   ④ 色彩只表达状态：品牌蓝=主操作与选中 · 绿=通过 · 橙=待办/警示 · 红=危险。
+      任何「好看但无含义」的颜色都不许上
+   ⑤ 数字一律 tabular-nums；表格里数字列右对齐
+   ⑥ 字号四档：12（辅助）/ 12.8-13（正文）/ 14.5（小标题）/ 17（页题）。
+      不用更小的字，也不靠加粗造层级
+   ══════════════════════════════════════════════════════════════════ */
 :root{
   --bg:#f4f6fa; --panel:#ffffff; --line:#e3e8f0; --line-2:#eef1f7;
   --text:#1b2436; --text-2:#5a6780; --text-3:#8b97ac;
@@ -37,10 +53,10 @@
   --avatar-1:#2f6bff; --avatar-2:#6f9bff;
   /* 图表 */
   --grid:#eef1f7;
-  --radius:10px;
+  --radius:8px;
   /* 布局高度：顶栏 + 批次条。.shell 用它算可视高度，改高度只需改这里 */
   --topbar-h:52px; --batch-h:42px;
-  --shadow:0 1px 2px rgba(20,32,60,.05), 0 4px 14px rgba(20,32,60,.06);
+  --shadow:0 1px 2px rgba(20,32,60,.04);
   --shadow-md:0 8px 40px rgba(20,32,60,.10);
   --shadow-lg:0 20px 60px rgba(20,32,60,.28);
 }
@@ -437,6 +453,43 @@ html[data-theme="dark"] img.brand-logo{filter:brightness(1.5) saturate(1.05)}
 .login-note{margin-top:18px;padding:11px 13px;background:var(--brand-soft);border-radius:8px;
   font-size:12.5px;color:var(--brand-deep);line-height:1.65}
 .login-err{color:var(--danger);font-size:12.5px;margin-top:9px;min-height:17px}
+
+/* 视觉契约⑤：全表格数字等宽（一处生效，所有表都吃到） */
+table{font-variant-numeric:tabular-nums}
+
+/* ============ 奖学金评选（v2.1.1）============
+   视觉基准：Notion 式温暖极简（外壳）+ Stripe 式表格纪律（数据区）。
+   铁律：数字右对齐 + 等宽数字；网格线用最淡的 --line-2；
+   色彩只表达状态（名册外 = 警示），不做装饰。 */
+.award-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.award-title{font-size:17px;font-weight:680;letter-spacing:-.2px}
+.award-sub{font-size:12.5px;color:var(--text-3);margin-top:3px}
+.award-ops{display:flex;gap:8px;flex-wrap:wrap}
+.award-stats{display:flex;gap:22px;margin-bottom:14px;flex-wrap:wrap}
+.award-stat b{font-size:19px;font-weight:680;letter-spacing:-.3px;font-variant-numeric:tabular-nums}
+.award-stat span{font-size:12px;color:var(--text-3);margin-left:5px}
+.award-table{width:100%;border-collapse:collapse;font-size:12.8px}
+.award-table th{
+  position:sticky;top:0;z-index:1;background:var(--subtle);
+  text-align:left;font-weight:600;font-size:11.8px;color:var(--text-2);
+  padding:9px 12px;border-bottom:1px solid var(--line);cursor:pointer;
+  white-space:nowrap;user-select:none;
+}
+.award-table th:hover{color:var(--brand)}
+.award-table td{padding:8px 12px;border-bottom:1px solid var(--line-2);white-space:nowrap}
+.award-table tbody tr:hover{background:var(--hover)}
+.award-table .aw-num{text-align:right;font-variant-numeric:tabular-nums}   /* Stripe：数字右对齐 */
+.award-table .aw-name{font-weight:560}
+.aw-badge{
+  display:inline-block;margin-left:5px;padding:1px 6px;border-radius:4px;
+  background:var(--warn-soft);color:var(--warn-text);font-size:10.5px;font-weight:500;
+}
+tr.aw-out td{color:var(--text-3)}
+.aw-select{
+  height:28px;padding:0 6px;border:1px solid var(--line);border-radius:6px;
+  background:var(--panel);color:var(--text);font-size:12px;font-family:inherit;
+}
+.aw-select:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--ring)}
 
 /* ============ 弹层 ============ */
 .mask{position:fixed;inset:0;background:var(--mask);display:flex;
@@ -1263,36 +1316,8 @@ thead th{font-weight:600}
 </head>
 <body>
 
-<!-- ==================== 登录页 ==================== -->
-<div id="loginPage" class="login-wrap">
-  <div class="login-card">
-    <div class="login-mark"><img class="brand-logo" alt="中南财经政法大学校徽"></div>
-    <div class="login-title" id="loginTitle">中南大学生工作台</div>
-    <div class="login-sub" id="loginSub">首次使用，请为工作台设置访问密码</div>
-    <div id="loginFields">
-      <div class="field">
-        <label>访问密码</label>
-        <input type="password" id="pw1" placeholder="请设置密码（至少 4 位）" autocomplete="new-password">
-      </div>
-      <div class="field" id="pw2Field">
-        <label>确认密码</label>
-        <input type="password" id="pw2" placeholder="请再次输入密码" autocomplete="new-password">
-      </div>
-    </div>
-    <div class="login-err" id="loginErr"></div>
-    <button class="btn-primary" id="loginBtn">进入工作台</button>
-    <div class="login-note">
-      <b>数据仅保存在本机</b>，全程不联网，不上传任何服务器。密码经处理后存储，可随时在设置中修改。
-    </div>
-    <div class="login-foot">
-      作者 <b>吴章凡</b> · 使用问题请企业微信联系，或邮件
-      <a href="mailto:wuzhangfan110@163.com">wuzhangfan110@163.com</a>
-    </div>
-  </div>
-</div>
-
 <!-- ==================== 主界面 ==================== -->
-<div id="appPage" class="hidden">
+<div id="appPage">
   <div class="topbar">
     <button class="icon-btn" id="sideToggle" onclick="toggleSidebar()" title="菜单" aria-label="打开菜单">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -1671,7 +1696,6 @@ function restoreLibraryPresets(key){
 
 /* ---------- 状态 ---------- */
 let S = {
-  password: null,
   batches: [],           // 批次列表 [{id,name,importedAt,sourceFile,mode,demo,studentCount,students:[]}]
   activeBatchId: null,   // 当前批次 id
   students: [],          // 【当前批次】的 students 数组 —— 与批次内是同一引用，勿整体重新赋值
@@ -1715,7 +1739,8 @@ let S = {
   notes: '',             // （v1.3 遗留）老工作笔记文本，仅用于一次性迁移到 todos，迁移后不再展示
   /* ---- 个人中心（v1.3）：辅导员的个人信息与界面偏好 ---- */
   profile: { name:'', dept:'', phone:'', avatar:'' },   // avatar 为小尺寸 dataURL
-  sideFold: {},          // 侧栏分组折叠状态 {tools:bool, classes:bool, views:bool}
+  sideFold: {},
+  awards: null,          // v2.1.1：奖学金评选 {rows:[{__sid,__name,__class,__status,__matched,...原始列}], fileName, importedAt} —— 独立数据域，不进批次          // 侧栏分组折叠状态 {tools:bool, classes:bool, views:bool}
   sideCollapsed: false,  // 侧栏是否收缩（记忆用户的展开/收起偏好）
   quote: null,           // 运行期金句缓存，刻意不持久化
   /* ---- 运行偏好（v1.8）：顶栏金句 + 托盘常驻 + 开机启动 ---- */
@@ -1865,7 +1890,6 @@ function makeBatch(name, mode, students, sourceFile, grades){
 /* save payload 统一构造：localStorage 与磁盘镜像（v1.5）共用同一份，避免两处字段漂移 */
 function buildSavePayload(){
   return {
-    password: S.password,
     batches: S.batches,
     activeBatchId: S.activeBatchId,
     savedFilters: S.savedFilters,
@@ -1893,7 +1917,9 @@ function buildSavePayload(){
     lastBackupAt: typeof S.lastBackupAt === 'string' ? S.lastBackupAt : '',
     profile: S.profile && typeof S.profile === 'object' ? S.profile : { name:'',dept:'',phone:'',avatar:'' },
     sideFold: S.sideFold && typeof S.sideFold === 'object' ? S.sideFold : {},
-    sideCollapsed: !!S.sideCollapsed
+    sideCollapsed: !!S.sideCollapsed,
+    /* v2.1.1：奖学金评选数据 —— 独立于批次（一年一次的重活，不混进日常名册） */
+    awards: S.awards && typeof S.awards === 'object' ? S.awards : null
   };
 }
 
@@ -1953,7 +1979,6 @@ function load(){
     const raw = localStorage.getItem(STORE_KEY);
     if(raw){
       const d = JSON.parse(raw);
-      S.password = d.password || null;
       S.batches = Array.isArray(d.batches)
         ? d.batches.filter(b=>b && Array.isArray(b.students))
         : [];
@@ -1967,6 +1992,7 @@ function load(){
       S.activeBatchId = S.batches.some(b=>b.id===d.activeBatchId)
         ? d.activeBatchId : (S.batches[0] ? S.batches[0].id : null);
       S.savedFilters = Array.isArray(d.savedFilters) ? d.savedFilters : [];
+      S.awards = (d.awards && typeof d.awards === 'object') ? d.awards : null;   // v2.1.1
       // 向后兼容：老数据没有 theme 字段时回落明亮
       S.theme = (d.theme==='dark' || d.theme==='eye') ? d.theme : 'light';
       // 每间宿舍床位数（用于算空位）；老数据没有它 → 默认 4 人间
@@ -2019,7 +2045,6 @@ function load(){
     if(raw1){
       const d1 = JSON.parse(raw1);
       const students = Array.isArray(d1.students) ? d1.students : [];
-      S.password = d1.password || null;
       S.savedFilters = Array.isArray(d1.savedFilters) ? d1.savedFilters : [];
       S.theme = (d1.theme==='dark' || d1.theme==='eye') ? d1.theme : 'light';
       S.batches = students.length
@@ -2238,7 +2263,7 @@ function backupPayload(){
   return {
     app: 'zuel-student-workstation', kind: 'full-backup', ver: APP_VER,
     exportedAt: new Date().toISOString(),
-    password: S.password, batches: S.batches, activeBatchId: S.activeBatchId,
+    batches: S.batches, activeBatchId: S.activeBatchId,
     savedFilters: S.savedFilters, dormCap: S.dormCap || 4, listCols: S.listCols,
     hiddenFields: S.hiddenFields || [],
     customFields: Array.isArray(S.customFields) ? S.customFields : [],
@@ -2281,10 +2306,10 @@ function restoreBackupFile(input){
       title:'从备份恢复', danger:true, okText:'恢复',
       html:`备份包含 <b>${d.batches.length}</b> 个批次、<b>${nStu}</b> 名学生、<b>${nGrd}</b> 条成绩${d.exportedAt?`<br>导出时间：${esc(String(d.exportedAt).slice(0,10))}`:''}。<br><br><b>恢复将覆盖当前全部数据</b>（当前 ${S.batches.length} 个批次会被替换）。`,
       onOk(){
-        S.password = d.password || S.password;
         S.batches = d.batches;
         S.activeBatchId = d.activeBatchId || null;
         S.savedFilters = Array.isArray(d.savedFilters) ? d.savedFilters : [];
+        S.awards = (d.awards && typeof d.awards === 'object') ? d.awards : null; // v2.1.1
         S.dormCap = d.dormCap || 4;
         S.listCols = d.listCols || null;
         S.hiddenFields = Array.isArray(d.hiddenFields) ? d.hiddenFields : [];
@@ -3699,17 +3724,6 @@ function renderProfile(){
       头像与姓名会用在通知短信模板、谈话记录等处（后续版本逐步打通）· 负责班级来自当前批次数据，导入后自动更新</div>
   </div></div>
 
-  <div class="card" style="margin-bottom:16px"><div class="card-body">
-    <div style="font-weight:660;font-size:14.5px;margin-bottom:10px">🔐 安全</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:520px">
-      <div class="field"><label>原密码</label><input type="password" id="oldPw" placeholder="请输入原密码"></div>
-      <div class="field"><label>新密码</label><input type="password" id="newPw" placeholder="至少 4 位"></div>
-    </div>
-    <div class="login-err" id="setErr"></div>
-    <button class="btn pri" onclick="changePw()">确认修改</button>
-    <div style="font-size:12px;color:var(--text-3);margin-top:8px">密码经哈希后存储，不保存明文；忘记密码可在批次管理中重置</div>
-  </div></div>
-
   <div class="card"><div class="card-body">
     <div style="font-size:13px;color:var(--text-2);line-height:1.9">
       <b>找其他设置？</b>外观主题、学期周次、数据管理（导入 / 备份 / 历史 / 打开文件夹）都在
@@ -3794,11 +3808,6 @@ function fmtDate(){
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 // 简易哈希（原型用；正式版用 argon2/bcrypt）
-function hash(s){
-  let h = 5381;
-  for(let i=0;i<s.length;i++) h = ((h<<5)+h) ^ s.charCodeAt(i);
-  return 'h' + (h>>>0).toString(36) + '_' + s.length;
-}
 
 /* ---------- 字段分组（全部列原样保留，按用途归类展示） ---------- */
 const FIELD_GROUPS = [
@@ -4546,7 +4555,7 @@ function renderOnboarding(){
       <div class="wiz-li"><span class="wi-ico">⏱</span><div><b>大约 5 分钟</b><br>
         需要能用<b>统一身份认证</b>登录校内系统（就是平时登录教务那个账号）。</div></div>
       <div class="wiz-li"><span class="wi-ico">🔒</span><div><b>数据只在你这台电脑上</b><br>
-        全程不联网、不上传任何服务器，密码也是处理后存储的。</div></div>
+        全程不联网、不上传任何服务器，删掉软件数据也只在本机。</div></div>
     </div>
     ${wizChecklist()}`;
   }else if(wizStep === 1){
@@ -4703,37 +4712,7 @@ function bindOnboardingControls(){
   if(initial && typeof initial.focus === 'function') initial.focus();
 }
 
-/* ---------- 登录 ---------- */
-function initLogin(){
-  const hasPw = !!S.password;
-  $('loginTitle').textContent = hasPw ? '中南大学生工作台' : '设置访问密码';
-  $('loginSub').textContent = hasPw ? '请输入访问密码以解锁本机数据' : '首次使用，请为工作台设置访问密码';
-  $('pw2Field').classList.toggle('hidden', hasPw);
-  $('pw1').placeholder = hasPw ? '请输入密码' : '请设置密码（至少 4 位）';
-  $('pw1').value = ''; $('pw2').value = ''; $('loginErr').textContent='';
-  $('loginBtn').textContent = hasPw ? '解锁工作台' : '创建并进入';
-}
-
-$('loginBtn').onclick = () => {
-  const hasPw = !!S.password;
-  const p1 = $('pw1').value, p2 = $('pw2').value;
-  if(!p1){ $('loginErr').textContent = '请输入密码'; return; }
-  if(!hasPw){
-    if(p1.length < 4){ $('loginErr').textContent = '密码至少 4 位'; return; }
-    if(p1 !== p2){ $('loginErr').textContent = '两次输入的密码不一致'; return; }
-    S.password = hash(p1);
-    save();
-    enterApp();
-    toast('密码已设置，数据将加密保存在本机');
-  }else{
-    if(hash(p1) !== S.password){ $('loginErr').textContent = '密码错误，请重试'; return; }
-    enterApp();
-  }
-};
-document.addEventListener('keydown', e=>{ if(e.key==='Enter' && !$('loginPage').classList.contains('hidden')) $('loginBtn').click(); });
-
 function enterApp(){
-  $('loginPage').classList.add('hidden');
   $('appPage').classList.remove('hidden');
   S.classFilter = 'all'; S.filters = {}; S.quickView = 'all'; S._search = '';
   S.quote = pickQuote();        // 每次进入应用只随机一次，绝不放在 renderMain 里
@@ -4744,9 +4723,9 @@ function enterApp(){
   if(!renderTopbarWeek._timer) renderTopbarWeek._timer = setInterval(renderTopbarWeek, 60000);  // 跨周/跨天自动刷新
   startQuoteRotation();                                                        // v1.7：金句自动换
   applyDesktopPrefs();                                                         // v1.8：托盘常驻偏好同步给外壳
-  /* 首次进入弹一次新手引导（走完或点「跳过」就不再弹）。延后一点，
-     让主界面先画出来，避免"一进来就是一堵弹窗"。 */
-  if(!S.guideSeen) setTimeout(()=>{ if(!S.guideSeen) openOnboarding(); }, 420);
+  /* v2.1.1：不再自动弹引导 —— 遮罩盖住全屏，用户没意识到那是弹窗时
+     就是「整页点不动」且零提示（2026-10-03 教训）。想看引导：
+     侧栏「导入指引」常驻，个人中心也有「重看新手引导」。 */
 }
 
 /* ---------- 侧栏 ---------- */
@@ -4873,6 +4852,13 @@ function renderSidebar(){
       ${sideIco('chat')}<span class="s-txt">AI 助理</span></div>
     <div class="side-item ${S.view==='cal'?'active':''}" data-tour="cal" onclick="gotoCal()" title="校历作息">
       ${sideIco('calendar')}<span class="s-txt">校历作息</span></div>`;
+  }
+
+  /* v2.1.1：奖学金评选 —— 一年一次的重活，给独立区域（辅导员 2026-10-03 定位） */
+  h += sideLabel('award', '奖学金评选');
+  if(sideGroupOpen('award')){
+    h += `<div class="side-item ${S.view==='award'?'active':''}" onclick="gotoAward()" title="独立于名册的评选数据 · 导入综合测评表、排序、拟定名单">
+      ${sideIco('star')}<span class="s-txt">奖学金评选</span><span class="cnt">${(S.awards&&S.awards.rows&&S.awards.rows.length)||''}</span></div>`;
   }
 
   h += sideLabel('classes', `我的班级（${classes.length}）`);
@@ -5160,6 +5146,7 @@ function renderMain(){
   if(S.view === 'tpl'){ renderTpl(); return; }
   if(S.view === 'pol'){ renderAssistant(); return; }
   if(S.view === 'cal'){ renderCalendar(); return; }
+  if(S.view === 'award'){ renderAward(); return; }
   if(S.view === 'profile'){ renderProfile(); return; }
   if(S.view === 'settings'){ renderSettings(); return; }
   if(S.view === 'importlog'){ renderImportLog(); return; }
@@ -8453,17 +8440,309 @@ function doImportGrades(){
   toast(`成绩已导入：更新 ${updated} 人、新增 ${added} 人`);
 }
 
-/* ---------- 设置 / 导出 ---------- */
 
-function changePw(){
-  const o = $('oldPw').value, n = $('newPw').value;
-  if(hash(o) !== S.password){ $('setErr').textContent = '原密码不正确'; return; }
-  if(n.length < 4){ $('setErr').textContent = '新密码至少 4 位'; return; }
-  S.password = hash(n); save();
-  $('setErr').textContent = '';
-  toast('密码已更新');
-  closeModal();
+/* ==================== 奖学金评选（v2.1.1） ====================
+   独立数据域：S.awards 不挂在批次上 —— 评选一年一次、用完即存档，
+   混进日常名册只会让两边都不干净（辅导员的定位：单独的区域、单独的导入）。
+
+   导入 philosophy 与主名册一致：丢一张表进来，有学号（或姓名+班级）就认人，
+   认得出的更新、认不出的也收进来并标「名册外」，原始列全部保留。
+   Excel 把学号存成数字 → 科学计数法 → 这里做还原（unscientific）。 */
+
+/* 长数字列的 E 记法还原。Excel 存 202625420001 为数值时读出 2.02625E+11，
+   不还原就对不上任何人。只处理学号/证件号这类「明显是长数字」的列；
+   尾数太短的（1.5E+10）可能是真数据，不动。 */
+const AWARD_NUM_KEYS = ['学号','考生号','证件号码','身份证件号','身份证号','学籍号'];
+function unscientific(v){
+  if(v == null) return v;
+  const str = String(v).trim();
+  const m = str.match(/^([+-]?)(\d+)(?:\.(\d+))?[eE]([+-]?\d+)$/);
+  if(!m) return v;
+  const sign=m[1], digits=(m[2]+(m[3]||'')), point=m[2].length+Number(m[4]);
+  let out;
+  if(point<=0) out='0.'+'0'.repeat(-point)+digits;
+  else if(point>=digits.length) out=digits+'0'.repeat(point-digits.length);
+  else out=digits.slice(0,point)+'.'+digits.slice(point);
+  const bare=out.replace('.','').replace(/^0+/,'');
+  if(bare.length<6||bare.length>20) return v;      // 不是长数字的量级 → 别动
+  return sign+bare;
 }
+
+function gotoAward(){ S.view='award'; renderSidebar(); renderMain(); closeSidebar(); }
+
+/* ── 评选表的列（rows 里所有出现过的原始列，稳定排序） ── */
+function awardCols(){
+  const rows = (S.awards && S.awards.rows) || [];
+  const set = [];
+  rows.forEach(r => Object.keys(r).forEach(k => {
+    if(k.indexOf('__')===0) return;
+    if(set.indexOf(k)<0) set.push(k);
+  }));
+  return set;
+}
+const AWARD_STATUS = ['','推荐','候补','落选'];
+
+/* ── 排序（点表头：降序 → 升序，空值恒沉底） ── */
+let _awardSort = { key:'', dir:'desc' };
+function awardSortRows(rows, cols){
+  const k = _awardSort.key;
+  if(!k) return rows;
+  const numeric = rows.every(r => r[k]==null || r[k]==='' || !isNaN(Number(r[k])));
+  const sorted = rows.slice().sort((a,b)=>{
+    const va=a[k], vb=b[k];
+    const ea=(va==null||va===''), eb=(vb==null||vb==='');
+    if(ea&&eb) return 0;
+    if(ea) return 1;                       // 空值沉底
+    if(eb) return -1;
+    let c;
+    if(numeric) c = Number(va)-Number(vb);
+    else c = String(va).localeCompare(String(vb),'zh');
+    return _awardSort.dir==='desc' ? -c : c;
+  });
+  return sorted;
+}
+
+/* ── 页面 ── */
+function renderAward(){
+  const a = S.awards || { rows: [] };
+  const rows = a.rows || [];
+  let h = `<div class="award-head">
+    <div>
+      <div class="award-title">奖学金评选</div>
+      <div class="award-sub">独立于学生名册的评选数据 · 一年一次，导完就存档${a.fileName?` · 来源「${esc(a.fileName)}」`:''}</div>
+    </div>
+    <div class="award-ops">
+      <button class="btn pri" onclick="openAwardImport()">导入评选表</button>
+      ${rows.length?`<button class="btn" onclick="awardExportCsv()">导出 CSV</button>
+      <button class="btn" onclick="awardClear()">清空</button>`:''}
+    </div>
+  </div>`;
+
+  if(!rows.length){
+    h += `<div class="card"><div class="card-body" style="text-align:center;padding:48px 20px">
+      <div style="font-size:34px;margin-bottom:10px">🏅</div>
+      <div style="font-weight:640;font-size:15px;margin-bottom:6px">还没有评选数据</div>
+      <div style="font-size:12.5px;color:var(--text-3);line-height:1.8">
+        把综合测评表、量化排名表<b>原样丢进来</b>就行 —— 有学号或姓名就能对上人。<br>
+        这份数据和学生名册互相独立：改名、删批次都不会影响评选结果。
+      </div>
+      <div style="margin-top:14px"><button class="btn pri" onclick="openAwardImport()">选择评选表（.xlsx / .csv）</button></div>
+    </div></div>`;
+    $('mainArea').innerHTML = h;
+    return;
+  }
+
+  const cols = awardCols();
+  const sorted = awardSortRows(rows, cols);
+  const matched = rows.filter(r=>r.__matched).length;
+  const stat = AWARD_STATUS.map(st => st ? rows.filter(r=>r.__status===st).length : 0);
+
+  h += `<div class="award-stats">
+    <div class="award-stat"><b>${rows.length}</b><span>共 ${matched>0?matched+' 人对上名册':''}${rows.length-matched?` · ${rows.length-matched} 名册外`:''}</span></div>
+    ${AWARD_STATUS.filter(Boolean).map((st,i)=>`<div class="award-stat"><b>${stat[i+1]}</b><span>${st}</span></div>`).join('')}
+  </div>
+  <div class="card"><div class="card-body" style="padding:0">
+    <div style="overflow:auto;max-height:calc(100vh - 300px)">
+    <table class="award-table">
+      <thead><tr>
+        <th class="aw-name" onclick="awardSortBy('__name')">姓名${_awardSort.key==='__name'?(_awardSort.dir==='desc'?' ↓':' ↑'):''}</th>
+        <th onclick="awardSortBy('__sid')">学号${_awardSort.key==='__sid'?(_awardSort.dir==='desc'?' ↓':' ↑'):''}</th>
+        ${cols.map(c=>`<th onclick="awardSortBy('${esc(c)}')">${esc(c)}${_awardSort.key===c?(_awardSort.dir==='desc'?' ↓':' ↑'):''}</th>`).join('')}
+        <th class="aw-status">拟定</th>
+      </tr></thead>
+      <tbody>${sorted.map(r=>{
+        const out = !r.__matched;
+        return `<tr class="${out?'aw-out':''}">
+        <td class="aw-name">${esc(r.__name||'')}${out?' <span class="aw-badge">名册外</span>':''}</td>
+        <td>${esc(r.__sid||'')}</td>
+        ${cols.map(c=>{
+          const v=r[c]; const num=(v!=null&&v!==''&&!isNaN(Number(v)));
+          return `<td${num?' class="aw-num"':''}>${v==null?'':esc(String(v))}</td>`;
+        }).join('')}
+        <td class="aw-status">
+          <select class="aw-select" onchange="awardSetStatus('${esc(r.__sid||r.__name||'')}', this.value)">
+            ${AWARD_STATUS.map(st=>`<option value="${st}" ${r.__status===st?'selected':''}>${st||'未定'}</option>`).join('')}
+          </select>
+        </td>
+      </tr>`;}).join('')}</tbody>
+    </table>
+    </div>
+  </div></div>`;
+  $('mainArea').innerHTML = h;
+}
+
+function awardSortBy(k){
+  if(_awardSort.key===k) _awardSort.dir = _awardSort.dir==='desc'?'asc':'desc';
+  else _awardSort = { key:k, dir:'desc' };
+  renderAward();
+}
+function awardSetStatus(sid, st){
+  const rows = (S.awards && S.awards.rows) || [];
+  const r = rows.find(x => (x.__sid||x.__name||'')===sid);
+  if(r){ r.__status = st; save(); }
+}
+
+/* ── 导入：选文件 → 认人 → 预览 → 合并 ── */
+let _awardImp = null;
+function openAwardImport(){
+  _awardImp = null;
+  $('modalRoot').innerHTML = `
+  <div class="mask" onclick="if(event.target===this)closeModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-head"><div class="modal-title">导入评选表</div>
+        <div class="modal-close" onclick="closeModal()">×</div></div>
+      <div class="modal-body" id="awBody">
+        <div class="drop" onclick="document.getElementById('awFile').click()">
+          <div class="drop-t">选择综合测评 / 量化排名表（.xlsx / .csv）</div>
+          <div class="drop-s">有学号或姓名就能对上人；新列会原样保留，已有的按人更新</div>
+        </div>
+        <input type="file" id="awFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleAwardFile(event)">
+      </div>
+      <div class="modal-foot"><button class="btn" onclick="closeModal()">取消</button></div>
+    </div>
+  </div>`;
+}
+function handleAwardFile(e){
+  const f = e.target.files[0];
+  if(!f) return;
+  if(typeof XLSX==='undefined'){ toast('缺少表格解析库'); return; }
+  const rd = new FileReader();
+  rd.onload = ev => {
+    let arr;
+    try{
+      const wb = XLSX.read(new Uint8Array(ev.target.result), {type:'array', cellDates:false});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      arr = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:false});
+    }catch(err){ toast('读不了这个文件：请确认是系统导出的 Excel'); return; }
+    if(!arr || !arr.length){ toast('表格为空'); return; }
+    _awardImp = { fileName: f.name, arr };
+    awardPreview();
+  };
+  rd.readAsArrayBuffer(f);
+}
+
+function awardPreview(){
+  const body = $('awBody');
+  const { arr, fileName } = _awardImp;
+  /* 表头行：取前 12 行里「非空格数最多且没有超长单元格」的一行 */
+  let hdr = 0, best = -1;
+  for(let i=0;i<Math.min(arr.length,12);i++){
+    const row = (arr[i]||[]).map(c=>String(c==null?'':c).trim());
+    const filled = row.filter(c=>c!=='');
+    if(filled.length<2) continue;
+    if(filled.filter(c=>c.length>12).length) continue;   // 标题行
+    const score = filled.length;
+    if(score>best){ best=score; hdr=i; }
+  }
+  const rawHeader = (arr[hdr]||[]).map(c=>String(c==null?'':c).trim());
+  const rows = [];
+  for(let i=hdr+1;i<arr.length;i++){
+    const r = arr[i]||[];
+    if(!r.some(c=>c!=null&&String(c).trim()!=='')) continue;
+    const o = {};
+    rawHeader.forEach((h,j)=>{ if(h) o[h] = (r[j]==null?'':r[j]); });
+    /* 学号类列：先修科学计数法，再统一成字符串 */
+    rawHeader.forEach(h=>{
+      const nk = normalizeKey(h);
+      if(AWARD_NUM_KEYS.indexOf(nk)>=0) o[h] = unscientific(o[h]);
+    });
+    rows.push(o);
+  }
+  /* 认人：学号优先，没有就姓名+班级 */
+  const hasSid = rawHeader.some(h=>normalizeKey(h)==='学号');
+  const bySid = new Map(), byName = new Map();
+  S.students.forEach(st=>{
+    const sid = String(st['学号']==null?'':st['学号']).trim();
+    if(sid) bySid.set(sid, st);
+    const nm = String(st['姓名']||st['姓名1']||'').trim();
+    if(nm) byName.set(nm+'|'+String(st['班级']||'').trim(), st);
+  });
+  let hit=0;
+  rows.forEach(r=>{
+    const sid = hasSid ? String(r['学号']==null?'':r['学号']).trim() : '';
+    const nm = String(r['姓名']==null?'':r['姓名']).trim();
+    const cls = String(r['班级']==null?'':r['班级']).trim();
+    r.__sid = sid; r.__name = nm; r.__class = cls; r.__status = '';
+    r.__matched = !!(sid && bySid.has(sid)) || (!sid && !!nm && byName.has(nm+'|'+cls));
+    if(r.__matched) hit++;
+  });
+  _awardImp.rows = rows; _awardImp.hit = hit;
+  /* 精度丢失检测：Excel 把学号存成数字时后几位已经没了（还原只能补零），
+     表现为「对上 0 人 + 大量末尾补零」。必须说清楚，否则用户以为导对了。 */
+  const sidKey = rawHeader.find(h=>normalizeKey(h)==='学号');
+  const sciN = sidKey ? rows.filter(r=>{
+    const v = String(r[sidKey]==null?'':r[sidKey]);
+    return v.length>=10 && /0{4,}$/.test(v);
+  }).length : 0;
+  const okBtn = document.querySelector('#modalRoot .modal-foot');
+  body.innerHTML = `
+    <div class="filebox" style="margin-bottom:12px">
+      <div class="file-ico">X</div>
+      <div style="flex:1">
+        <div class="file-name">${esc(fileName)}</div>
+        <div class="file-meta">表头第 ${hdr+1} 行 · ${rows.length} 行数据 · ${rawHeader.filter(Boolean).length} 列</div>
+      </div>
+    </div>
+    <div class="hint">
+      对上名册 <b>${hit}</b> 人${rows.length-hit?`，认不出的 ${rows.length-hit} 行也会收进来（标「名册外」）`:''}。<br>
+      列：${rawHeader.filter(Boolean).slice(0,10).map(esc).join('、')}${rawHeader.filter(Boolean).length>10?' …':''}
+    </div>
+    ${sciN?`<div class="hint" style="border-color:var(--danger-line);background:var(--danger-soft)">
+      <b>「${esc(sidKey)}」列在 Excel 里被存成了数字，${sciN} 行学号已丢几位</b>（只能补零、补不回原值）。<br>
+      请在 Excel 里把这列设为「文本」重新导出，否则会对不上人、还可能互相混同。
+    </div>`:''}`;
+  const btn = document.createElement('button');
+  btn.className='btn pri'; btn.textContent='确认导入'; btn.onclick=awardCommit;
+  okBtn.insertBefore(btn, okBtn.firstChild);
+}
+
+function awardCommit(){
+  const { rows, fileName } = _awardImp;
+  if(!rows || !rows.length){ toast('没有数据行'); return; }
+  const old = (S.awards && S.awards.rows) || [];
+  const m = new Map(old.map(r=>[ (r.__sid||r.__name||'')+'|'+(r.__class||''), r ]));
+  let upd=0, add=0;
+  rows.forEach(r=>{
+    const k = (r.__sid||r.__name||'')+'|'+(r.__class||'');
+    if(m.has(k)){
+      const t = m.get(k);
+      Object.entries(r).forEach(([kk,v])=>{          // 空值不覆盖
+        if(kk.indexOf('__')===0) return;
+        if(v!=null && String(v).trim()!=='') t[kk]=v;
+      });
+      t.__sid=r.__sid; t.__name=r.__name; t.__class=r.__class; t.__matched=r.__matched;
+      upd++;
+    }else{ m.set(k, r); add++; }
+  });
+  S.awards = { rows: [...m.values()], fileName, importedAt: new Date().toISOString() };
+  save(); closeModal(); renderAward();
+  toast(`评选表已导入：更新 ${upd} 人、新增 ${add} 人`);
+}
+
+function awardClear(){
+  askConfirm({
+    title:'清空评选数据', danger:true, okText:'清空',
+    html:'确定清空全部评选数据？这不会影响学生名册。',
+    onOk(){ S.awards = null; save(); renderAward(); }
+  });
+}
+
+function awardExportCsv(){
+  const rows = (S.awards && S.awards.rows) || [];
+  if(!rows.length){ toast('没有数据可导出'); return; }
+  const cols = ['__name','__sid','__class', ...awardCols(), '__status'];
+  const head = ['姓名','学号','班级', ...awardCols(), '拟定'];
+  const q = v => { v = v==null?'':String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+  const csv = '\ufeff' + head.join(',') + '\n' + rows.map(r=>cols.map(c=>q(r[c])).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '奖学金评选.csv';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+
+/* ---------- 设置 / 导出 ---------- */
 
 function resetAll(){
   askConfirm({
@@ -8824,7 +9103,7 @@ function demoGrades(students){
   if(pre && pre !== S.theme){ try{ localStorage.setItem('cw_theme', S.theme);}catch(e){} }
   applyTheme(S.theme || 'light');
   initResponsive();
-  initLogin();
+  enterApp();            // 打开即用：密码登录已整体移除（2026-10-03）
 })();
 </script>
 
