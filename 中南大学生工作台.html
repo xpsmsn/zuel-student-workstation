@@ -306,7 +306,7 @@ input,select,textarea{font-family:inherit;font-size:14px;outline:none}
 .side-item.disabled{opacity:.42;cursor:not-allowed}
 .side-item.disabled:hover{background:transparent}
 .side-item.disabled .cnt{color:var(--dim)}
-.main{flex:1;overflow-y:auto;padding:20px 24px}
+.main{flex:1;overflow-y:auto;padding:0;min-width:0}
 
 /* ============ 卡片 ============ */
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
@@ -554,13 +554,14 @@ tr.aw-picked td{background:var(--accent-soft)}
 tr.aw-picked:hover td{background:var(--accent-soft)}
 
 /* 志愿标签：带序号；单项奖学金用中性底，不兼得的用主色浅底 */
-.aw-wish{white-space:normal;min-width:220px;line-height:1.9}
+.aw-wish{white-space:normal;min-width:200px;line-height:1.9;max-width:420px}
 .aw-tag{
   display:inline-block;margin:1px 4px 1px 0;padding:2px 8px;
   border-radius:6px;font-size:12px;line-height:1.5;
   background:var(--accent-soft);color:var(--brand-deep);
 }
 .aw-tag.single{background:var(--bg-hover);color:var(--text-2)}
+.aw-tag.more{background:transparent;color:var(--text-3);border:1px solid var(--line);cursor:help}
 .aw-status{width:96px}
 .aw-select{
   height:32px;width:88px;padding:0 8px;
@@ -1454,7 +1455,6 @@ thead th{font-weight:600}
   --text-muted:#9b9a97;        /* 辅助小字 */
   --font-stack:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
   --shadow-float:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.08); /* 仅弹窗/下拉 */
-  --page-max:1200px;           /* 全宽（大表格）；窄版 900px 见文末说明 */
 }
 /* ── ② 暗色（规范写法 + 本项目实际机制 data-theme）── */
 :root.dark{
@@ -1658,9 +1658,14 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
 
 /* ── ⑨ 页面布局（规则⑩）────────────────────────────── */
 #mainArea{
-  max-width:var(--page-max);margin:0 auto;
-  padding:var(--space-lg);   /* 24px：区块垂直/水平基准间距 */
+  width:100%;max-width:none;margin:0;
+  padding:var(--space-lg);   /* 24px：区块间距基准 */
 }
+/* ⚠️ v2.1.3 修正：原先这里写了 max-width:1200px（照搬 Notion 的「全宽 1200px」），
+   结果 1920 屏上两侧各空 300px，辅导员反馈「大屏上两侧有很多空白，比较浪费」。
+   表格页（学生列表、评选）本来就靠横向滚动，不该再套一层宽度上限。
+   窄屏由下面的 media 查询收窄。 */
+@media (max-width:900px){ #mainArea{padding:var(--space-md)} }
 .page-title{margin:var(--space-lg) 0 var(--space-md)}
 .card{margin-bottom:var(--space-lg)}
 .card-body{padding:var(--space-md)}
@@ -2277,6 +2282,8 @@ function buildSavePayload(){
     sideCollapsed: !!S.sideCollapsed,
     /* v2.1.2：拟定结果 {学号: 推荐/候补/落选} —— 评选数据本身在学生档案里，这里只存「定了什么」 */
     awardStatus: S.awardStatus && typeof S.awardStatus === 'object' ? S.awardStatus : {},
+    /* v2.1.3：评选数据独立存储（只有 6 项 + 志愿，与学生档案隔离） */
+    awardRows: Array.isArray(S.awardRows) ? S.awardRows : [],
     /* v2.1.1：奖学金评选数据 —— 独立于批次（一年一次的重活，不混进日常名册） */
     awards: S.awards && typeof S.awards === 'object' ? S.awards : null
   };
@@ -2353,6 +2360,7 @@ function load(){
       S.savedFilters = Array.isArray(d.savedFilters) ? d.savedFilters : [];
       S.awards = (d.awards && typeof d.awards === 'object') ? d.awards : null;   // v2.1.1
       S.awardStatus = (d.awardStatus && typeof d.awardStatus === 'object') ? d.awardStatus : {};   // v2.1.2
+      S.awardRows = Array.isArray(d.awardRows) ? d.awardRows : [];   // v2.1.3
       // 向后兼容：老数据没有 theme 字段时回落明亮
       S.theme = (d.theme==='dark' || d.theme==='eye') ? d.theme : 'light';
       // 每间宿舍床位数（用于算空位）；老数据没有它 → 默认 4 人间
@@ -8058,6 +8066,15 @@ const GRADE_COL_KEYS = [
   '加权平均成绩', '平均学分绩点', '学业成绩', '平均分', '总分',
   '所得学分', '课程门数', '不及格门数', '专业排名', '排名'
 ];
+/* ── 评选列：属于奖学金评选，不进学生档案（v2.1.3 隔离）── */
+const AWARD_ONLY_COLS = ['总成绩', '知识水平评价', '科研创新B1', '专业技能B2',
+  '文体特长B3', '社会工作B4', '社会实践B5', '志愿顺序', '批次', '评定学年', '评定学期',
+  '是否服从调剂', '是否代为提交', '提交日期', '审核状态',
+  '基本素质评价', '能力评价', '体测成绩',
+  '思想政治表现评分项', '道德品质修养评分项', '组织纪律观念评分项', '身心健康素质评分项'];
+function isAwardCol(k){
+  return AWARD_ONLY_COLS.indexOf(normalizeKey(k)) >= 0;
+}
 function isGradeCol(k){
   const n = normalizeKey(k);
   if(GRADE_COL_KEYS.indexOf(n) >= 0) return true;
@@ -8065,6 +8082,27 @@ function isGradeCol(k){
      只在**同时出现加权平均成绩**时才把总成绩当成绩列，避免误伤档案字段。 */
   return false;
 }
+/* 把行里的评选列 upsert 进 S.awardRows（按学号）。
+   只留 AWARD_KEEP_COLS，其余列直接丢 —— 这是「数据隔离」的落点。
+   合并语义与档案一致：空值不覆盖、备注类不动。 */
+function applyAwardRows(rows){
+  const map = new Map((S.awardRows||[]).map(function(r){ return [String(r['学号'] == null ? '' : r['学号']), r]; }));
+  let added = 0, updated = 0;
+  rows.forEach(function(r){
+    const id = String(r['学号'] == null ? '' : r['学号']).trim();
+    if(!id) return;
+    const patch = {};
+    AWARD_KEEP_COLS.forEach(function(k){
+      if(r[k] != null && String(r[k]).trim() !== '') patch[k] = r[k];
+    });
+    if(!Object.keys(patch).length) return;
+    if(map.has(id)){ Object.assign(map.get(id), patch); updated++; }
+    else { patch['学号'] = id; map.set(id, patch); added++; }
+  });
+  S.awardRows = [...map.values()];
+  return { added: added, updated: updated };
+}
+
 /** 这张表里哪些列是成绩列（依赖列名集合做上下文判断） */
 function splitGradeCols(cols){
   const names = (cols||[]).map(normalizeKey);
@@ -8600,6 +8638,7 @@ function doImport(){
   const target = activeBatch();
   const gsplit = splitGradeCols(cols);           // v2.1.2：成绩列分流（三条模式统一口径）
   const gstat = applyGradeRows(rows, gsplit);    // 成绩先落成绩层
+  applyAwardRows(rows);                          // v2.1.3：评选列落评选表
 
   if(!rows.length){ toast('没有可导入的数据'); return; }
 
@@ -8638,6 +8677,7 @@ function doImport(){
       Object.entries(r).forEach(([k,v])=>{
         if(v == null || v === '') return;
         if(gsplit.grade.indexOf(k) >= 0) return;   // v2.1.2：成绩列不进档案
+        if(isAwardCol(k)) return;                 // v2.1.3：评选列不进档案
         rec[k] = v;
       });
       if(applyRosterRule(rec, importState.kind)) rosterSynced++;
@@ -8755,6 +8795,9 @@ function doImportMerge(rows, cols, mode, remarkMap, backupName, clearedCount, pr
      入口只有一个（导入数据），但数据仍然各归其位（见 GRADE_COLS 处的说明）。 */
   const gsplit = splitGradeCols(cols);
   const gstat = applyGradeRows(rows, gsplit);    // v2.1.2：共用实现
+  /* v2.1.3：评选列走独立的评选表，不进学生档案 —— 数据隔离 */
+  const astat = applyAwardRows(rows);
+  if(astat.added || astat.updated) markDataChanged();
 
   rows.forEach((r, idx)=>{
     const id = String(r['学号'] ?? '').trim();
@@ -8770,6 +8813,7 @@ function doImportMerge(rows, cols, mode, remarkMap, backupName, clearedCount, pr
         if(v == null || v === '') return;          // 铁律②：空值不覆盖
         if(cols.indexOf(k) === -1) return;         // 铁律③：不在本次表里的列不动
         if(gsplit.grade.indexOf(k) >= 0) return;  // v2.1.2：成绩列不进档案
+        if(isAwardCol(k)) return;                    // v2.1.3：评选列不进档案
         old[k] = v;
       });
       // v1.9.2：名册导入时顺手同步政治面貌（已是党员/发展对象的受保护，不降级）
@@ -9072,29 +9116,39 @@ function parseWishes(v){
 }
 
 /* ── 行的组装：从学生档案取评选相关字段 ── */
-function awardRowOf(s){
-  const sid = String(s['学号'] == null ? '' : s['学号']);
-  const g = (S.grades||[]).find(x => String(x['学号']) === sid) || {};
-  const 智力 = s['知识水平评价'] || g['加权平均成绩'] || '';
-  const wishes = parseWishes(s['志愿顺序']);
-  return {
-    sid,
-    name: s['姓名'] || s['姓名1'] || '',
-    major: s['专业'] || '',
-    智力: 智力,
-    B1: s['科研创新B1'] || '',
-    B2: s['专业技能B2'] || '',
-    B3: s['文体特长B3'] || '',
-    B4: s['社会工作B4'] || '',
-    B5: s['社会实践B5'] || '',
-    总成绩: s['总成绩'] || '',
-    wishes,
-    status: (S.awardStatus && S.awardStatus[sid]) || '',
-  };
-}
-/* 只有「有评选数据」或「报了志愿」的人才进这张表 */
+/* ── 评选数据域（v2.1.3 隔离）─────────────────────────────
+   辅导员 2026-10-03：「奖学金系统数据隔离，这里只需要姓名、学号、专业、
+   总成绩、知识水平评价（过去一年的加权平均成绩）、B1~5、申报志愿。」
+
+   ZHCP_CPSH_SHTABLE.xlsx 实测 **21 列**，评选只用 6 项。剩下 15 列
+   （审核状态 / 学院 / 班级 / 现在年级 / 基本素质评价 / 能力评价 / 体测成绩 /
+   思想政治表现 / 道德品质修养 / 组织纪律观念 / 身心健康素质）评选用不上，
+   **不导入、不落库、不进学生档案**。
+
+   改之前是从学生档案里「捞」这些列（读 s['知识水平评价'] 等），
+   副作用是评选表导一次，学生档案就被污染一批列。现在两边彻底分开。 */
+const AWARD_KEEP_COLS = ['学号', '姓名', '专业', '总成绩', '知识水平评价',
+  '科研创新B1', '专业技能B2', '文体特长B3', '社会工作B4', '社会实践B5', '志愿顺序'];
+
+/* 评选表：独立存储。姓名/专业可从名册补（只读，不写回）。 */
 function awardRows(){
-  return (S.students||[]).map(awardRowOf).filter(r => r.智力 !== '' || r.wishes.length);
+  const src = (S.awardRows && S.awardRows.length) ? S.awardRows : [];
+  return src.map(function(r){
+    const sid = String(r['学号'] == null ? '' : r['学号']);
+    const stu = (S.students||[]).filter(x => String(x['学号']) === sid)[0] || {};
+    return {
+      sid: sid,
+      name: r['姓名'] || stu['姓名'] || stu['姓名1'] || '',
+      major: r['专业'] || stu['专业'] || '',
+      总成绩: r['总成绩'] || '',
+      智力: r['知识水平评价'] || '',
+      B1: r['科研创新B1'] || '', B2: r['专业技能B2'] || '',
+      B3: r['文体特长B3'] || '', B4: r['社会工作B4'] || '',
+      B5: r['社会实践B5'] || '',
+      wishes: parseWishes(r['志愿顺序']),
+      status: (S.awardStatus && S.awardStatus[sid]) || '',
+    };
+  }).filter(r => r.智力 !== '' || r.wishes.length);
 }
 
 /* ── 筛选与排序状态 ── */
@@ -9167,13 +9221,24 @@ function statusSelect(r){
   }).join('');
   return '<select class="aw-select" onchange="awardSetStatus(\'' + esc(r.sid) + '\',this.value)">' + opts + '</select>';
 }
+/* 志愿标签：前 4 个直接显示，更多的折叠成「+N」——
+   真实数据里有人报了 9 项，全铺开会把行撑成两倍高，反而看不清人。 */
+const AWARD_TAG_MAX = 4;
 function wishTags(r){
   if(!r.wishes.length) return '<span class="aw-none">未填报</span>';
-  return r.wishes.map(function(w, i){
+  const shown = r.wishes.slice(0, AWARD_TAG_MAX);
+  const rest = r.wishes.slice(AWARD_TAG_MAX);
+  const one = function(w, i){
     const single = (AWARD_LIST.filter(a=>a.key===w)[0] || {}).single;
     const tip = single ? '单项，可兼得' : '不兼得';
     return '<span class="aw-tag' + (single ? ' single' : '') + '" title="' + tip + '">' + (i+1) + '. ' + esc(w) + '</span>';
-  }).join(' ');
+  };
+  let out = shown.map(one).join(' ');
+  if(rest.length){
+    const tip = rest.map(function(w, k){ return (k + AWARD_TAG_MAX + 1) + '. ' + w; }).join(String.fromCharCode(10));
+    out += '<span class="aw-tag more" title="' + esc(tip) + '">+' + rest.length + '</span>';
+  }
+  return out;
 }
 /* ── 页面 ── */
 function renderAward(){
@@ -9194,10 +9259,10 @@ function renderAward(){
   let h = `<div class="award-head">
     <div>
       <div class="award-title">奖学金评选</div>
-      <div class="award-sub">按学号从学生档案取数 · 先看不兼得的（从高到低），再看单项</div>
+      <div class="award-sub">独立数据 · 只存评选要用的几项 · 先看不兼得的（从高到低），再看单项</div>
     </div>
     <div class="award-ops">
-      <button class="btn pri" onclick="openImport('把「评选表」和「申报情况」导进来即可：知识水平评价、B1~B5、志愿顺序会自动对上')">导入评选数据</button>
+      <button class="btn pri" onclick="openImport('只取 姓名/学号/专业/总成绩/知识水平评价/B1~B5/志愿顺序，其余列不进任何数据')">导入评选数据</button>
       ${Object.keys(S.awardStatus||{}).length?`<button class="btn" onclick="awardClearStatus()">清空拟定</button>`:''}
       ${all.length?`<button class="btn" onclick="awardExportCsv()">导出 CSV</button>`:''}
     </div>
@@ -9257,6 +9322,7 @@ function renderAward(){
         ${th('姓名','name')}
         ${th('学号','sid')}
         ${th('专业','major')}
+        ${th('总成绩','总成绩','aw-num-h')}
         ${th('智力水平评价','智力','aw-num-h')}
         ${th('B1 科研创新','B1','aw-num-h')}
         ${th('B2 专业技能','B2','aw-num-h')}
@@ -9271,6 +9337,7 @@ function renderAward(){
         <td class="aw-name">${esc(r.name)}</td>
         <td class="aw-sid">${esc(r.sid)}</td>
         <td>${esc(r.major)}</td>
+        <td class="aw-num">${r.总成绩===''?'<span class="aw-none">—</span>':esc(String(r.总成绩))}</td>
         <td class="aw-num">${r.智力===''?'<span class="aw-none">—</span>':esc(String(r.智力))}</td>
         ${bCells(r)}
         <td class="aw-status">${statusSelect(r)}</td>
