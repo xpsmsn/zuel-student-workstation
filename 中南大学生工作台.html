@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>中南大工作台</title>
+<title>ZUEL 辅导员工作台</title>
 <!-- 校徽：内联 base64（128×128 调色板量化，约 6KB），既作浏览器页签图标、
      也供登录页与顶栏的 <img class="brand-logo"> 复用 —— 全项目只存这一份，零网络请求。
      更新校徽只需替换下面 LOGO_DATA 这一行。 -->
@@ -2404,7 +2404,7 @@ body.locked{overflow:hidden}
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
            stroke-width="2.2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
     </button>
-    <div class="logo"><img class="logo-mark brand-logo" alt="中南财经政法大学校徽"><span class="logo-text">中南大工作台</span></div>
+    <div class="logo"><img class="logo-mark brand-logo" alt="中南财经政法大学校徽"><span class="logo-text">ZUEL 辅导员工作台</span></div>
     <div class="week-chip" id="weekChip" onclick="openWeekCalibrate()" title="点击校准：把今天定为第 N 周，之后自动接着往后数"></div>
     <div class="topbar-spacer"></div>
     <div class="quote-bar" id="quoteBar" title="点击换一句">
@@ -2526,7 +2526,7 @@ const BUILTIN_TEMPLATES = [
 
 <script>
 /* =====================================================================
-   中南大工作台 · 原型
+   ZUEL 辅导员工作台 · 原型
    模拟说明：真实版本中数据存于本地 SQLite，此处用 localStorage 模拟持久化。
    ===================================================================== */
 
@@ -2877,7 +2877,7 @@ function setStudents(arr){
     S.batches.push(nb);
     attachBatch(nb.id);
     b = activeBatch();
-    console.warn('[中南大工作台] 检测到「无批次写入」，已自动创建批次保住数据：', nb.name);
+    console.warn('[ZUEL 辅导员工作台] 检测到「无批次写入」，已自动创建批次保住数据：', nb.name);
   }
   /* v1.9.7 保险：硬约束——「一个学号只会出现一次，不要出现重复」。
      历史数据可能被旧版本污染（含学号重复），导入流程理论上已经在 doImportMerge 里按
@@ -2895,7 +2895,7 @@ function setStudents(arr){
       dedup.push(arr[i]);
     }
     if(dedup.length !== arr.length){
-      console.warn('[中南大工作台] setStudents 兜底去重：' + arr.length + ' 行 → ' + dedup.length + ' 行');
+      console.warn('[ZUEL 辅导员工作台] setStudents 兜底去重：' + arr.length + ' 行 → ' + dedup.length + ' 行');
     }
     arr = dedup;
   }
@@ -3061,10 +3061,10 @@ function save(){
     // 开发期自检：S.students 必须与当前批次是同一个数组（漏用 setStudents 时立刻暴露）
     const b = activeBatch();
     if(b && b.students !== S.students){
-      console.warn('[中南大工作台] S.students 与当前批次脱钩，请检查是否漏用 setStudents()');
+      console.warn('[ZUEL 辅导员工作台] S.students 与当前批次脱钩，请检查是否漏用 setStudents()');
     }
     if(b && b.grades !== S.grades){
-      console.warn('[中南大工作台] S.grades 与当前批次脱钩，请检查是否漏用 setGrades()');
+      console.warn('[ZUEL 辅导员工作台] S.grades 与当前批次脱钩，请检查是否漏用 setGrades()');
     }
     lsSet(STORE_KEY, JSON.stringify(buildSavePayload()));
     mirrorToDisk();   // v1.5：桌面版同步固化到磁盘（防抖 700ms，不阻塞界面）
@@ -4651,7 +4651,7 @@ function renderSettings(){
   <div class="card"><div class="card-body">
     <div class="opt-t" style="margin-bottom:8px">ℹ️ 关于</div>
     <div class="about-box">
-      <div class="about-row"><span class="ak">软件</span><span class="av"><b>中南大工作台</b> · 本地单机运行，全程离线</span></div>
+      <div class="about-row"><span class="ak">软件</span><span class="av"><b>ZUEL 辅导员工作台</b> · 本地单机运行，全程离线</span></div>
       <div class="about-row"><span class="ak">存储</span><span class="av">${S.batches.length} 个批次 · 全部数据仅存于本机${solid ? '（含磁盘镜像固化）' : ''}</span></div>
       <div class="about-row"><span class="ak">作者</span><span class="av"><b>吴章凡</b> · 企业微信或邮件
         <a href="mailto:wuzhangfan110@163.com">wuzhangfan110@163.com</a></span></div>
@@ -5910,7 +5910,7 @@ function renderOnboarding(){
   if(wizStep === 0){
     body = `<div class="wiz-hero">
       <img class="brand-logo" alt="中南财经政法大学校徽">
-      <div class="wh-t">中南大工作台</div>
+      <div class="wh-t">ZUEL 辅导员工作台</div>
       <div class="wh-s">把系统里导出来的<b>学生信息</b>和<b>成绩单</b>放进来，<br>
         这里就会帮你把每个人的画像、成绩、宿舍、预警一次摊开看。</div>
     </div>
@@ -10034,7 +10034,7 @@ function handleFile(e){
                               awardAdded: awardAdded, awardUpdated: awardUpdated };
       }
     }catch(err){
-      console.error('[中南大工作台] 表格解析失败', err);
+      console.error('[ZUEL 辅导员工作台] 表格解析失败', err);
       openFileError(f.name, err);
     }
   };
@@ -10195,7 +10195,7 @@ function doImportOverwrite(target, clearedCount, prevSnapshot){
       exportBatchCsv(target, true);
       backupName = `学生数据_${safeName(target.name)}_${todayStr()}.csv`;
       recordBackup({ type:'csv-auto', fileName: backupName, batchName: target.name, batchId: target.id });   // v1.9.7：记入备份历史
-    }catch(e){ console.warn('[中南大工作台] 覆盖前备份失败', e); }
+    }catch(e){ console.warn('[ZUEL 辅导员工作台] 覆盖前备份失败', e); }
   }
   // ③ 备份备注（必须在清空之前取）
   const remarkMap = new Map();

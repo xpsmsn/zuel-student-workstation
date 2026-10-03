@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "中南大工作台主窗口权限：核心能力 + 外链打开 + 开机启动开关",
+  "description": "ZUEL 辅导员工作台主窗口权限：核心能力 + 外链打开 + 开机启动开关",
   "windows": ["main"],
   "permissions": [
     "core:default",

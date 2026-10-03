@@ -1,4 +1,4 @@
-//! 中南大工作台 · 桌面外壳
+//! ZUEL 辅导员工作台 · 桌面外壳
 //!
 //! 这一层只做「网页做不到」的几件事，业务逻辑全部留在前端那个单文件原型里：
 //!   1. 用系统默认浏览器打开外部链接（校内系统地址 / 邮件）；
@@ -451,7 +451,7 @@ pub fn run() {
 
             TrayIconBuilder::with_id("main-tray")
                 .icon(icon)
-                .tooltip("中南大工作台")
+                .tooltip("ZUEL 辅导员工作台")
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, ev| match ev.id.as_ref() {

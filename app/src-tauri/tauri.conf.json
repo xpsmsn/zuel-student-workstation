@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "中南大工作台",
+  "productName": "ZUEL 辅导员工作台",
   "version": "2.3.1",
   "identifier": "cn.edu.zuel.studentworkstation",
   "build": {
@@ -11,7 +11,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "中南大工作台",
+        "title": "ZUEL 辅导员工作台",
         "width": 1280,
         "height": 840,
         "minWidth": 760,
