@@ -3276,8 +3276,21 @@ function showNotice(title, html, okText){
 
 /* ---------- 撤销快照：删除前把整个批次表拍下来，30 秒内可一键还原 ---------- */
 let undoSnap = null, undoTimer = null;
+/* 评选区（v2.5.5）：奖学金页「清理评选数据」也要能撤销，
+   所以快照里一并拍下这 6 个字段 —— 原来只拍 batches，恢复不到评选数据。 */
+const AWARD_STATE_KEYS = ['awardRows','awardStatus','awardQuota','awardSplit','awardSplitCheck','awards'];
+function awardStateSnapshot(){
+  const o = {};
+  AWARD_STATE_KEYS.forEach(k=>{ o[k] = JSON.parse(JSON.stringify(S[k] == null ? null : S[k])); });
+  return o;
+}
+function awardStateRestore(d){
+  if(!d) return;
+  AWARD_STATE_KEYS.forEach(k=>{ S[k] = d[k]; });
+}
 function snapshotForUndo(label){
-  undoSnap = { data: JSON.stringify({ batches: S.batches, activeBatchId: S.activeBatchId }) };
+  undoSnap = { data: JSON.stringify({ batches: S.batches, activeBatchId: S.activeBatchId,
+                                      award: awardStateSnapshot() }) };
   clearTimeout(undoTimer);
   undoTimer = setTimeout(hideUndoBar, 30000);
   $('undoMsg').textContent = label + ' · 30 秒内可撤销';
@@ -3294,6 +3307,7 @@ function undoRestore(){
   hideUndoBar();
   if(!d || !Array.isArray(d.batches)){ toast('快照已失效，无法撤销'); return; }
   S.batches = d.batches;
+  awardStateRestore(d.award);       // v2.5.5：评选区一并还原
   selRows.clear();
   if(d.activeBatchId && S.batches.some(b=>b.id===d.activeBatchId)) attachBatch(d.activeBatchId);
   else if(S.batches.length) attachBatch(S.batches[0].id);
@@ -10678,6 +10692,37 @@ function awardClearStatus(){
     onOk(){ S.awardStatus = {}; save(); renderAward(); } });
 }
 
+/* v2.5.5 清空整个评选区。
+   评选数据是独立的（v2.1.3 起与学生档案隔离），所以这里**只碰评选区**：
+   学生档案（S.students）、成绩（S.grades）、批次、备注一律不动。
+   30 秒内可在底部撤销条一键还原（快照含评选区，见 snapshotForUndo）。 */
+function awardClearAll(){
+  const n = (S.awardRows || []).length;
+  const picks = Object.keys(S.awardStatus || {}).length;
+  const quotas = Object.keys(S.awardQuota || {}).length;
+  const splits = Object.keys(S.awardSplit || {}).length;
+  if(!n && !picks && !quotas && !splits && !(S.awards && Object.keys(S.awards).length)){
+    toast('评选区本来就是空的');
+    return;
+  }
+  askConfirm({
+    title:'清理奖学金评选数据', danger:true, okText:'确认清理',
+    html: `将清空<b>奖学金评选</b>的全部数据：<br><br>`
+        + `· 评选数据 <b>${n}</b> 条（知识水平评价 / B1~B5 / 总成绩 / 志愿顺序）<br>`
+        + `· 拟定结果 <b>${picks}</b> 人<br>`
+        + `· 奖项名额 <b>${quotas}</b> 项（含按专业细分 <b>${splits}</b> 项）<br>`
+        + `· 自定义奖项名称<br><br>`
+        + `<b>学生名册与成绩不受任何影响。</b><br>清理后 <b>30 秒内</b>可点下方「撤销」恢复。`,
+    onOk(){
+      snapshotForUndo('已清理评选数据');
+      AWARD_STATE_KEYS.forEach(k=>{ S[k] = (k === 'awardRows') ? [] : (k === 'awards' ? null : {}); });
+      save();
+      renderAward();
+      toast('已清理评选数据，学生名册与成绩未动');
+    }
+  });
+}
+
 function gotoAward(){ S.view='award'; renderSidebar(); renderMain(); closeSidebar(); }
 
 /* v2.2：不再有「推荐/候补/落选」这种状态标签。
@@ -11143,6 +11188,12 @@ function renderAward(){
       <button class="btn" onclick="openAwardSourceGuide()" title="这两份表从智慧学工的哪里导">数据从哪导</button>
       ${Object.keys(S.awardStatus||{}).length?`<button class="btn" onclick="awardClearStatus()">清空拟定</button>`:''}
       ${all.length?`<button class="btn" onclick="awardExportCsv()">导出 CSV</button>`:''}
+      <!-- v2.5.5：评选数据是独立的，给它一个自己的清理入口。
+           点开先看清会清掉什么（几条评选数据 / 拟了几个人 / 几个名额），
+           确认后 30 秒内可撤销。学生名册与成绩不动。 -->
+      ${(S.awardRows||[]).length || Object.keys(S.awardStatus||{}).length || Object.keys(S.awardQuota||{}).length
+        ? `<button class="btn" onclick="awardClearAll()"
+             title="只清空奖学金评选区的数据；学生名册、成绩、备注都不受影响">清理评选数据</button>` : ''}
     </div>
   </div>`;
 
