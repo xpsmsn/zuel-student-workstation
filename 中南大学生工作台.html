@@ -1909,6 +1909,50 @@ tbody tr:hover{background-image:none}
   font-size:13px; font-weight:600; line-height:1.4; color:var(--text-secondary);
 }
 
+/* ── 细分名额 × 主表格关联（v2.3.3）──────────────────────────
+   组头行：把「分配 N 名 / 已定 N 名 / 状态 / 核对」直接摆在表格里，
+   老师不用再点开细分弹窗就能对照。视觉仍遵循契约：
+   8px 栅格、卡片 12px 圆角、色彩只表达状态、无阴影。 */
+.aw-group-row td{
+  background:var(--bg-thead);
+  padding:var(--space-sm) var(--space-md);
+  border-bottom:1px solid var(--border);
+  font-size:13px; line-height:1.4; color:var(--text-secondary);
+  vertical-align:middle; white-space:nowrap;
+}
+.aw-group-name{text-align:left}
+.aw-gcheck{display:inline-flex;align-items:center;gap:var(--space-sm);cursor:pointer}
+.aw-gcheck b{font-size:15px; font-weight:600; line-height:1.5; color:var(--text-primary)}
+.aw-gcheck input{width:16px; height:16px; accent-color:var(--accent); cursor:pointer; flex:0 0 auto}
+.aw-group-num{text-align:right; font-variant-numeric:tabular-nums}
+.aw-group-num b{font-size:15px; font-weight:600; color:var(--text-primary)}
+.aw-group-state{text-align:left}
+.aw-state{
+  display:inline-block; padding:3px var(--space-sm); border-radius:var(--radius-btn);
+  font-size:13px; line-height:1.4; background:var(--bg-hover); color:var(--text-secondary);
+}
+.aw-state.ok{background:var(--success-bg); color:var(--success-text)}     /* 满额 */
+.aw-state.lack{background:var(--warn-bg); color:var(--warn-text)}        /* 还差 N */
+.aw-state.over{background:var(--danger-bg); color:var(--danger-text)}    /* 超额 */
+.aw-state.bad{background:var(--danger-bg); color:var(--danger-text)}     /* 已定但该专业没分到名额 */
+.aw-state.none{background:var(--bg-hover); color:var(--text-3)}         /* 未分名额（不算问题） */
+.aw-gdone{margin-left:var(--space-sm); font-size:13px; color:var(--success-text)}
+/* 已核对的专业：组头略微沉下去，与未核对的区分开 */
+.aw-group-row.checked td{background:var(--bg-hover)}
+.aw-group-row:hover td{background:var(--bg-hover)}
+
+/* 顶部核对进度与问题提醒 */
+.aw-gsum{
+  display:flex;align-items:center;gap:var(--space-md);flex-wrap:wrap;
+  padding:var(--space-sm) var(--space-md);margin-bottom:var(--space-sm);
+  border:1px solid var(--border);border-radius:var(--radius-card);
+  font-size:13px; line-height:1.4; color:var(--text-secondary);
+}
+.aw-gsum b{font-size:15px; font-weight:600; color:var(--text-primary); font-variant-numeric:tabular-nums}
+.aw-gsum-ok{color:var(--success-text)}
+.aw-gsum-bad{color:var(--danger-text)}
+.aw-gsum.has-bad{border-color:var(--danger-line)}
+
 .aw-prog{
   gap:var(--space-sm);
   padding:var(--space-sm) var(--space-md);         /* 6→8 / 12→16 */
@@ -2682,6 +2726,8 @@ function buildSavePayload(){
     awardQuota: S.awardQuota && typeof S.awardQuota === 'object' ? S.awardQuota : {},
     /* v2.3.2：按专业细分的名额 {奖项: {专业: 名额}} —— 老师最终填的值为准 */
     awardSplit: S.awardSplit && typeof S.awardSplit === 'object' ? S.awardSplit : {},
+    /* v2.3.3：已核对的专业细分 {奖项|专业: 时间戳} */
+    awardSplitCheck: S.awardSplitCheck && typeof S.awardSplitCheck === 'object' ? S.awardSplitCheck : {},
     /* v2.1.1：奖学金评选数据 —— 独立于批次（一年一次的重活，不混进日常名册） */
     awards: S.awards && typeof S.awards === 'object' ? S.awards : null
   };
@@ -2761,6 +2807,7 @@ function load(){
       S.awardRows = Array.isArray(d.awardRows) ? d.awardRows : [];   // v2.1.3
       S.awardQuota = (d.awardQuota && typeof d.awardQuota === 'object') ? d.awardQuota : {};   // v2.1.4
       S.awardSplit = (d.awardSplit && typeof d.awardSplit === 'object') ? d.awardSplit : {};   // v2.3.2
+      S.awardSplitCheck = (d.awardSplitCheck && typeof d.awardSplitCheck === 'object') ? d.awardSplitCheck : {};   // v2.3.3
       // 向后兼容：老数据没有 theme 字段时回落明亮
       S.theme = (d.theme==='dark' || d.theme==='eye') ? d.theme : 'light';
       // 每间宿舍床位数（用于算空位）；老数据没有它 → 默认 4 人间
@@ -9888,6 +9935,31 @@ function openAwardSourceGuide(){
     + '</div></div>';
 }
 
+/* 表体渲染（v2.3.3 重构：从 rows.map 抽出来，便于插入分组行）
+   —— 分组只在「正在看某个奖项 + 该奖做过专业细分」时启用。 */
+function awardBodyRow(r){
+  return '<tr class="' + (_awSel.has(r.sid) ? 'aw-picked ' : '') + (r.award ? 'aw-done' : '') + '">'
+    + '<td><input type="checkbox" ' + (_awSel.has(r.sid) ? 'checked' : '')
+    + ' onchange="awardToggleSel(\'' + esc(r.sid) + '\',this.checked)"></td>'
+    + '<td class="aw-name">' + esc(r.name) + '</td>'
+    + '<td class="aw-sid">' + esc(r.sid) + '</td>'
+    + '<td>' + esc(r.major) + '</td>'
+    + '<td class="aw-num">' + (r.总成绩 === '' ? '<span class="aw-none">—</span>' : esc(String(r.总成绩))) + '</td>'
+    + '<td class="aw-num">' + (r.智力 === '' ? '<span class="aw-none">—</span>' : esc(String(r.智力))) + '</td>'
+    + bCells(r)
+    + '<td class="aw-status">' + statusCell(r) + '</td>'
+    + '<td class="aw-wish">' + wishTags(r) + '</td>'
+    + '</tr>';
+}
+function awardBodyRows(rows){
+  /* 该奖有专业细分 → 按专业分组，每组前插一个组头（分配/已定/状态/核对） */
+  if(_awFilter && _awFilter !== '__picked' && awardSplitActive(_awFilter)){
+    const groups = awardGroupByMajor(_awFilter, rows);
+    return groups.map(function(g){ return awardGroupRow(_awFilter, g) + g.rows.map(awardBodyRow).join(''); }).join('');
+  }
+  return rows.map(awardBodyRow).join('');
+}
+
 function openAwardSplit(key){
   const stats = awardMajorStats();
   const total = awardQuota(key);
@@ -9995,6 +10067,92 @@ function saveAwardSplit(key){
   setAwardSplit(key, Object.keys(obj).length ? obj : null);
   closeModal();
   toast(Object.keys(obj).length ? '已保存「' + key + '」的专业分额' : '已清空「' + key + '」的专业分额');
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   细分名额 × 主表格的关联（v2.3.3）
+   ──────────────────────────────────────────────────────────────────
+   为什么要做：细分填完之后，那些数字藏在弹窗里。老师要判断
+   「这个专业分几个、定了几个」得关掉弹窗、重新点开 —— 评审时反复切换很难受。
+   现在细分数直接出现在表格里，而且能逐专业核对。
+
+   什么情况下分组：
+     · 正在看**某一个奖项**（筛选到具体奖项）
+     · 且这个奖项**已经做过专业细分**
+   否则不分组（「全部」「已拟定」是跨奖项视图，分组没有意义）。
+   ══════════════════════════════════════════════════════════════════ */
+
+/** 某专业在这个奖下的三个数：分配、已定、候选 */
+function awardMajorStat(key, major, rows){
+  const split = awardSplitOf(key) || {};
+  const inMajor = rows.filter(function(r){ return (r.major || '未填专业') === major; });
+  return {
+    专业: major,
+    分配: Number(split[major]) || 0,
+    已定: inMajor.filter(function(r){ return awardOf(r.sid) === key; }).length,
+    候选: inMajor.length,
+  };
+}
+/** 有没有该奖的细分数据（没有就不分组） */
+function awardSplitActive(key){
+  const sp = awardSplitOf(key);
+  return !!(sp && Object.keys(sp).length);
+}
+/** 按专业分组：顺序 = 老师填细分的顺序，其余专业按人数从多到少 */
+function awardGroupByMajor(key, rows){
+  const split = awardSplitOf(key) || {};
+  const stat = awardMajorStats();
+  const order = [];
+  Object.keys(split).forEach(function(m){ order.push(m); });     // 先按细分里填的顺序
+  stat.forEach(function(m){ if(order.indexOf(m.专业) < 0) order.push(m.专业); });
+  const groups = [];
+  order.forEach(function(major){
+    const rowsOf = rows.filter(function(r){ return (r.major || '未填专业') === major; });
+    if(!rowsOf.length) return;                       // 没候选人的专业不占位置
+    groups.push(Object.assign(awardMajorStat(key, major, rows), { rows: rowsOf }));
+  });
+  return groups;
+}
+/** 这个专业有没有需要提醒的问题 */
+function awardGroupWarn(g){
+  if(g.已定 > g.分配) return { 级:'over', 文:'超额 ' + (g.已定 - g.分配) + ' 名' };
+  if(g.分配 === 0 && g.已定 > 0) return { 级:'bad', 文:'该专业没分到名额' };
+  /* ⚠️ 「分配 0 / 已定 0」不是「满额」—— 那是「没名额、也还没人定」，
+     说成满额会让人以为这个专业已经处理好了。 */
+  if(g.分配 === 0) return { 级:'none', 文:'未分名额' };
+  if(g.已定 < g.分配) return { 级:'lack', 文:'还差 ' + (g.分配 - g.已定) + ' 名' };
+  return { 级:'ok', 文:'满额' };
+}
+/* 已核对：{ 奖项 + '|' + 专业 : 时间戳 } */
+function awardChecked(key, major){ return !!(S.awardSplitCheck || {})[key + '|' + major]; }
+function toggleAwardChecked(key, major, on){
+  S.awardSplitCheck = S.awardSplitCheck || {};
+  const k = key + '|' + major;
+  if(on) S.awardSplitCheck[k] = new Date().toISOString();
+  else delete S.awardSplitCheck[k];
+  save(); renderAward();
+}
+function awardCheckedStat(key, groups){
+  const n = groups.filter(function(g){ return awardChecked(key, g.专业); }).length;
+  return { 已核对:n, 共:groups.length };
+}
+/** 组头的一整行 HTML */
+function awardGroupRow(key, g, i){
+  const w = awardGroupWarn(g);
+  const done = awardChecked(key, g.专业);
+  return '<tr class="aw-group-row ' + w.级 + (done ? ' checked' : '') + '">'
+    + '<td colspan="3" class="aw-group-name">'
+      + '<label class="aw-gcheck"><input type="checkbox" ' + (done ? 'checked' : '')
+      + ' onchange="toggleAwardChecked(\'' + esc(key) + '\',\'' + esc(g.专业) + '\',this.checked)">'
+      + '<b>' + esc(g.专业) + '</b></label>'
+    + '</td>'
+    + '<td class="aw-group-num">分配 <b>' + g.分配 + '</b> 名</td>'
+    + '<td class="aw-group-num">已定 <b>' + g.已定 + '</b> 名</td>'
+    + '<td colspan="7" class="aw-group-state"><span class="aw-state ' + w.级 + '">'
+      + (w.级 === 'over' ? '⚠ ' : '') + esc(w.文) + '</span>'
+      + (done ? '<span class="aw-gdone">已核对</span>' : '')
+    + '</td></tr>';
 }
 
 /* ── 页面 ── */
@@ -10122,7 +10280,26 @@ function renderAward(){
   if(progSingle) h += '<div class="aw-progress"><div class="aw-prog-row">'
     + '<div class="aw-prog-t">单项奖 · 可兼得</div>' + progSingle + '</div></div>';
 
-  // 批量操作条：勾选后出现
+  /* 批量操作条：勾选后出现
+     分组核对提示：正在看某个奖 + 有细分时，在批量条上方显示核对进度与问题 */
+  if(_awFilter && _awFilter !== '__picked' && awardSplitActive(_awFilter)){
+    const _gs = awardGroupByMajor(_awFilter, rows);
+    const _ck = awardCheckedStat(_awFilter, _gs);
+    /* 「超额」和「已定但没分到名额」是真问题（级 bad/over）；
+       「未分名额 / 还差N」只是还没做完，不算问题 */
+    const _bad = _gs.filter(function(g){ const w = awardGroupWarn(g); return w.级 === 'over' || w.级 === 'bad'; });
+    if(_gs.length){
+      h += '<div class="aw-gsum' + (_bad.length ? ' has-bad' : '') + '">'
+        + '<span>专业名额：已核对 <b>' + _ck.已核对 + '</b>/' + _ck.共 + ' 个专业</span>'
+        + (_bad.length
+            ? '<span class="aw-gsum-bad">⚠ ' + _bad.length + ' 个专业有问题：'
+              + _bad.map(function(g){ return g.专业 + '（' + awardGroupWarn(g).文 + '）'; }).join('、')
+              + '</span>'
+            : '<span class="aw-gsum-ok">' + (_ck.已核对 === _ck.共 ? '✓ 本奖名额已核对完' : '逐个专业核对后打勾') + '</span>')
+        + '</div>';
+    }
+  }
+
   if(_awSel.size){
     /* 拟定到「当前正在看的那个奖」—— 选人 → 点一下完事，不用逐行打标签。
        正在看「全部」时不显示这个按钮：先选奖项，再选人。 */
@@ -10159,17 +10336,7 @@ function renderAward(){
         <th class="aw-status" style="text-align:center">拟定</th>
         ${th('志愿','志愿')}
       </tr></thead>
-      <tbody>${rows.map(r=>`<tr class="${_awSel.has(r.sid)?'aw-picked ':''}${r.award?'aw-done':''}">
-        <td><input type="checkbox" ${_awSel.has(r.sid)?'checked':''} onclick="awardToggleSel('${esc(r.sid)}',this.checked)"></td>
-        <td class="aw-name">${esc(r.name)}</td>
-        <td class="aw-sid">${esc(r.sid)}</td>
-        <td>${esc(r.major)}</td>
-        <td class="aw-num">${r.总成绩===''?'<span class="aw-none">—</span>':esc(String(r.总成绩))}</td>
-        <td class="aw-num">${r.智力===''?'<span class="aw-none">—</span>':esc(String(r.智力))}</td>
-        ${bCells(r)}
-        <td class="aw-status">${statusCell(r)}</td>
-        <td class="aw-wish">${wishTags(r)}</td>
-      </tr>`).join('')}</tbody>
+      <tbody>${awardBodyRows(rows)}</tbody>
     </table>
     </div>
   </div></div>`;
