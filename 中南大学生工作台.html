@@ -5817,9 +5817,15 @@ function lockEl(){
 
 function toggleLock(){ _locked ? unlockScreen() : lockScreen(); }
 
-function lockScreen(){
+/* 锁屏有两个状态：'lock'（正常锁定）与 'setpw'（正在设密码）。
+   设密码是锁屏流程的一部分，所以做成「页面自己切换状态」，
+   而不是盖一层弹窗 —— 弹窗会被锁屏遮罩（z-index 9999）压住。 */
+let _lockView = 'lock';
+function lockScreen(view){
   _locked = true;
+  _lockView = view === 'setpw' ? 'setpw' : 'lock';
   const el = lockEl();
+  if(_lockView === 'setpw'){ renderSetPw(el); return; }
   const needPw = !!lockPwHash();
   el.innerHTML =
     '<div class="lock-inner">'
@@ -5836,8 +5842,8 @@ function lockScreen(){
         : '<button class="btn pri" onclick="unlockScreen()">点一下解锁</button>')
     + '<div class="lock-foot">'
       + (needPw
-          ? '<button class="lock-mini" onclick="toggleLockPw()">关闭密码</button>'
-          : '<button class="lock-mini" onclick="openLockPwSet()">设置锁屏密码</button>')
+          ? '<button class="lock-mini" onclick="lockScreen(\'setpw\')">修改密码</button>'
+          : '<button class="lock-mini" onclick="lockScreen(\'setpw\')">设置锁屏密码</button>')
     + '</div>';
   el.classList.add('on');
   document.body.classList.add('locked');
@@ -5863,6 +5869,73 @@ function unlockScreen(){
   lockSet('0');
   document.body.classList.remove('locked');
   if(el){ el.classList.remove('on'); el.innerHTML = ''; }
+}
+
+/** 锁屏「设置密码」视图（与锁定态在同一遮罩内，不会被遮住） */
+function renderSetPw(el){
+  const hasOld = !!lockPwHash();
+  el.innerHTML =
+    '<div class="lock-inner">'
+    + '<div class="lock-title">设置锁屏密码</div>'
+    + '<div class="lock-sub">设了之后，点锁屏需要输入密码才能解锁</div>'
+    + (hasOld
+        ? '<div class="field" style="width:240px;margin-top:16px;text-align:left">'
+          + '<label>当前密码</label>'
+          + '<input class="input" type="password" id="lockOld" placeholder="先输现在用的密码"></div>' : '')
+    + '<div class="field" style="width:240px;margin-top:16px;text-align:left">'
+      + '<label>新密码（至少 4 位）</label>'
+      + '<input class="input" type="password" id="lockNew" placeholder="至少 4 位"></div>'
+    + '<div class="field" style="width:240px;margin-top:16px;text-align:left">'
+      + '<label>再输一次</label>'
+      + '<input class="input" type="password" id="lockNew2" placeholder="再输一次"></div>'
+    + '<div class="lock-err" id="setPwErr" style="width:240px;text-align:left"></div>'
+    + '<div style="display:flex;gap:8px;margin-top:8px">'
+      + '<button class="btn" onclick="lockScreen(\'lock\')">取消</button>'
+      + '<button class="btn pri" onclick="saveLockPwInline()">' + (hasOld ? '改密码' : '保存') + '</button>'
+    + '</div>'
+    + (hasOld ? '<div class="lock-foot"><button class="lock-mini" onclick="removeLockPw()">关闭锁屏密码</button></div>' : '')
+    + '</div>';
+  el.classList.add('on');
+  document.body.classList.add('locked');
+  const f = document.getElementById(hasOld ? 'lockOld' : 'lockNew');
+  if(f) setTimeout(()=>f.focus(), 60);
+}
+function setPwErr(msg){
+  const e = document.getElementById('setPwErr');
+  if(e) e.textContent = msg || '';
+}
+/** 保存新密码：原密码不符 / 长度不足 / 两次不一致都有明确提示 */
+function saveLockPwInline(){
+  const hasOld = !!lockPwHash();
+  if(hasOld){
+    const o = (document.getElementById('lockOld') || {}).value || '';
+    if(hash32(o) !== lockPwHash()) return setPwErr('当前密码不对');
+  }
+  const a = (document.getElementById('lockNew') || {}).value || '';
+  const b = (document.getElementById('lockNew2') || {}).value || '';
+  if(a.length < 4) return setPwErr('新密码至少 4 位');
+  if(a !== b) return setPwErr('两次输入不一致');
+  S.lockPw = hash32(a);
+  save();
+  /* ⚠️ 设完密码后要解锁，不能走 unlockScreen() ——
+     它会先校验「锁屏密码」，而此刻用户还没输过，会被自己挡住。
+     这里直接清状态（等同于「校验通过」）。 */
+  _locked = false;
+  lockSet('0');
+  document.body.classList.remove('locked');
+  const el = document.getElementById('lockScreen');
+  if(el){ el.classList.remove('on'); el.innerHTML = ''; }
+  _lockView = 'lock';
+  toast(hasOld ? '锁屏密码已修改' : '锁屏密码已设置');
+}
+/** 关闭锁屏密码（在锁屏界面里直接操作，不用先解锁） */
+function removeLockPw(){
+  if(!lockPwHash()) return;
+  S.lockPw = null;
+  save();
+  /* 密码已清空，unlockScreen() 不会再校验 —— 可以直接调 */
+  unlockScreen();
+  toast('已关闭锁屏密码，点一下就能解锁');
 }
 
 /** 锁屏密码（存哈希，和当初登录用同一套；不设密码时返回 null） */
