@@ -526,6 +526,7 @@ tr.aw-out td{color:var(--text-3)}
 .step.done .step-n{background:var(--ok);color:var(--on-brand)}
 .step.done{color:var(--ok)}
 .step-line{flex:1;height:1.5px;background:var(--line);margin:0 10px;min-width:16px}
+.drop.drag{border-color:var(--brand);background:var(--brand-soft)}
 .drop{border:2px dashed var(--line);border-radius:12px;padding:40px 24px;text-align:center;
   transition:.18s;cursor:pointer;background:var(--subtle)}
 .drop:hover{border-color:var(--brand);background:var(--brand-soft)}
@@ -7562,12 +7563,15 @@ function renderImport(){
         <div class="step"><div class="step-n">2</div>确认导入</div><div class="step-line"></div>
         <div class="step"><div class="step-n">3</div>完成</div>
       </div>
-      <div class="drop" onclick="document.getElementById('fileInput').click()">
+      <div class="drop" onclick="document.getElementById('fileInput').click()"
+           ondragover="event.preventDefault();this.classList.add('drag')"
+           ondragleave="this.classList.remove('drag')"
+           ondrop="dropFileTo('student', event)">
         <div class="drop-ico">📄</div>
-        <div class="drop-t">点击选择 Excel 文件</div>
-        <div class="drop-s">支持 .xlsx / .xls（含 Excel 97-2003 旧格式）· <b>迎新系统、新系统导出的原始表都可以直接导入，无需任何预处理</b></div>
+        <div class="drop-t">把表拖到这里，或点这里选文件</div>
+        <div class="drop-s">支持 .xlsx / .xls / .csv（含 Excel 97-2003 旧格式）· <b>迎新系统、新系统导出的原始表都可以直接导入，无需任何预处理</b>· 点「打开」没反应就把文件拖进来</div>
       </div>
-      <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none" onchange="handleFile(event)">
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFile(event)">
 
       <div class="modelabel">导入方式</div>
       <div class="modes">
@@ -8330,10 +8334,13 @@ function gradePickHtml(cur, has){
       · 按学号合并：本次表里没出现的学号，其原有成绩<b>保留不动</b>
       ${has?`<br>· 当前已有 <b>${S.grades.length}</b> 条成绩，重复导入同一个人会更新为本次的值`:''}
     </div>
-    <div class="drop" onclick="document.getElementById('gradeFileInput').click()">
+    <div class="drop" onclick="document.getElementById('gradeFileInput').click()"
+         ondragover="event.preventDefault();this.classList.add('drag')"
+         ondragleave="this.classList.remove('drag')"
+         ondrop="dropFileTo('grades', event)">
       <div class="drop-ico">📄</div>
-      <div class="drop-t">点击选择成绩表（.xlsx / .xls）</div>
-      <div class="drop-s">需包含「学号」及成绩指标列：加权平均成绩、平均学分绩点、排名 等</div>
+      <div class="drop-t">把成绩表拖到这里，或点这里选文件</div>
+      <div class="drop-s">需包含「学号」及成绩指标列：加权平均成绩、平均学分绩点、排名 等 · 点「打开」没反应就把文件拖进来</div>
     </div>
     <input type="file" id="gradeFileInput" accept=".xlsx,.xls" style="display:none" onchange="handleGradeFile(event)">
   `;
@@ -8468,6 +8475,26 @@ function unscientific(v){
   return sign+bare;
 }
 
+/* v2.1.1：通用文件拖拽。系统文件对话框（WebView2）偶发「打开点不动」，
+   拖拽完全绕开它。三个导入口（学生/成绩/评选）共用这一个分发器。 */
+function dropFileTo(kind, e){
+  e.preventDefault();
+  const dz = e.currentTarget;
+  if(dz && dz.classList) dz.classList.remove('drag');
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if(!f) return;
+  if(kind==='student'){ importState.fileName=f.name; startImportRead(f, handleFile); }
+  else if(kind==='grades'){ startImportRead(f, handleGradeFile); }
+  else if(kind==='award'){ readAwardFile(f); }
+}
+/* 把 File 对象塞进一个伪 input.change 事件，复用既有的 handleXxx —— 不复制读文件逻辑 */
+function startImportRead(f, handler){
+  try{
+    const fakeInput = { files:[f], value:'' };
+    handler({ target: fakeInput });
+  }catch(err){ toast('这个文件读不了：' + err.message); }
+}
+
 function gotoAward(){ S.view='award'; renderSidebar(); renderMain(); closeSidebar(); }
 
 /* ── 评选表的列（rows 里所有出现过的原始列，稳定排序） ── */
@@ -8592,9 +8619,13 @@ function openAwardImport(){
       <div class="modal-head"><div class="modal-title">导入评选表</div>
         <div class="modal-close" onclick="closeModal()">×</div></div>
       <div class="modal-body" id="awBody">
-        <div class="drop" onclick="document.getElementById('awFile').click()">
-          <div class="drop-t">选择综合测评 / 量化排名表（.xlsx / .csv）</div>
-          <div class="drop-s">有学号或姓名就能对上人；新列会原样保留，已有的按人更新</div>
+        <div class="drop" id="awDrop" onclick="document.getElementById('awFile').click()"
+             ondragover="event.preventDefault();this.classList.add('drag')"
+             ondragleave="this.classList.remove('drag')"
+             ondrop="awardDropFile(event)">
+          <div class="drop-t">把评选表拖到这里，或点这里选文件</div>
+          <div class="drop-s">.xlsx / .xls / .csv · 有学号或姓名就能对上人；新列原样保留，已有的按人更新<br>
+            <b>点「选文件」如果弹出的窗口点不动，直接把文件拖进这个虚线框就行</b></div>
         </div>
         <input type="file" id="awFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleAwardFile(event)">
       </div>
@@ -8604,19 +8635,46 @@ function openAwardImport(){
 }
 function handleAwardFile(e){
   const f = e.target.files[0];
-  if(!f) return;
-  if(typeof XLSX==='undefined'){ toast('缺少表格解析库'); return; }
+  if(f) readAwardFile(f);
+}
+/* 拖拽入口：绕过系统文件对话框（WebView2 的对话框偶发点不动） */
+function awardDropFile(e){
+  e.preventDefault();
+  const dz = document.getElementById('awDrop');
+  if(dz) dz.classList.remove('drag');
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if(f) readAwardFile(f);
+}
+function awardFail(msg){
+  /* 出错必须让人在弹窗里看见 —— toast 会消失，弹窗里的字不会 */
+  const body = document.getElementById('awBody');
+  if(body) body.insertAdjacentHTML('beforeend',
+    `<div class="hint" style="border-color:var(--danger-line);background:var(--danger-soft);margin-top:10px">
+      <b>这个文件读不了</b><br>${esc(msg)}</div>`);
+}
+function readAwardFile(f){
+  if(!/\.(xlsx|xls|csv)$/i.test(f.name)){ awardFail('只认 .xlsx / .xls / .csv，收到的是「'+f.name+'」'); return; }
+  if(typeof XLSX==='undefined'){ awardFail('缺少表格解析库（正常情况不会出现，请重启软件）'); return; }
   const rd = new FileReader();
+  rd.onerror = () => awardFail('文件读取失败（文件可能正被 Excel 占用，先关掉它再试）');
   rd.onload = ev => {
     let arr;
     try{
       const wb = XLSX.read(new Uint8Array(ev.target.result), {type:'array', cellDates:false});
       const ws = wb.Sheets[wb.SheetNames[0]];
       arr = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:false});
-    }catch(err){ toast('读不了这个文件：请确认是系统导出的 Excel'); return; }
-    if(!arr || !arr.length){ toast('表格为空'); return; }
-    _awardImp = { fileName: f.name, arr };
-    awardPreview();
+    }catch(err){
+      awardFail('不是有效的表格文件。常见原因：① 从网页另存的假 Excel ② 加密工作簿 ③ 文件损坏。'
+        + '（技术信息：' + err.message + '）');
+      return;
+    }
+    if(!arr || !arr.length){ awardFail('表格里没有数据'); return; }
+    try{
+      _awardImp = { fileName: f.name, arr };
+      awardPreview();
+    }catch(err){
+      awardFail('表格能打开，但内容识别失败：' + err.message);
+    }
   };
   rd.readAsArrayBuffer(f);
 }
