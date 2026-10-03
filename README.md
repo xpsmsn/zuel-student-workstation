@@ -16,10 +16,10 @@
 
 | 附件（下载得到的名字） | 改名成 | 适合谁 |
 |---|---|---|
-| `zuel-workstation-v2.2.0-setup.exe` | `中南大学生工作台-v2.2.0-安装程序.exe` | **多数人选这个**：双击按向导装，装完桌面/开始菜单可启动，不需要管理员权限 |
-| `zuel-workstation-v2.2.0-portable.exe` | `中南大学生工作台-v2.2.0-绿色版.exe` | 免安装：复制到任意文件夹双击即可 |
-| `zuel-workstation-v2.2.0-x64.msi` | `中南大学生工作台-v2.2.0-单位部署.msi` | 学校信息办统一推送，通常需要管理员权限 |
-| `zuel-workstation-v2.2.0-macOS-universal.dmg` | `中南大学生工作台-v2.2.0-macOS.dmg` | **Mac**：把程序拖进「应用程序」。Intel 与 Apple 芯片（M 系列）通用 |
+| `zuel-workstation-v2.3.0-setup.exe` | `中南大学生工作台-v2.3.0-安装程序.exe` | **多数人选这个**：双击按向导装，装完桌面/开始菜单可启动，不需要管理员权限 |
+| `zuel-workstation-v2.3.0-portable.exe` | `中南大学生工作台-v2.3.0-绿色版.exe` | 免安装：复制到任意文件夹双击即可 |
+| `zuel-workstation-v2.3.0-x64.msi` | `中南大学生工作台-v2.3.0-单位部署.msi` | 学校信息办统一推送，通常需要管理员权限 |
+| `zuel-workstation-v2.3.0-macOS-universal.dmg` | `中南大学生工作台-v2.3.0-macOS.dmg` | **Mac**：把程序拖进「应用程序」。Intel 与 Apple 芯片（M 系列）通用 |
 | `install-notes.txt` | `安装说明.txt` | 打印版说明 |
 
 **运行环境**：Windows 10 / 11（64 位）；macOS 用 .dmg。程序自带界面运行环境，无需另外安装。
