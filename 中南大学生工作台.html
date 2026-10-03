@@ -487,6 +487,88 @@ html[data-theme="dark"] img.brand-logo{filter:brightness(1.5) saturate(1.05)}
   font-size:12.5px;color:var(--brand-deep);line-height:1.65}
 .login-err{color:var(--danger);font-size:12.5px;margin-top:9px;min-height:17px}
 
+/* ── 奖学金评选（v2.1.2）───────────────────────────────
+   遵循视觉契约：8px 栅格、圆角 6/12、色彩只表达状态、hover 只变背景。 */
+.award-filter{
+  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-card);
+  padding:var(--space-md);margin-bottom:var(--space-md);
+}
+.aw-filter-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.aw-filter-row+.aw-filter-row{margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+.aw-filter-t{
+  font-size:13px;font-weight:600;color:var(--text-2);
+  min-width:104px;flex:0 0 auto;
+}
+/* 筛选按钮：浅底 + 深字（契约⑦），选中才用主色 */
+.aw-chip{
+  display:inline-flex;align-items:center;gap:6px;
+  height:32px;padding:0 12px;border:1px solid var(--border);border-radius:6px;
+  background:var(--bg-card);color:var(--text-2);
+  font-size:13px;font-family:inherit;cursor:pointer;transition:background .12s,border-color .12s;
+}
+.aw-chip:hover:not(:disabled){background:var(--bg-hover);border-color:var(--accent)}
+.aw-chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.aw-chip:disabled{opacity:.4;cursor:not-allowed}
+.aw-chip-n{
+  font-size:12px;padding:0 5px;border-radius:20px;
+  background:var(--bg-hover);color:var(--text-2);font-variant-numeric:tabular-nums;
+}
+.aw-chip.on .aw-chip-n{background:rgba(255,255,255,.22);color:#fff}
+
+.aw-summary{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  font-size:13px;color:var(--text-2);margin-bottom:8px;
+}
+.aw-summary b{font-size:15px;font-weight:600;color:var(--text-primary);font-variant-numeric:tabular-nums}
+.aw-summary-s{margin-left:auto;color:var(--text-3);font-size:13px}
+
+/* 批量操作条：只在勾选后出现，位置紧贴表格 */
+.aw-bulk{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:8px 16px;margin-bottom:8px;
+  background:var(--accent-soft);border:1px solid var(--border);border-radius:8px;
+  font-size:13px;color:var(--text-primary);
+}
+.aw-bulk-t{color:var(--text-2)}
+.aw-bulk .btn{height:28px;padding:0 12px;font-size:13px}
+
+.award-table th.aw-num-h{text-align:right}
+.award-table td.aw-sid{color:var(--text-2);font-variant-numeric:tabular-nums}
+/* 列宽收紧：12 列全挤在一屏，姓名/学号/专业都是短文本，不该占宽。
+   「拟定」和「志愿」是评审时最常看的两列，必须留在首屏内。 */
+.award-table{table-layout:fixed;min-width:0}
+.award-table th:nth-child(2),.award-table td:nth-child(2){width:88px}          /* 姓名 */
+.award-table th:nth-child(3),.award-table td:nth-child(3){width:104px}         /* 学号 */
+.award-table th:nth-child(4),.award-table td:nth-child(4){width:96px}          /* 专业 */
+.award-table th:nth-child(5),.award-table td:nth-child(5){width:82px}          /* 智力 */
+.award-table th.aw-num-h{width:62px}                                           /* B1~B5 */
+.award-table td.aw-num{font-size:13px;padding:8px}                              /* B 值窄一点 */
+.award-table th.aw-status{width:88px}
+.award-table .aw-wish{max-width:none;width:auto;min-width:0}
+.award-table td.aw-name{font-weight:600}
+/* B1~B5 有分才显示数字，0 分淡出 —— 一眼看出「加分项」 */
+.aw-b{font-variant-numeric:tabular-nums}
+.award-table td.aw-num:empty{background:transparent}
+.aw-none{color:var(--dim);font-size:12px}
+tr.aw-picked td{background:var(--accent-soft)}
+tr.aw-picked:hover td{background:var(--accent-soft)}
+
+/* 志愿标签：带序号；单项奖学金用中性底，不兼得的用主色浅底 */
+.aw-wish{white-space:normal;min-width:220px;line-height:1.9}
+.aw-tag{
+  display:inline-block;margin:1px 4px 1px 0;padding:2px 8px;
+  border-radius:6px;font-size:12px;line-height:1.5;
+  background:var(--accent-soft);color:var(--brand-deep);
+}
+.aw-tag.single{background:var(--bg-hover);color:var(--text-2)}
+.aw-status{width:96px}
+.aw-select{
+  height:32px;width:88px;padding:0 8px;
+  border:1px solid var(--line);border-radius:6px;
+  background:var(--panel);color:var(--text);font-size:13px;font-family:inherit;
+}
+.aw-select:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--ring)}
+
 /* 视觉契约⑤：全表格数字等宽（一处生效，所有表都吃到） */
 table{font-variant-numeric:tabular-nums}
 
@@ -1599,7 +1681,7 @@ tbody tr:hover{background-image:none}
            stroke-width="2.2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
     </button>
     <div class="logo"><img class="logo-mark brand-logo" alt="中南财经政法大学校徽"><span class="logo-text">中南大学生工作台</span></div>
-    <div class="week-chip" id="weekChip" onclick="gotoSettings()" title="当前学期与周次 · 点击进入系统设置维护"></div>
+    <div class="week-chip" id="weekChip" onclick="openWeekCalibrate()" title="点击校准：把今天定为第 N 周，之后自动接着往后数"></div>
     <div class="topbar-spacer"></div>
     <div class="quote-bar" id="quoteBar" title="点击换一句">
       <span class="quote-text" id="quoteText"></span>
@@ -2193,6 +2275,8 @@ function buildSavePayload(){
     profile: S.profile && typeof S.profile === 'object' ? S.profile : { name:'',dept:'',phone:'',avatar:'' },
     sideFold: S.sideFold && typeof S.sideFold === 'object' ? S.sideFold : {},
     sideCollapsed: !!S.sideCollapsed,
+    /* v2.1.2：拟定结果 {学号: 推荐/候补/落选} —— 评选数据本身在学生档案里，这里只存「定了什么」 */
+    awardStatus: S.awardStatus && typeof S.awardStatus === 'object' ? S.awardStatus : {},
     /* v2.1.1：奖学金评选数据 —— 独立于批次（一年一次的重活，不混进日常名册） */
     awards: S.awards && typeof S.awards === 'object' ? S.awards : null
   };
@@ -2268,6 +2352,7 @@ function load(){
         ? d.activeBatchId : (S.batches[0] ? S.batches[0].id : null);
       S.savedFilters = Array.isArray(d.savedFilters) ? d.savedFilters : [];
       S.awards = (d.awards && typeof d.awards === 'object') ? d.awards : null;   // v2.1.1
+      S.awardStatus = (d.awardStatus && typeof d.awardStatus === 'object') ? d.awardStatus : {};   // v2.1.2
       // 向后兼容：老数据没有 theme 字段时回落明亮
       S.theme = (d.theme==='dark' || d.theme==='eye') ? d.theme : 'light';
       // 每间宿舍床位数（用于算空位）；老数据没有它 → 默认 4 人间
@@ -3336,6 +3421,109 @@ function semesterWeek(now){
   const weeks = Number(sem.weeks) || 18;
   return { raw, weeks };
 }
+/* ══════════════════════════════════════════════════════════════════
+   周次校准（v2.1.2）
+   ──────────────────────────────────────────────────────────────────
+   辅导员 2026-10-03 的原话：
+     「现在的周数与学校实际的周数会有不匹配的情况，主要体现在今天 10 月 3 日，
+       在校历上显示是第 4 周，当我们的软件中显示是第 6 周」
+
+   为什么会有偏差：开学日期是「按 9 月 1 日开学」之类的估计值，而学校实际
+   可能是 9 月 8 日开学 —— 差一周，后面就一直差一周。
+
+   做法：**不另存一个「今天第几周」**，而是反推开学日。
+   把今天定成第 N 周  ⇔  开学日 = 今天 - (N-1) 周
+   这样改完之后，后续每一天仍然按同一套公式往后数，
+   不会出现「校准一次，过两天又对不上」。
+   ══════════════════════════════════════════════════════════════════ */
+function openWeekCalibrate(init){
+  const sem = S.semester || (S.semester = { name:'', start:'', weeks:18 });
+  const w = semesterWeek();
+  const cur = w ? w.raw : 1;
+  const inTerm = w && cur >= 1 && cur <= w.weeks;
+  /* 要显示的周数：外部指定（如 openWeekCalibrate(4)）优先，否则用当前算出的 */
+  const shown = init || (inTerm ? cur : 1);
+  _calibWeek = shown;
+  _calibDateTouched = false;          // 用户是否手动改过开学日期
+  $('modalRoot').innerHTML = `
+  <div class="mask" onclick="if(event.target===this)closeModal()">
+    <div class="modal" style="max-width:420px" onclick="event.stopPropagation()">
+      <div class="modal-head"><div class="modal-title">校准周次</div>
+        <div class="modal-close" onclick="closeModal()">×</div></div>
+      <div class="modal-body">
+        <div class="hint">
+          学校放、寒暑假、补课都会让周次对不上。<br>
+          只要告诉软件<b>「今天应该是第几周」</b>，之后它就按这个继续往后数。
+        </div>
+        <div style="text-align:center;padding:24px 0 8px">
+          <div style="font-size:12.5px;color:var(--text-3);margin-bottom:8px">今天（${fmtDate()}）是</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px">
+            <button class="btn" style="width:36px;padding:0" onclick="bumpWeek(-1)">−</button>
+            <div style="min-width:96px;text-align:center">
+              <span style="font-size:30px;font-weight:680;color:var(--brand)" id="calibNum">${shown}</span>
+              <span style="font-size:14px;color:var(--text-2);margin-left:2px">周</span>
+            </div>
+            <button class="btn" style="width:36px;padding:0" onclick="bumpWeek(1)">+</button>
+          </div>
+          <div style="font-size:12px;color:var(--text-3);margin-top:10px">
+            ${shown === cur ? '当前软件算是第 ' + cur + ' 周' + (cur !== w.weeks ? ' / 共 ' + w.weeks + ' 周' : '')
+                            : '改后：今天是第 ' + shown + ' 周（开学日会跟着平移）'}</div>
+        </div>
+        <div style="margin-top:8px">
+          <div style="font-size:11.5px;color:var(--text-3);font-weight:600;margin-bottom:5px">开学日期（第 1 周的周一）</div>
+          <input type="date" id="semStart" value="${esc(sem.start||'')}" oninput="syncWeekFromDate()"
+                 style="width:100%;height:36px;padding:0 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg-card);color:var(--text)">
+        </div>
+        <div style="font-size:12px;color:var(--text-3);margin-top:10px;line-height:1.7">
+          改开学日期 = 整体平移周次；上面的加减号 = 只把<b>今天</b>定为第 N 周（推荐）。<br>
+          校准只影响周次显示，不动任何学生数据。
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" onclick="closeModal()">取消</button>
+        <button class="btn pri" onclick="saveWeekCalib()">保存</button>
+      </div>
+    </div>
+  </div>`;
+  _calibWeek = init || (inTerm ? cur : 1);
+}
+/* 弹窗内的临时值（点 +/− 时不落盘，保存才生效） */
+let _calibWeek = 1;
+function bumpWeek(d){ openWeekCalibrate(Math.max(1, _calibWeek + d)); }
+
+/* 手动改了开学日期 → 数字跟着日期走（两个控件互不打架） */
+function syncWeekFromDate(){
+  const v = $('semStart') && $('semStart').value;
+  if(!v) return;
+  _calibDateTouched = true;
+  const w = semesterWeek(v);
+  const n = document.getElementById('calibNum');
+  if(n && w) n.textContent = w.raw;
+  _calibWeek = w ? w.raw : _calibWeek;
+}
+let _calibDateTouched = false;
+
+function saveWeekCalib(){
+  const sem = S.semester || (S.semester = { name:'', start:'', weeks:18 });
+  const input = $('semStart');
+  const manual = (_calibDateTouched && input && input.value) ? input.value : '';
+  if(manual){ sem.start = manual; }
+  else{
+    /* 反推开学日：今天 = 第 1 + (今天 - 开学日)/7 周
+       → 开学日 = 今天 - (N-1) 周，四舍五入到周一 */
+    const t = new Date(); t.setHours(0,0,0,0);
+    const back = (_calibWeek - 1) * 7;
+    const d = new Date(t.getTime() - back * 86400000);
+    const dow = (d.getDay() + 6) % 7;                 // 挪到周一
+    d.setDate(d.getDate() - dow);
+    sem.start = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  if(!sem.weeks) sem.weeks = 18;
+  save(); closeModal(); renderTopbarWeek();
+  const eff = semesterWeek();
+  toast('周次已校准：今天是第 ' + (eff ? eff.raw : _calibWeek) + ' 周，之后自动接着数');
+}
+
 function renderTopbarWeek(){
   const el = $('weekChip');
   if(!el) return;
@@ -3347,7 +3535,7 @@ function renderTopbarWeek(){
   if(w && sem.name){
     if(w.raw < 1) seg = '<span style="color:var(--text-3)">未开学</span>';
     else if(w.raw > w.weeks) seg = '<span style="color:var(--text-3)">假期中</span>';
-    else seg = `<span class="wk-sem">${esc(sem.name)}</span><span class="wk-dot" style="opacity:.45">·</span><b>第 ${w.raw} 周</b>`;
+    else seg = `<b>第 ${w.raw} 周</b>`;   // v2.1.2：去掉学期名，只留周次（学期名在设置里看就够了）
   }
   el.innerHTML = `<span class="week-date">${esc(dateStr)}</span>${seg ? '<span class="week-date" style="opacity:.45">｜</span>' + seg : ''}`;
   syncThemeUI(S.theme || 'light');   // v1.6：显示模式按钮状态跟着初始化一次
@@ -3587,7 +3775,7 @@ function renderSettings(){
       <div class="ops-grid ops-grid-6">
         <button class="op" onclick="gotoGuide()"><span class="op-i">🧭</span><span class="op-t">导入指引</span><span class="op-d">不知道从哪导先看</span></button>
         <button class="op" onclick="openImport()"><span class="op-i">⬇</span><span class="op-t">导入学生</span><span class="op-d">Excel 名册一步到位</span></button>
-        <button class="op" onclick="${hasGrade()?'openGradeImport()':"toast('请先导入学生批次')"}"><span class="op-i">📑</span><span class="op-t">导入成绩</span><span class="op-d">${hasGrade()?(S.grades.length+' 条'):'需先有学生批次'}</span></button>
+        <button class="op" onclick="openImport('成绩表也走这里：认得出的成绩列会自动存进成绩，不进档案')"><span class="op-i">📑</span><span class="op-t">导入成绩</span><span class="op-d">${hasGrade()?(S.grades.length+' 条'):'走「导入数据」即可'}</span></button>
       </div>
     </div>
 
@@ -4129,11 +4317,32 @@ const KNOWN_FIELDS = new Set([].concat(...FIELD_GROUPS.map(g=>g.keys))
   .concat(['电话','照片','转专业报名','转专业意向','国际班报名']));
 
 /* 把一行原始数据归一化：列名归一 + 同行同名冲突时优先取非空值 */
+/* 长数字列的 E 记法还原（v2.1.2）
+   Excel 把学号 202421110041 存成「数值」时，读出来是 2.02421E+11 ——
+   学号是唯一主键，变成科学计数法就**对不上任何人**，一批人会凭空变成新学生。
+   只处理学号/证件号这类「明显是长数字」的列；尾数太短的（1.5E+10）不动，那可能是真数据。 */
+const LONG_NUM_KEYS = ['学号','考生号','证件号码','身份证件号','身份证号','学籍号','工号','职工号','学号/职工号'];
+function unscientificNum(v){
+  if(v == null) return v;
+  const str = String(v).trim();
+  if(str.indexOf('E') < 0 && str.indexOf('e') < 0) return v;
+  const m = str.match(/^([+-]?)(\d+)(?:\.(\d+))?[eE]([+-]?\d+)$/);
+  if(!m) return v;
+  const sign = m[1], digits = m[2] + (m[3] || ''), point = m[2].length + Number(m[4]);
+  let out;
+  if(point <= 0) out = '0.' + '0'.repeat(-point) + digits;
+  else if(point >= digits.length) out = digits + '0'.repeat(point - digits.length);
+  else out = digits.slice(0, point) + '.' + digits.slice(point);
+  const bare = out.replace('.', '').replace(/^0+/, '');
+  if(bare.length < 6 || bare.length > 20) return v;   // 不是长数字的量级 → 别动
+  return sign + bare;
+}
 function normalizeRow(raw){
   const out = {};
   Object.entries(raw).forEach(([k,v])=>{
     const nk = normalizeKey(k);
-    const nv = (v == null || v === '') ? null : v;
+    let nv = (v == null || v === '') ? null : v;
+    if(nk !== '' && LONG_NUM_KEYS.indexOf(nk) >= 0) nv = unscientificNum(nv);
     if(nk === '') return;
     if(!(nk in out)){ out[nk] = nv; return; }
     // 冲突：已有值为空、新值非空 → 取新值（对应方案 4.3 归一原则 3）
@@ -4559,7 +4768,7 @@ function guideBody(mode){
       <div class="g2i"><b>新建批次</b><span>另起一份独立快照（如新年级），与老数据完全隔离。</span></div>
     </div>
     <div class="gr" style="margin-top:10px"><div class="gk">② 成绩表</div><div class="gv">
-      点右上角「<b>+ 导入成绩</b>」（或侧栏「导入成绩」）→ 选中<b>专业成绩单</b>。
+      点右上角「<b>+ 导入数据</b>」→ 选中<b>专业成绩单</b>（和导学生表同一个入口，成绩列会自动分开存）。
       成绩按<b>学号</b>挂到学生身上；学生表里有、成绩单里没有的，显示「<b>暂无成绩</b>」而不会被丢掉。</div></div>
     <div class="gtip">顺序建议：先导学生表，再导成绩表。两句都可以反复导，重复导入不会重复造人。</div>
   `);
@@ -7827,6 +8036,74 @@ function openImport(){
   closeSidebar();
 }
 
+/* ══════════════════════════════════════════════════════════════════
+   成绩列识别（v2.1.2）
+   ──────────────────────────────────────────────────────────────────
+   辅导员 2026-10-03 的要求：
+     「我们现在有两个入口，一个是导入数据，一个是导入成绩。当我们把成绩表格
+       通过导入数据导入的时候，系统并没有识别出其中的成绩。
+       我们一般是通过加权平均成绩来当做学生的成绩情况。
+       能否优化掉导入成绩这个入口？统一都并入导入数据里面，
+       无论用户上传什么模板，我们都能通过学号匹配，然后新增列、新增数据。」
+
+   做法：**按列分流**，而不是按文件分流。
+   同一张表里，「加权平均成绩」进成绩层、「职务」进学生档案，各归各位。
+   这样「成绩信息.xlsx」和「学生信息.xlsx」走的是同一条路、同一段代码。
+
+   为什么成绩仍然单独存（而不是变成学生的某一列）：
+   成绩一旦复制进学生记录，「只更新成绩」就会把 41 列档案抹平（ADR-0005）。
+   分流之后，入口只有一个，数据仍然各归其位。
+   ══════════════════════════════════════════════════════════════════ */
+const GRADE_COL_KEYS = [
+  '加权平均成绩', '平均学分绩点', '学业成绩', '平均分', '总分',
+  '所得学分', '课程门数', '不及格门数', '专业排名', '排名'
+];
+function isGradeCol(k){
+  const n = normalizeKey(k);
+  if(GRADE_COL_KEYS.indexOf(n) >= 0) return true;
+  /* 「总成绩」在申报表里是空的、在评选表里是综合分 —— 名字有歧义，
+     只在**同时出现加权平均成绩**时才把总成绩当成绩列，避免误伤档案字段。 */
+  return false;
+}
+/** 这张表里哪些列是成绩列（依赖列名集合做上下文判断） */
+function splitGradeCols(cols){
+  const names = (cols||[]).map(normalizeKey);
+  const hasWeighted = names.indexOf('加权平均成绩') >= 0;
+  const grade = [], profile = [];
+  (cols||[]).forEach(c=>{
+    const n = normalizeKey(c);
+    const hit = GRADE_COL_KEYS.indexOf(n) >= 0
+      || (hasWeighted && (n === '总成绩' || n === '综测成绩' || n === '综合测评'));
+    (hit ? grade : profile).push(c);
+  });
+  return { grade, profile };
+}
+
+/* 把行里的成绩列 upsert 进 S.grades（按学号）。
+   三条导入模式（新建/覆盖/追加）共用它 —— 之前只在追加模式里内联写了一份，
+   结果另两条模式一碰到成绩表就 ReferenceError（gsplit 未定义）。
+   教训：同一件事只写一次，写在能被所有路径调到的地方。 */
+function applyGradeRows(rows, gsplit){
+  if(!gsplit || !gsplit.grade.length) return { added:0, updated:0 };
+  const gradeMap = new Map((S.grades||[]).map(g=>[String(g['学号'] ?? '').trim(), g]));
+  let added = 0, updated = 0;
+  rows.forEach(r=>{
+    const id = String(r['学号'] ?? '').trim();
+    if(!id) return;
+    const rec = {};
+    gsplit.grade.forEach(k=>{
+      const v = r[k];
+      if(v != null && String(v).trim() !== '') rec[normalizeKey(k)] = v;
+    });
+    if(!Object.keys(rec).length) return;
+    rec['学号'] = id;
+    if(gradeMap.has(id)){ Object.assign(gradeMap.get(id), rec); updated++; }
+    else { gradeMap.set(id, rec); added++; }
+  });
+  if(added || updated){ setGrades([...gradeMap.values()]); invalidateGradeMap(); }
+  return { added, updated };
+}
+
 function renderImport(){
   const m = importState;
   let body = '';
@@ -8321,6 +8598,8 @@ function doImport(){
   const cols = importState.cols || [];           // 本次表真实出现的列（归一后）
   const mode = importState.mode || 'append';
   const target = activeBatch();
+  const gsplit = splitGradeCols(cols);           // v2.1.2：成绩列分流（三条模式统一口径）
+  const gstat = applyGradeRows(rows, gsplit);    // 成绩先落成绩层
 
   if(!rows.length){ toast('没有可导入的数据'); return; }
 
@@ -8356,7 +8635,11 @@ function doImport(){
       }
       // ── 第一次见这个学号
       const rec = {};
-      Object.entries(r).forEach(([k,v])=>{ if(v != null && v !== '') rec[k] = v; });
+      Object.entries(r).forEach(([k,v])=>{
+        if(v == null || v === '') return;
+        if(gsplit.grade.indexOf(k) >= 0) return;   // v2.1.2：成绩列不进档案
+        rec[k] = v;
+      });
       if(applyRosterRule(rec, importState.kind)) rosterSynced++;
       else if(rosterProtected(rec)) rosterKept++;
       rec['备注（保密）'] = r['备注（保密）'] || null;
@@ -8407,6 +8690,9 @@ function doImport(){
 
 /* 覆盖模式：授权后的实际执行（备份 → 备份备注 → 清空 → 复用合并逻辑） */
 function doImportOverwrite(target, clearedCount, prevSnapshot){
+  /* v2.1.2：覆盖模式同样按列分流 —— 成绩列写成绩层，不进档案 */
+  const gsplit = splitGradeCols(importState.cols || []);
+  applyGradeRows(importState.rows || [], gsplit);
   const rows = importState.rows, cols = importState.cols || [];
   let backupName = '';
   // ② 自动备份（失败不阻断，但要让人知道）
@@ -8465,6 +8751,11 @@ function doImportMerge(rows, cols, mode, remarkMap, backupName, clearedCount, pr
   const sheetKind = importState ? importState.kind : 'student';
   let rosterSynced = 0, rosterKept = 0;
 
+  /* v2.1.2：按列分流 —— 成绩类列不写进学生档案，改为 upsert 进 S.grades。
+     入口只有一个（导入数据），但数据仍然各归其位（见 GRADE_COLS 处的说明）。 */
+  const gsplit = splitGradeCols(cols);
+  const gstat = applyGradeRows(rows, gsplit);    // v2.1.2：共用实现
+
   rows.forEach((r, idx)=>{
     const id = String(r['学号'] ?? '').trim();
     if(!id){ skipped++; badRows.push(excelRowNo(idx)); return; }   // Excel 真实行号（表头可能不在第 1 行）
@@ -8478,6 +8769,7 @@ function doImportMerge(rows, cols, mode, remarkMap, backupName, clearedCount, pr
         if(k === '备注（保密）') return;            // 铁律①：备注永不覆盖
         if(v == null || v === '') return;          // 铁律②：空值不覆盖
         if(cols.indexOf(k) === -1) return;         // 铁律③：不在本次表里的列不动
+        if(gsplit.grade.indexOf(k) >= 0) return;  // v2.1.2：成绩列不进档案
         old[k] = v;
       });
       // v1.9.2：名册导入时顺手同步政治面貌（已是党员/发展对象的受保护，不降级）
@@ -8581,24 +8873,11 @@ function parseGradeSheet(arr){
   return { ok:true, headerIdx, header, rows, dropped };
 }
 
-function openGradeImport(){
-  const cur = activeBatch();
-  if(!cur){ toast('请先导入学生数据，再导入成绩'); return; }
-  closeSidebar();
-  gradeImportState = { fileName:'', parsed:null };
-  const has = hasGrade();
-  $('modalRoot').innerHTML = `
-  <div class="mask" onclick="if(event.target===this)closeModal()">
-    <div class="modal wide" onclick="event.stopPropagation()">
-      <div class="modal-head"><div class="modal-title">导入成绩</div>
-        <div class="modal-close" onclick="closeModal()">×</div></div>
-      <div class="modal-body" id="gradeBody">${gradePickHtml(cur, has)}</div>
-      <div class="modal-foot">
-        <button class="btn" onclick="closeModal()">取消</button>
-        <button class="btn pri" id="gradeOk" style="display:none" onclick="doImportGrades()">确认导入</button>
-      </div>
-    </div>
-  </div>`;
+function openGradeImport(hint){
+  /* v2.1.2：成绩不再有独立入口，统一走 openImport —— 它按列分流，
+     「加权平均成绩」这类列会自动进成绩层。这里的旧函数名保留成薄封装，
+     只为兼容引导页/历史链接里已有的调用点。 */
+  openImport(hint || '成绩表也走这个入口：认得出的成绩列会自动存进成绩，不进学生档案');
 }
 
 function gradePickHtml(cur, has){
@@ -8724,357 +9003,299 @@ function doImportGrades(){
 }
 
 
-/* ==================== 奖学金评选（v2.1.1） ====================
-   独立数据域：S.awards 不挂在批次上 —— 评选一年一次、用完即存档，
-   混进日常名册只会让两边都不干净（辅导员的定位：单独的区域、单独的导入）。
+/* ══════════════════════════════════════════════════════════════════
+   奖学金评选（v2.1.2 重构）
+   ──────────────────────────────────────────────────────────────────
+   辅导员 2026-10-03 的要求原文：
+     「我们现在要新增一个筛选列。除了各个单项奖学金，其他的所有奖学金都是
+       不兼得的。评选逻辑是从高到低，国家奖学金、国家励志奖学金、比亚迪、
+       紫光。挨个评选。所以学生提交的志愿最好能够拆分。按照教师的需求，
+       单独筛选所有报名其中某项奖项，例如国家奖学金的同学情况，然后进行评判。
+       审核状态这一列可以不要，因为我们现在都还没有确定。现有的状态，
+       当我们导入两个表之后，会出现两列学号，这个也是没有必要的，
+       只需要保留一列就可以了。奖学金评选不需要班级信息，只需要专业这一列就可以。
+       所以奖学金评选我们最关注的第一个是姓名、学号、专业，智力水平评价，
+       这个就是他们过去一年的学习成绩的加权平均成绩。然后是B1~5各个小项的加分，
+       用于评选单项奖学金。志愿顺序不要统一列在这里面，你可以把它拆分成一个
+       一个小项或者标签。我们把拟定的这一列往前提。提到志愿之前…」
 
-   导入 philosophy 与主名册一致：丢一张表进来，有学号（或姓名+班级）就认人，
-   认得出的更新、认不出的也收进来并标「名册外」，原始列全部保留。
-   Excel 把学号存成数字 → 科学计数法 → 这里做还原（unscientific）。 */
+   数据来源变了：评选表与申报表现在都走**统一导入**（见 splitGradeCols），
+   数据落在学生档案里，所以这里不再读独立的 S.awards —— 少一份数据、
+   少一处不一致的可能。
+   ══════════════════════════════════════════════════════════════════ */
 
-/* 长数字列的 E 记法还原。Excel 存 202625420001 为数值时读出 2.02625E+11，
-   不还原就对不上任何人。只处理学号/证件号这类「明显是长数字」的列；
-   尾数太短的（1.5E+10）可能是真数据，不动。 */
-const AWARD_NUM_KEYS = ['学号','考生号','证件号码','身份证件号','身份证号','学籍号'];
-function unscientific(v){
-  if(v == null) return v;
-  const str = String(v).trim();
-  const m = str.match(/^([+-]?)(\d+)(?:\.(\d+))?[eE]([+-]?\d+)$/);
-  if(!m) return v;
-  const sign=m[1], digits=(m[2]+(m[3]||'')), point=m[2].length+Number(m[4]);
-  let out;
-  if(point<=0) out='0.'+'0'.repeat(-point)+digits;
-  else if(point>=digits.length) out=digits+'0'.repeat(point-digits.length);
-  else out=digits.slice(0,point)+'.'+digits.slice(point);
-  const bare=out.replace('.','').replace(/^0+/,'');
-  if(bare.length<6||bare.length>20) return v;      // 不是长数字的量级 → 别动
-  return sign+bare;
+/* ── 奖项清单：顺序 = 评选优先级（从高到低）──
+   single:true 的是**单项奖学金**（可兼得）；其余**不兼得**，一个人只能拿一个。
+   真实数据里出现过的措辞（申报情况.xlsx 实测）：
+     国家奖学金 / 国家励志奖学金 / 比亚迪奖学金 / 紫光励学金
+     优秀学生奖学金(一等奖|二等奖|三等奖)
+     文体佳绩奖学金 / 社会实践奖学金 / 社会工作奖学金 / 科研创新奖学金 */
+const AWARD_LIST = [
+  { key:'国家奖学金',          re:/国家奖学金/,                 single:false },
+  { key:'国家励志奖学金',      re:/国家励志奖学金/,             single:false },
+  { key:'比亚迪奖学金',        re:/比亚迪奖学金/,               single:false },
+  { key:'紫光励学金',          re:/紫光励学金/,                 single:false },
+  { key:'优秀学生奖学金一等奖', re:/优秀学生奖学金\s*[（(]?一等奖/, single:false },
+  { key:'优秀学生奖学金二等奖', re:/优秀学生奖学金\s*[（(]?二等奖/, single:false },
+  { key:'优秀学生奖学金三等奖', re:/优秀学生奖学金\s*[（(]?三等奖/, single:false },
+  { key:'文体佳绩奖学金',      re:/文体佳绩奖学金/,             single:true  },
+  { key:'社会实践奖学金',      re:/社会实践奖学金/,             single:true  },
+  { key:'社会工作奖学金',      re:/社会工作奖学金/,             single:true  },
+  { key:'科研创新奖学金',      re:/科研创新奖学金/,             single:true  },
+];
+/* 评选动线：先把不兼得的从高到低走一遍，再看单项 */
+const AWARD_EXCLUSIVE = AWARD_LIST.filter(a=>!a.single);
+const AWARD_SINGLE    = AWARD_LIST.filter(a=>a.single);
+
+/* ── 解析「志愿顺序」──
+   ⚠️ 真实数据的坑：编号只出现在前几项，后面直接连排没有编号：
+     「5.比亚迪奖学金(不分等级) 6.优秀学生奖学金(一等奖)(不分等级)
+       文体佳绩奖学金(不分等级) 社会实践奖学金(不分等级) …」
+   所以**不能按数字切分**，只能按「奖项名」逐个认领，序号按出现顺序重排。
+   （实测 124 行里有 68 行是这种混合形态） */
+function parseWishes(v){
+  const str = String(v == null ? '' : v);
+  if(!str.trim()) return [];
+  const out = [];
+  let rest = str, guard = 0;
+  while(rest && guard++ < 40){
+    let best = null;
+    for(const a of AWARD_LIST){
+      const m = a.re.exec(rest);
+      if(m && (!best || m.index < best.i)) best = { i:m.index, a, len:m[0].length };
+    }
+    if(!best) break;
+    out.push(best.a.key);
+    rest = rest.slice(best.i + best.len);
+  }
+  return out;
 }
 
-/* v2.1.1：通用文件拖拽。系统文件对话框（WebView2）偶发「打开点不动」，
-   拖拽完全绕开它。三个导入口（学生/成绩/评选）共用这一个分发器。 */
-function dropFileTo(kind, e){
-  e.preventDefault();
-  const dz = e.currentTarget;
-  if(dz && dz.classList) dz.classList.remove('drag');
-  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-  if(!f) return;
-  if(kind==='student'){ importState.fileName=f.name; startImportRead(f, handleFile); }
-  else if(kind==='grades'){ startImportRead(f, handleGradeFile); }
-  else if(kind==='award'){ readAwardFile(f); }
+/* ── 行的组装：从学生档案取评选相关字段 ── */
+function awardRowOf(s){
+  const sid = String(s['学号'] == null ? '' : s['学号']);
+  const g = (S.grades||[]).find(x => String(x['学号']) === sid) || {};
+  const 智力 = s['知识水平评价'] || g['加权平均成绩'] || '';
+  const wishes = parseWishes(s['志愿顺序']);
+  return {
+    sid,
+    name: s['姓名'] || s['姓名1'] || '',
+    major: s['专业'] || '',
+    智力: 智力,
+    B1: s['科研创新B1'] || '',
+    B2: s['专业技能B2'] || '',
+    B3: s['文体特长B3'] || '',
+    B4: s['社会工作B4'] || '',
+    B5: s['社会实践B5'] || '',
+    总成绩: s['总成绩'] || '',
+    wishes,
+    status: (S.awardStatus && S.awardStatus[sid]) || '',
+  };
 }
-/* 把 File 对象塞进一个伪 input.change 事件，复用既有的 handleXxx —— 不复制读文件逻辑 */
-function startImportRead(f, handler){
-  try{
-    const fakeInput = { files:[f], value:'' };
-    handler({ target: fakeInput });
-  }catch(err){ toast('这个文件读不了：' + err.message); }
+/* 只有「有评选数据」或「报了志愿」的人才进这张表 */
+function awardRows(){
+  return (S.students||[]).map(awardRowOf).filter(r => r.智力 !== '' || r.wishes.length);
+}
+
+/* ── 筛选与排序状态 ── */
+let _awFilter = '';        // '' = 全部；否则是奖项 key
+let _awSort = { key:'智力', dir:'desc' };
+let _awSel = new Set();    // 勾选的学号
+
+function awardFiltered(){
+  let rows = awardRows();
+  if(_awFilter) rows = rows.filter(r => r.wishes.indexOf(_awFilter) >= 0);
+  const k = _awSort.key, dir = _awSort.dir === 'desc' ? -1 : 1;
+  const num = v => { const n = parseFloat(v); return isNaN(n) ? null : n; };
+  rows = rows.slice().sort((a,b)=>{
+    if(k === '志愿'){
+      const la = a.wishes.indexOf(_awFilter), lb = b.wishes.indexOf(_awFilter);
+      return ((la<0?99:la) - (lb<0?99:lb)) * dir;
+    }
+    const va = a[k], vb = b[k];
+    const na = num(va), nb = num(vb);
+    if(na !== null && nb !== null) return (na - nb) * dir;
+    return String(va||'').localeCompare(String(vb||''), 'zh') * dir;
+  });
+  return rows;
+}
+function awardSortBy(k){ _awSort = (_awSort.key===k) ? {key:k, dir:_awSort.dir==='desc'?'asc':'desc'} : {key:k, dir:'desc'}; renderAward(); }
+function awardFilter(k){ _awFilter = (_awFilter===k) ? '' : k; _awSel.clear(); renderAward(); }
+function awardToggleSel(sid, on){
+  if(on) _awSel.add(sid); else _awSel.delete(sid);
+  renderAward();
+}
+function awardSelectAll(on){
+  const rows = awardFiltered();
+  if(on) rows.forEach(r=>_awSel.add(r.sid)); else _awSel.clear();
+  renderAward();
+}
+function awardSetStatus(sid, st){
+  S.awardStatus = S.awardStatus || {};
+  if(st) S.awardStatus[sid] = st; else delete S.awardStatus[sid];
+  save();
+}
+function awardSetStatusBulk(st){
+  _awSel.forEach(sid => awardSetStatus(sid, st));
+  _awSel.clear(); renderAward();
+  toast('已把 ' + (st||'清空') + ' 了批量选中的学生');
+}
+function awardClearStatus(){
+  askConfirm({ title:'清空全部拟定', danger:true, okText:'清空',
+    html:'确定清空所有学生的拟定结果？评选数据本身不受影响。',
+    onOk(){ S.awardStatus = {}; save(); renderAward(); } });
 }
 
 function gotoAward(){ S.view='award'; renderSidebar(); renderMain(); closeSidebar(); }
 
-/* ── 评选表的列（rows 里所有出现过的原始列，稳定排序） ── */
-function awardCols(){
-  const rows = (S.awards && S.awards.rows) || [];
-  const set = [];
-  rows.forEach(r => Object.keys(r).forEach(k => {
-    if(k.indexOf('__')===0) return;
-    if(set.indexOf(k)<0) set.push(k);
-  }));
-  return set;
-}
+/* 拟定状态的可选值（空 = 未定） */
 const AWARD_STATUS = ['','推荐','候补','落选'];
 
-/* ── 排序（点表头：降序 → 升序，空值恒沉底） ── */
-let _awardSort = { key:'', dir:'desc' };
-function awardSortRows(rows, cols){
-  const k = _awardSort.key;
-  if(!k) return rows;
-  const numeric = rows.every(r => r[k]==null || r[k]==='' || !isNaN(Number(r[k])));
-  const sorted = rows.slice().sort((a,b)=>{
-    const va=a[k], vb=b[k];
-    const ea=(va==null||va===''), eb=(vb==null||vb==='');
-    if(ea&&eb) return 0;
-    if(ea) return 1;                       // 空值沉底
-    if(eb) return -1;
-    let c;
-    if(numeric) c = Number(va)-Number(vb);
-    else c = String(va).localeCompare(String(vb),'zh');
-    return _awardSort.dir==='desc' ? -c : c;
-  });
-  return sorted;
+/* ── 单元格渲染辅助 ──
+   为什么要拆出来：一行里同时套三层模板字符串（外层表格 → map → 内层单元格）
+   可读性极差，而且很容易因为一个反引号就截断整段。拆开后每格只做一件事。 */
+function bCells(r){
+  return ['B1','B2','B3','B4','B5'].map(function(k){
+    const v = r[k];
+    if(v === '' || v == null) return '<td class="aw-num"></td>';
+    return '<td class="aw-num"><span class="aw-b">' + esc(String(v)) + '</span></td>';
+  }).join('');
 }
-
+function statusSelect(r){
+  const opts = AWARD_STATUS.map(function(st){
+    return '<option value="' + st + '"' + (r.status === st ? ' selected' : '') + '>' + (st || '未定') + '</option>';
+  }).join('');
+  return '<select class="aw-select" onchange="awardSetStatus(\'' + esc(r.sid) + '\',this.value)">' + opts + '</select>';
+}
+function wishTags(r){
+  if(!r.wishes.length) return '<span class="aw-none">未填报</span>';
+  return r.wishes.map(function(w, i){
+    const single = (AWARD_LIST.filter(a=>a.key===w)[0] || {}).single;
+    const tip = single ? '单项，可兼得' : '不兼得';
+    return '<span class="aw-tag' + (single ? ' single' : '') + '" title="' + tip + '">' + (i+1) + '. ' + esc(w) + '</span>';
+  }).join(' ');
+}
 /* ── 页面 ── */
 function renderAward(){
-  const a = S.awards || { rows: [] };
-  const rows = a.rows || [];
+  const rows = awardFiltered();
+  const all = awardRows();
+  const stat = st => all.filter(r => r.status === st).length;
+
+  /* 筛选条：先不兼得（从高到低），再单项 —— 顺序本身就是评选动线 */
+  const chip = (a) => {
+    const n = all.filter(r => r.wishes.indexOf(a.key) >= 0).length;
+    return '<button class="aw-chip' + (_awFilter === a.key ? ' on' : '')
+      + '" onclick="awardFilter(\'' + a.key + '\')"'
+      + ' title="' + (a.single ? '单项奖学金，可兼得' : '不兼得，挨个评选') + '"'
+      + (n ? '' : ' disabled') + '>' + esc(a.key)
+      + '<span class="aw-chip-n">' + n + '</span></button>';
+  };
+
   let h = `<div class="award-head">
     <div>
       <div class="award-title">奖学金评选</div>
-      <div class="award-sub">独立于学生名册的评选数据 · 一年一次，导完就存档${a.fileName?` · 来源「${esc(a.fileName)}」`:''}</div>
+      <div class="award-sub">按学号从学生档案取数 · 先看不兼得的（从高到低），再看单项</div>
     </div>
     <div class="award-ops">
-      <button class="btn pri" onclick="openAwardImport()">导入评选表</button>
-      ${rows.length?`<button class="btn" onclick="awardExportCsv()">导出 CSV</button>
-      <button class="btn" onclick="awardClear()">清空</button>`:''}
+      <button class="btn pri" onclick="openImport('把「评选表」和「申报情况」导进来即可：知识水平评价、B1~B5、志愿顺序会自动对上')">导入评选数据</button>
+      ${Object.keys(S.awardStatus||{}).length?`<button class="btn" onclick="awardClearStatus()">清空拟定</button>`:''}
+      ${all.length?`<button class="btn" onclick="awardExportCsv()">导出 CSV</button>`:''}
     </div>
   </div>`;
 
-  if(!rows.length){
+  if(!all.length){
     h += `<div class="card"><div class="card-body" style="text-align:center;padding:48px 20px">
-      <div style="font-size:34px;margin-bottom:10px">🏅</div>
-      <div style="font-weight:640;font-size:15px;margin-bottom:6px">还没有评选数据</div>
-      <div style="font-size:12.5px;color:var(--text-3);line-height:1.8">
-        把综合测评表、量化排名表<b>原样丢进来</b>就行 —— 有学号或姓名就能对上人。<br>
-        这份数据和学生名册互相独立：改名、删批次都不会影响评选结果。
+      <div style="font-size:32px;margin-bottom:10px">🏅</div>
+      <div style="font-weight:600;font-size:15px;margin-bottom:6px">还没有评选数据</div>
+      <div style="font-size:13px;color:var(--text-3);line-height:1.8">
+        把「评选表」（知识水平评价、B1~B5）和「申报情况」（志愿顺序）导进来，<br>
+        都会按<b>学号</b>自动对上人。
       </div>
-      <div style="margin-top:14px"><button class="btn pri" onclick="openAwardImport()">选择评选表（.xlsx / .csv）</button></div>
+      <div style="margin-top:16px"><button class="btn pri" onclick="openImport('把评选表或申报情况导进来')">导入评选数据</button></div>
     </div></div>`;
     $('mainArea').innerHTML = h;
     return;
   }
 
-  const cols = awardCols();
-  const sorted = awardSortRows(rows, cols);
-  const matched = rows.filter(r=>r.__matched).length;
-  const stat = AWARD_STATUS.map(st => st ? rows.filter(r=>r.__status===st).length : 0);
+  h += `<div class="aw-filter">
+    <div class="aw-filter-row">
+      <span class="aw-filter-t">不兼得（挨个评选）</span>
+      <button class="aw-chip${_awFilter===''?' on':''}" onclick="awardFilter('')">全部<span class="aw-chip-n">${all.length}</span></button>
+      ${AWARD_EXCLUSIVE.map(chip).join('')}
+    </div>
+    <div class="aw-filter-row">
+      <span class="aw-filter-t">单项（可兼得）</span>
+      ${AWARD_SINGLE.map(chip).join('')}
+    </div>
+  </div>`;
 
-  h += `<div class="award-stats">
-    <div class="award-stat"><b>${rows.length}</b><span>共 ${matched>0?matched+' 人对上名册':''}${rows.length-matched?` · ${rows.length-matched} 名册外`:''}</span></div>
-    ${AWARD_STATUS.filter(Boolean).map((st,i)=>`<div class="award-stat"><b>${stat[i+1]}</b><span>${st}</span></div>`).join('')}
-  </div>
-  <div class="card"><div class="card-body" style="padding:0">
-    <div style="overflow:auto;max-height:calc(100vh - 300px)">
+  h += `<div class="aw-summary">
+    <span>共 <b>${rows.length}</b> 人${_awFilter?`（报「${esc(_awFilter)}」的）`:''}</span>
+    ${_awFilter ? `<button class="u-btn u-btn-sm u-btn-ghost" onclick="awardFilter('')">看全部</button>` : ''}
+    <span class="aw-summary-s">推荐 ${stat('推荐')} · 候补 ${stat('候补')} · 落选 ${stat('落选')}</span>
+  </div>`;
+
+  // 批量操作条：勾选后出现
+  if(_awSel.size){
+    h += `<div class="aw-bulk">
+      <b>已选 ${_awSel.size} 人</b>
+      <span class="aw-bulk-t">统一设为</span>
+      ${AWARD_STATUS.filter(Boolean).map(st=>'<button class="btn" onclick="awardSetStatusBulk(\'' + st + '\')">' + st + '</button>').join('')}
+      <button class="btn" onclick="awardSetStatusBulk('')">清空</button>
+      <button class="u-btn u-btn-sm u-btn-ghost" onclick="awardSelectAll(false)">取消选择</button>
+    </div>`;
+  }
+
+  const th = (label, k, cls) =>
+    `<th class="${cls||''}" onclick="awardSortBy('${k}')">${label}${_awSort.key===k?(_awSort.dir==='desc'?' ↓':' ↑'):''}</th>`;
+
+  h += `<div class="card" style="margin-bottom:0"><div class="card-body" style="padding:0">
+    <div style="overflow:auto;max-height:calc(100vh - 340px)">
     <table class="award-table">
       <thead><tr>
-        <th class="aw-name" onclick="awardSortBy('__name')">姓名${_awardSort.key==='__name'?(_awardSort.dir==='desc'?' ↓':' ↑'):''}</th>
-        <th onclick="awardSortBy('__sid')">学号${_awardSort.key==='__sid'?(_awardSort.dir==='desc'?' ↓':' ↑'):''}</th>
-        ${cols.map(c=>`<th onclick="awardSortBy('${esc(c)}')">${esc(c)}${_awardSort.key===c?(_awardSort.dir==='desc'?' ↓':' ↑'):''}</th>`).join('')}
+        <th style="width:34px"><input type="checkbox" onclick="awardSelectAll(this.checked)" ${rows.length&&rows.every(r=>_awSel.has(r.sid))?'checked':''}></th>
+        ${th('姓名','name')}
+        ${th('学号','sid')}
+        ${th('专业','major')}
+        ${th('智力水平评价','智力','aw-num-h')}
+        ${th('B1 科研创新','B1','aw-num-h')}
+        ${th('B2 专业技能','B2','aw-num-h')}
+        ${th('B3 文体特长','B3','aw-num-h')}
+        ${th('B4 社会工作','B4','aw-num-h')}
+        ${th('B5 社会实践','B5','aw-num-h')}
         <th class="aw-status">拟定</th>
+        ${th('志愿','志愿')}
       </tr></thead>
-      <tbody>${sorted.map(r=>{
-        const out = !r.__matched;
-        return `<tr class="${out?'aw-out':''}">
-        <td class="aw-name">${esc(r.__name||'')}${out?' <span class="aw-badge">名册外</span>':''}</td>
-        <td>${esc(r.__sid||'')}</td>
-        ${cols.map(c=>{
-          const v=r[c]; const num=(v!=null&&v!==''&&!isNaN(Number(v)));
-          return `<td${num?' class="aw-num"':''}>${v==null?'':esc(String(v))}</td>`;
-        }).join('')}
-        <td class="aw-status">
-          <select class="aw-select" onchange="awardSetStatus('${esc(r.__sid||r.__name||'')}', this.value)">
-            ${AWARD_STATUS.map(st=>`<option value="${st}" ${r.__status===st?'selected':''}>${st||'未定'}</option>`).join('')}
-          </select>
-        </td>
-      </tr>`;}).join('')}</tbody>
+      <tbody>${rows.map(r=>`<tr class="${_awSel.has(r.sid)?'aw-picked':''}">
+        <td><input type="checkbox" ${_awSel.has(r.sid)?'checked':''} onclick="awardToggleSel('${esc(r.sid)}',this.checked)"></td>
+        <td class="aw-name">${esc(r.name)}</td>
+        <td class="aw-sid">${esc(r.sid)}</td>
+        <td>${esc(r.major)}</td>
+        <td class="aw-num">${r.智力===''?'<span class="aw-none">—</span>':esc(String(r.智力))}</td>
+        ${bCells(r)}
+        <td class="aw-status">${statusSelect(r)}</td>
+        <td class="aw-wish">${wishTags(r)}</td>
+      </tr>`).join('')}</tbody>
     </table>
     </div>
   </div></div>`;
+
   $('mainArea').innerHTML = h;
 }
 
-function awardSortBy(k){
-  if(_awardSort.key===k) _awardSort.dir = _awardSort.dir==='desc'?'asc':'desc';
-  else _awardSort = { key:k, dir:'desc' };
-  renderAward();
-}
-function awardSetStatus(sid, st){
-  const rows = (S.awards && S.awards.rows) || [];
-  const r = rows.find(x => (x.__sid||x.__name||'')===sid);
-  if(r){ r.__status = st; save(); }
-}
-
-/* ── 导入：选文件 → 认人 → 预览 → 合并 ── */
-let _awardImp = null;
-function openAwardImport(){
-  _awardImp = null;
-  $('modalRoot').innerHTML = `
-  <div class="mask" onclick="if(event.target===this)closeModal()">
-    <div class="modal" onclick="event.stopPropagation()">
-      <div class="modal-head"><div class="modal-title">导入评选表</div>
-        <div class="modal-close" onclick="closeModal()">×</div></div>
-      <div class="modal-body" id="awBody">
-        <div class="drop" id="awDrop" onclick="document.getElementById('awFile').click()"
-             ondragover="event.preventDefault();this.classList.add('drag')"
-             ondragleave="this.classList.remove('drag')"
-             ondrop="awardDropFile(event)">
-          <div class="drop-t">把评选表拖到这里，或点这里选文件</div>
-          <div class="drop-s">.xlsx / .xls / .csv · 有学号或姓名就能对上人；新列原样保留，已有的按人更新<br>
-            <b>点「选文件」如果弹出的窗口点不动，直接把文件拖进这个虚线框就行</b></div>
-        </div>
-        <input type="file" id="awFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleAwardFile(event)">
-      </div>
-      <div class="modal-foot"><button class="btn" onclick="closeModal()">取消</button></div>
-    </div>
-  </div>`;
-}
-function handleAwardFile(e){
-  const f = e.target.files[0];
-  if(f) readAwardFile(f);
-}
-/* 拖拽入口：绕过系统文件对话框（WebView2 的对话框偶发点不动） */
-function awardDropFile(e){
-  e.preventDefault();
-  const dz = document.getElementById('awDrop');
-  if(dz) dz.classList.remove('drag');
-  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-  if(f) readAwardFile(f);
-}
-function awardFail(msg){
-  /* 出错必须让人在弹窗里看见 —— toast 会消失，弹窗里的字不会 */
-  const body = document.getElementById('awBody');
-  if(body) body.insertAdjacentHTML('beforeend',
-    `<div class="hint" style="border-color:var(--danger-line);background:var(--danger-soft);margin-top:10px">
-      <b>这个文件读不了</b><br>${esc(msg)}</div>`);
-}
-function readAwardFile(f){
-  if(!/\.(xlsx|xls|csv)$/i.test(f.name)){ awardFail('只认 .xlsx / .xls / .csv，收到的是「'+f.name+'」'); return; }
-  if(typeof XLSX==='undefined'){ awardFail('缺少表格解析库（正常情况不会出现，请重启软件）'); return; }
-  const rd = new FileReader();
-  rd.onerror = () => awardFail('文件读取失败（文件可能正被 Excel 占用，先关掉它再试）');
-  rd.onload = ev => {
-    let arr;
-    try{
-      const wb = XLSX.read(new Uint8Array(ev.target.result), {type:'array', cellDates:false});
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      arr = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:false});
-    }catch(err){
-      awardFail('不是有效的表格文件。常见原因：① 从网页另存的假 Excel ② 加密工作簿 ③ 文件损坏。'
-        + '（技术信息：' + err.message + '）');
-      return;
-    }
-    if(!arr || !arr.length){ awardFail('表格里没有数据'); return; }
-    try{
-      _awardImp = { fileName: f.name, arr };
-      awardPreview();
-    }catch(err){
-      awardFail('表格能打开，但内容识别失败：' + err.message);
-    }
-  };
-  rd.readAsArrayBuffer(f);
-}
-
-function awardPreview(){
-  const body = $('awBody');
-  const { arr, fileName } = _awardImp;
-  /* 表头行：取前 12 行里「非空格数最多且没有超长单元格」的一行 */
-  let hdr = 0, best = -1;
-  for(let i=0;i<Math.min(arr.length,12);i++){
-    const row = (arr[i]||[]).map(c=>String(c==null?'':c).trim());
-    const filled = row.filter(c=>c!=='');
-    if(filled.length<2) continue;
-    if(filled.filter(c=>c.length>12).length) continue;   // 标题行
-    const score = filled.length;
-    if(score>best){ best=score; hdr=i; }
-  }
-  const rawHeader = (arr[hdr]||[]).map(c=>String(c==null?'':c).trim());
-  const rows = [];
-  for(let i=hdr+1;i<arr.length;i++){
-    const r = arr[i]||[];
-    if(!r.some(c=>c!=null&&String(c).trim()!=='')) continue;
-    const o = {};
-    rawHeader.forEach((h,j)=>{ if(h) o[h] = (r[j]==null?'':r[j]); });
-    /* 学号类列：先修科学计数法，再统一成字符串 */
-    rawHeader.forEach(h=>{
-      const nk = normalizeKey(h);
-      if(AWARD_NUM_KEYS.indexOf(nk)>=0) o[h] = unscientific(o[h]);
-    });
-    rows.push(o);
-  }
-  /* 认人：学号优先，没有就姓名+班级 */
-  const hasSid = rawHeader.some(h=>normalizeKey(h)==='学号');
-  const bySid = new Map(), byName = new Map();
-  S.students.forEach(st=>{
-    const sid = String(st['学号']==null?'':st['学号']).trim();
-    if(sid) bySid.set(sid, st);
-    const nm = String(st['姓名']||st['姓名1']||'').trim();
-    if(nm) byName.set(nm+'|'+String(st['班级']||'').trim(), st);
-  });
-  let hit=0;
-  rows.forEach(r=>{
-    const sid = hasSid ? String(r['学号']==null?'':r['学号']).trim() : '';
-    const nm = String(r['姓名']==null?'':r['姓名']).trim();
-    const cls = String(r['班级']==null?'':r['班级']).trim();
-    r.__sid = sid; r.__name = nm; r.__class = cls; r.__status = '';
-    r.__matched = !!(sid && bySid.has(sid)) || (!sid && !!nm && byName.has(nm+'|'+cls));
-    if(r.__matched) hit++;
-  });
-  _awardImp.rows = rows; _awardImp.hit = hit;
-  /* 精度丢失检测：Excel 把学号存成数字时后几位已经没了（还原只能补零），
-     表现为「对上 0 人 + 大量末尾补零」。必须说清楚，否则用户以为导对了。 */
-  const sidKey = rawHeader.find(h=>normalizeKey(h)==='学号');
-  const sciN = sidKey ? rows.filter(r=>{
-    const v = String(r[sidKey]==null?'':r[sidKey]);
-    return v.length>=10 && /0{4,}$/.test(v);
-  }).length : 0;
-  const okBtn = document.querySelector('#modalRoot .modal-foot');
-  body.innerHTML = `
-    <div class="filebox" style="margin-bottom:12px">
-      <div class="file-ico">X</div>
-      <div style="flex:1">
-        <div class="file-name">${esc(fileName)}</div>
-        <div class="file-meta">表头第 ${hdr+1} 行 · ${rows.length} 行数据 · ${rawHeader.filter(Boolean).length} 列</div>
-      </div>
-    </div>
-    <div class="hint">
-      对上名册 <b>${hit}</b> 人${rows.length-hit?`，认不出的 ${rows.length-hit} 行也会收进来（标「名册外」）`:''}。<br>
-      列：${rawHeader.filter(Boolean).slice(0,10).map(esc).join('、')}${rawHeader.filter(Boolean).length>10?' …':''}
-    </div>
-    ${sciN?`<div class="hint" style="border-color:var(--danger-line);background:var(--danger-soft)">
-      <b>「${esc(sidKey)}」列在 Excel 里被存成了数字，${sciN} 行学号已丢几位</b>（只能补零、补不回原值）。<br>
-      请在 Excel 里把这列设为「文本」重新导出，否则会对不上人、还可能互相混同。
-    </div>`:''}`;
-  const btn = document.createElement('button');
-  btn.className='btn pri'; btn.textContent='确认导入'; btn.onclick=awardCommit;
-  okBtn.insertBefore(btn, okBtn.firstChild);
-}
-
-function awardCommit(){
-  const { rows, fileName } = _awardImp;
-  if(!rows || !rows.length){ toast('没有数据行'); return; }
-  const old = (S.awards && S.awards.rows) || [];
-  const m = new Map(old.map(r=>[ (r.__sid||r.__name||'')+'|'+(r.__class||''), r ]));
-  let upd=0, add=0;
-  rows.forEach(r=>{
-    const k = (r.__sid||r.__name||'')+'|'+(r.__class||'');
-    if(m.has(k)){
-      const t = m.get(k);
-      Object.entries(r).forEach(([kk,v])=>{          // 空值不覆盖
-        if(kk.indexOf('__')===0) return;
-        if(v!=null && String(v).trim()!=='') t[kk]=v;
-      });
-      t.__sid=r.__sid; t.__name=r.__name; t.__class=r.__class; t.__matched=r.__matched;
-      upd++;
-    }else{ m.set(k, r); add++; }
-  });
-  S.awards = { rows: [...m.values()], fileName, importedAt: new Date().toISOString() };
-  save(); closeModal(); renderAward();
-  toast(`评选表已导入：更新 ${upd} 人、新增 ${add} 人`);
-}
-
-function awardClear(){
-  askConfirm({
-    title:'清空评选数据', danger:true, okText:'清空',
-    html:'确定清空全部评选数据？这不会影响学生名册。',
-    onOk(){ S.awards = null; save(); renderAward(); }
-  });
-}
-
 function awardExportCsv(){
-  const rows = (S.awards && S.awards.rows) || [];
+  const rows = awardFiltered();
   if(!rows.length){ toast('没有数据可导出'); return; }
-  const cols = ['__name','__sid','__class', ...awardCols(), '__status'];
-  const head = ['姓名','学号','班级', ...awardCols(), '拟定'];
+  const head = ['姓名','学号','专业','智力水平评价','B1科研创新','B2专业技能','B3文体特长','B4社会工作','B5社会实践','拟定','志愿'];
   const q = v => { v = v==null?'':String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
-  const csv = '\ufeff' + head.join(',') + '\n' + rows.map(r=>cols.map(c=>q(r[c])).join(',')).join('\n');
+  const body = rows.map(r => [r.name,r.sid,r.major,r.智力,r.B1,r.B2,r.B3,r.B4,r.B5,r.status,r.wishes.join(' ')].map(q).join(','));
+  const csv = '\ufeff' + head.join(',') + '\n' + body.join('\n');
   const blob = new Blob([csv], {type:'text/csv'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = '奖学金评选.csv';
   a.click(); URL.revokeObjectURL(a.href);
 }
-
 
 /* ---------- 设置 / 导出 ---------- */
 
