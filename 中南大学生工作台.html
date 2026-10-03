@@ -12,9 +12,42 @@
 (function(){ var l = document.getElementById('faviconLink'); if(l) l.setAttribute('href', LOGO_DATA); })();</script>
 <!-- 主题预载：必须在样式之前执行，避免首屏白闪。使用独立 key，保证即使主数据损坏主题仍可用 -->
 <script>(function(){try{
-  var t = localStorage.getItem('cw_theme') || 'light';
+  var t = lsGet('cw_theme') || 'light';
   if(t !== 'light') document.documentElement.setAttribute('data-theme', t);
 }catch(e){}})();</script>
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   安全存储（v2.1.1）
+   受限来源（如预览面板的沙箱 iframe）里 localStorage 一访问就抛
+   SecurityError —— 曾让整个启动断在渲染前，界面全白。
+   这里的策略：能落地就落地；不允许就退到内存（单次会话内可用，
+   刷新即失；正常 Edge / 桌面版不受影响，仍然真实持久化）。
+   ══════════════════════════════════════════════════════════════════ */
+/* ① 错误兜底最先注册（哪怕后面全炸，也要把原因画出来而不是白屏） */
+window.addEventListener('error', function(e){
+  var paint = function(){
+    var el = document.getElementById('mainArea');
+    if(!el || el.innerHTML.length > 40) return;    // 已经画出内容就不打扰
+    el.innerHTML = '<div class="card"><div class="card-body" style="padding:32px">'
+      + '<b style="font-size:15px">启动时出了一个问题</b><br><br>'
+      + '<code style="font-size:12px">' + String(e.message || e).replace(/</g,'&lt;') + '</code><br><br>'
+      + '<span style="font-size:12.5px;color:var(--text-3)">如果是在预览面板里看到这句话：预览环境限制了本地存储，'
+      + '请<b>下载这个 HTML 文件后用 Edge 直接打开</b>，功能与数据保存都完整。</span></div></div>';
+  };
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', paint);
+  else paint();
+});
+/* ② 安全存储：⚠️ 沙箱里连「访问 localStorage 属性」都会抛，取引用本身也要防护 */
+(function(){
+  var rawLS = null, mem = {}, ok = false;
+  try{ rawLS = window.localStorage; ok = !!rawLS; }catch(e){ ok = false; }
+  if(ok){ try{ rawLS.setItem('__probe__','1'); rawLS.removeItem('__probe__'); }
+          catch(e){ ok = false; } }
+  window.lsGet = function(k){ if(ok){ try{ return rawLS.getItem(k); }catch(e){ ok=false; } } return (k in mem) ? mem[k] : null; };
+  window.lsSet = function(k,v){ if(ok){ try{ rawLS.setItem(k,v); return; }catch(e){ ok=false; } } mem[k]=String(v); };
+  window.lsDel = function(k){ if(ok){ try{ rawLS.removeItem(k); return; }catch(e){ ok=false; } } delete mem[k]; };
+})();
+</script>
 <style>
 /* ============ 主题变量 · 明亮（默认） ============ */
 /* ══════════════════════════════════════════════════════════════════
@@ -1951,7 +1984,7 @@ async function restoreFromDisk(){
   try{
     const raw = await window.__TAURI__.core.invoke('load_data_file', { name: DISK_MAIN });
     if(!raw) return false;
-    localStorage.setItem(STORE_KEY, raw);
+    lsSet(STORE_KEY, raw);
     return true;
   }catch(e){ console.warn('[固化] 磁盘镜像恢复失败', e); return false; }
 }
@@ -1966,7 +1999,7 @@ function save(){
     if(b && b.grades !== S.grades){
       console.warn('[中南大学生工作台] S.grades 与当前批次脱钩，请检查是否漏用 setGrades()');
     }
-    localStorage.setItem(STORE_KEY, JSON.stringify(buildSavePayload()));
+    lsSet(STORE_KEY, JSON.stringify(buildSavePayload()));
     mirrorToDisk();   // v1.5：桌面版同步固化到磁盘（防抖 700ms，不阻塞界面）
   }catch(e){
     // 静默失败会让用户以为已保存，必须让问题可见
@@ -1977,7 +2010,7 @@ function save(){
 function load(){
   try{
     /* ① 首选 v2 */
-    const raw = localStorage.getItem(STORE_KEY);
+    const raw = lsGet(STORE_KEY);
     if(raw){
       const d = JSON.parse(raw);
       S.batches = Array.isArray(d.batches)
@@ -2042,7 +2075,7 @@ function load(){
     }
 
     /* ② 迁移旧版 v1（只有一份 students）→ 包成第一个批次 */
-    const raw1 = localStorage.getItem(STORE_KEY_V1);
+    const raw1 = lsGet(STORE_KEY_V1);
     if(raw1){
       const d1 = JSON.parse(raw1);
       const students = Array.isArray(d1.students) ? d1.students : [];
@@ -2083,7 +2116,7 @@ function applyTheme(t){
 function setTheme(t){
   applyTheme(t);
   // 双写：S.theme 走主存储，cw_theme 供首屏预载脚本使用
-  try{ localStorage.setItem('cw_theme', t); }catch(e){}
+  try{ lsSet('cw_theme', t); }catch(e){}
   syncThemeUI(t);
   save();
 }
@@ -3409,7 +3442,7 @@ async function recordImport(type, file, stats, snapshot){
     }catch(e){ console.warn('[历史] 快照写盘失败', e); }
   }
   if(!rec.snap){
-    try{ localStorage.setItem('ws-snap-' + id, payload); rec.snap = 'local:ws-snap-' + id; }
+    try{ lsSet('ws-snap-' + id, payload); rec.snap = 'local:ws-snap-' + id; }
     catch(e){ rec.snap = null; }   // 空间不足存不下：记录保留，复原按钮置灰
   }
   S.importHistory = [rec, ...(S.importHistory || [])];
@@ -3430,7 +3463,7 @@ function pruneOldSnapshots(){
     if(rec.snap.startsWith('disk:') && window.__TAURI__ && window.__TAURI__.core){
       try{ window.__TAURI__.core.invoke('delete_data_file', { name: rec.snap.slice(5) }); }catch(e){}
     }else if(rec.snap.startsWith('local:')){
-      try{ localStorage.removeItem(rec.snap.slice(7)); }catch(e){}
+      try{ lsDel(rec.snap.slice(7)); }catch(e){}
     }
   });
   S.importHistory = list.slice(0, MAX_SNAPS);
@@ -3467,7 +3500,7 @@ async function readSnapshot(rec){
       const raw = await window.__TAURI__.core.invoke('load_data_file', { name: rec.snap.slice(5) });
       return raw ? JSON.parse(raw) : null;
     }
-    const raw = localStorage.getItem(rec.snap.slice(7));
+    const raw = lsGet(rec.snap.slice(7));
     return raw ? JSON.parse(raw) : null;
   }catch(e){ return null; }
 }
@@ -3551,7 +3584,7 @@ function deleteImport(hid){
       if(rec.snap && rec.snap.startsWith('disk:') && window.__TAURI__ && window.__TAURI__.core){
         try{ window.__TAURI__.core.invoke('delete_data_file', { name: rec.snap.slice(5) }); }catch(e){}
       }
-      if(rec.snap && rec.snap.startsWith('local:')){ try{ localStorage.removeItem(rec.snap.slice(7)); }catch(e){} }
+      if(rec.snap && rec.snap.startsWith('local:')){ try{ lsDel(rec.snap.slice(7)); }catch(e){} }
       S.importHistory = (S.importHistory||[]).filter(x=>x.id!==hid);
       save(); renderImportLog(); renderSidebar();
       toast('记录已删除');
@@ -9157,8 +9190,8 @@ function demoGrades(students){
   // 兜底：任何情况下都要保证 S.students 与当前批次一致
   if(S.batches.length){ attachBatch(activeBatch().id); } else { S.activeBatchId = null; S.students = []; S.grades = []; invalidateGradeMap(); }
   // 首屏主题已由 head 预载脚本设置，此处做一次一致性校正
-  const pre = localStorage.getItem('cw_theme');
-  if(pre && pre !== S.theme){ try{ localStorage.setItem('cw_theme', S.theme);}catch(e){} }
+  const pre = lsGet('cw_theme');
+  if(pre && pre !== S.theme){ try{ lsSet('cw_theme', S.theme);}catch(e){} }
   applyTheme(S.theme || 'light');
   initResponsive();
   enterApp();            // 打开即用：密码登录已整体移除（2026-10-03）
