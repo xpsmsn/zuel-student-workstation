@@ -2306,10 +2306,20 @@ textarea.input{height:auto !important; padding:8px 10px !important; line-height:
 #mainArea b{font-weight:600 !important}
 /* 浏览器默认元素（button/summary）保持 UA 默认内边距，不强行改 */
 
-/* 操作卡片的装饰图标（🧭💾📊🕘📋）：规范⑪「过多装饰图标」——
-   这些图标不携带信息（文字标题已经说清是什么），去掉后卡片更干净。 */
-#mainArea .op-i{display:none !important}
-#mainArea .op{gap:0 !important}
+/* 操作卡片的图标（🧭💾📊）：v2.4.3 恢复显示。
+   辅导员：「设置页有 emoji 挺可爱的，还是加上吧」。
+   规范⑪ 禁的是「过多装饰图标」，不是禁止一切图标 —— 每个入口一个、能帮识别，
+   属于合理使用。字号 15px、行高 1，颜色跟随正文（不做彩色大块）。 */
+#mainArea .op-i{
+  display:inline-flex !important; align-items:center; justify-content:center;
+  width:24px; height:24px; flex:0 0 auto;
+  font-size:15px !important; line-height:1 !important;
+  color:var(--text-secondary);
+}
+#mainArea .op{
+  display:flex !important; align-items:flex-start !important;
+  gap:var(--space-sm) !important;   /* 规范⑨ 图标文字间距 8px */
+}
 </style>
 
 <!-- 奖学金组头 · 视觉钉死（放在所有样式之后，避免被前面的表格规则盖掉） -->
@@ -4188,12 +4198,34 @@ function semesterWeek(now){
    这样改完之后，后续每一天仍然按同一套公式往后数，
    不会出现「校准一次，过两天又对不上」。
    ══════════════════════════════════════════════════════════════════ */
-function setWeekFirstDay(v){
+const WEEK_CN = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+/** 改「第 1 周开始日期」：日期本身就决定了星期几，自动对齐到那一周的周日 */
+function syncFirstWeekStart(v){
   S.semester = S.semester || (S.semester = { name:'', start:'', weeks:18 });
-  S.semester.firstDay = Number(v);
-  save();
-  renderSettings(); renderBatchBar();
-  toast('已改为「' + ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'][Number(v)] + '」为每周第一天');
+  if(v){
+    const d = new Date(v + 'T00:00:00');
+    if(!isNaN(d)){
+      /* 存成「它所在那一周的周日」：选 9/6(周日) 存 9/6；选 9/9(周三) 也存 9/6。
+         这样 sem.start 永远是周日，semesterWeek 的边界永远对齐。 */
+      const back = (d.getDay() + 7) % 7;
+      d.setDate(d.getDate() - back);
+      S.semester.start = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      S.semester.firstDay = 0;
+    }else S.semester.start = v;
+  }else{
+    S.semester.start = '';
+  }
+  save(); renderSettings(); renderBatchBar();
+  toast(v ? '第 1 周开始日期已设为 ' + v : '已清空');
+}
+/** 一句话说明当前口径：第 1 周从哪天开始、今天是第几周 */
+function weekFirstHintText(){
+  const sem = S.semester || {};
+  if(!sem.start) return '填上之后，周次按这一周的第一天自动往后数';
+  const d = new Date(sem.start + 'T00:00:00');
+  const w = semesterWeek();
+  return '第 1 周从 ' + sem.start + '（' + (WEEK_CN[d.getDay()] || '') + '）开始'
+    + (w ? '，今天是第 ' + w.raw + ' 周' : '');
 }
 function openWeekCalibrate(init){
   const sem = S.semester || (S.semester = { name:'', start:'', weeks:18 });
@@ -4229,12 +4261,12 @@ function openWeekCalibrate(init){
                             : '改后：今天是第 ' + shown + ' 周（开学日会跟着平移）'}</div>
         </div>
         <div style="margin-top:8px">
-          <div style="font-size:11.5px;color:var(--text-3);font-weight:600;margin-bottom:5px">开学日期（第 1 周的周一）</div>
+          <div style="font-size:11.5px;color:var(--text-3);font-weight:600;margin-bottom:5px">第 1 周开始日期</div>
           <input type="date" id="semStart" value="${esc(sem.start||'')}" oninput="syncWeekFromDate()"
                  style="width:100%;height:36px;padding:0 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg-card);color:var(--text)">
         </div>
         <div style="font-size:12px;color:var(--text-3);margin-top:10px;line-height:1.7">
-          改开学日期 = 整体平移周次；上面的加减号 = 只把<b>今天</b>定为第 N 周（推荐）。<br>
+          改开始日期 = 整体平移周次；上面的加减号 = 只把<b>今天</b>定为第 N 周（推荐）。<br>
           校准只影响周次显示，不动任何学生数据。
         </div>
       </div>
@@ -4447,7 +4479,7 @@ function renderSettings(){
   </div>
 
   <div class="card" style="margin-bottom:16px"><div class="card-body">
-    <div class="opt-t" style="margin-bottom:8px">外观</div>
+    <div class="opt-t" style="margin-bottom:8px">🎨 外观</div>
     <!-- v2.4.0：原来是三张竖排大卡（每张带图标+名称+说明），占掉大半屏。
          与顶栏一致压成一行分段控件；说明文字收成 title 悬停提示。 -->
     <div class="seg st-seg" role="group" aria-label="外观模式">
@@ -4478,7 +4510,7 @@ function renderSettings(){
 
   <!-- v1.8：托盘常驻 + 开机启动 -->
   <div class="card" style="margin-bottom:16px"><div class="card-body">
-    <div class="opt-t" style="margin-bottom:8px">常驻与开机启动</div>
+    <div class="opt-t" style="margin-bottom:8px">🖥 常驻与开机启动</div>
     <div class="opt-row">
       <div class="opt-l">
         <div class="opt-t">最小化到系统托盘</div>
@@ -4509,7 +4541,7 @@ function renderSettings(){
   </div></div>
 
   <div class="card" style="margin-bottom:16px"><div class="card-body">
-    <div class="opt-t" style="margin-bottom:8px">学期与周次</div>
+    <div class="opt-t" style="margin-bottom:8px">📅 学期与周次</div>
     <!-- v2.4.0：辅导员要求「设置里也能看到并调整周数」。
          这里既显示当前是第几周，也能直接打开校准弹窗（与顶栏同一个）。 -->
     <div class="st-week">
@@ -4519,25 +4551,23 @@ function renderSettings(){
       </div>
       <button class="btn" onclick="openWeekCalibrate()" title="把今天定为第 N 周，之后自动接着往后数">校准今天第几周</button>
     </div>
-    <!-- v2.4.1：周次在哪一天翻页。默认周日（本校口径），改成周一也行。 -->
+    <!-- v2.4.3：原来这里是「每周第一天」下拉 + 下面另一个「开学日期」输入框，
+         两件事其实是同一个（这天是第 1 周的第几天），要人自己对齐、容易填错。
+         合成一个**日期选择器**：选 9/6，系统自动认出它是周日 → 每周第一天 = 周日。
+         星期几由日期本身决定，不必单独设。 -->
     <div class="opt-row" style="margin-top:0">
       <div class="opt-l">
-        <div class="opt-t">每周第一天</div>
-        <div class="opt-d">周次在这一天的 0 点翻页。选「星期日」时，周日当天就是新一周的第 1 天</div>
+        <div class="opt-t">第 1 周开始日期</div>
+        <div class="opt-d" id="wkFirstHint">${esc(weekFirstHintText())}</div>
       </div>
       <div class="opt-r">
-        <select class="input" style="width:auto;min-width:112px;height:36px;padding:0 10px"
-                onchange="setWeekFirstDay(this.value)">
-          ${['星期日','星期一','星期二','星期三','星期四','星期五','星期六']
-            .map((n,i)=>`<option value="${i}" ${weekFirstDay()===i?'selected':''}>${n}</option>`).join('')}
-        </select>
+        <input class="input" type="date" id="semStartMain" value="${esc(sem.start||'')}"
+               onchange="syncFirstWeekStart(this.value)" style="width:168px">
       </div>
     </div>
     <div class="sem-grid">
-      <div><div class="lbl">学期名称（顶栏显示）</div>
+      <div><div class="lbl">学期名称</div>
         <input class="input" id="setName" style="width:100%" value="${esc(sem.name||'')}" placeholder="如：2026-2027 学年第一学期"></div>
-      <div><div class="lbl">第 1 周开始日期（周一）</div>
-        <input class="input" id="setStart" type="date" style="width:100%" value="${esc(sem.start||'')}"></div>
       <div><div class="lbl">本学期总周数</div>
         <input class="input" id="setWeeks" type="number" min="1" max="30" style="width:100%" value="${Number(sem.weeks)||18}"></div>
       <div><div class="lbl">效果预览</div>
@@ -4553,7 +4583,7 @@ function renderSettings(){
        现在降级成一行状态说明，并写明"这不是备份、带不走"。 -->
   <div class="card" style="margin-bottom:16px"><div class="card-body">
     <div class="opt-t" style="margin-bottom:16px;display:flex;align-items:center;gap:8px">
-      数据管理
+      📦 数据管理
       <span style="font-weight:400;font-size:13px;color:${S.lastBackupAt ? 'var(--text-3)' : 'var(--warn)'};margin-left:auto">${esc(backupAgeText())}</span>
     </div>
 
@@ -4603,7 +4633,7 @@ function renderSettings(){
   </div></div>
 
   <div class="card"><div class="card-body">
-    <div class="opt-t" style="margin-bottom:8px">关于</div>
+    <div class="opt-t" style="margin-bottom:8px">ℹ️ 关于</div>
     <div class="about-box">
       <div class="about-row"><span class="ak">软件</span><span class="av"><b>中南大学生工作台</b> · 本地单机运行，全程离线</span></div>
       <div class="about-row"><span class="ak">存储</span><span class="av">${S.batches.length} 个批次 · 全部数据仅存于本机${solid ? '（含磁盘镜像固化）' : ''}</span></div>
@@ -4620,10 +4650,11 @@ function renderSettings(){
 }
 function saveSemester(){
   const name = ($('setName').value || '').trim() || '本学期';
-  const start = $('setStart').value || '';
+  /* v2.4.3：开始日期在上方「第 1 周开始日期」那一栏设置（已自动对齐到周日），这里只读不再重复输入 */
+  const start = (S.semester && S.semester.start) || '';
   const weeks = Math.min(Math.max(Math.round(Number($('setWeeks').value) || 18), 1), 30);
-  if(!start){ toast('请选择第 1 周的开始日期（周一）'); return; }
-  S.semester = { name, start, weeks };
+  if(!start){ toast('请先在上面填写「第 1 周开始日期」'); return; }
+  S.semester = { name, start, weeks, firstDay: (S.semester && S.semester.firstDay) || 0 };
   save(); renderTopbarWeek();
   const w = semesterWeek();
   const pv = $('setPreview');
@@ -4978,16 +5009,16 @@ function renderProfile(){
 
   <div class="card"><div class="card-body">
     <div style="font-size:15px;color:var(--text-2);line-height:1.9">
-      <b>找其他设置？</b>外观主题、学期周次、数据管理（导入 / 备份 / 历史 / 打开文件夹）都在
+      <b>🔧 找其他设置？</b>外观主题、学期周次、数据管理（导入 / 备份 / 历史 / 打开文件夹）都在
       <button class="btn" style="padding:var(--space-sm) 10px;font-size:13px" onclick="gotoSettings()">系统设置 →</button>
     </div>
     <div style="font-size:15px;color:var(--text-2);line-height:1.9;margin-top:8px">
-      <b>第一次用 / 想再看一遍？</b>从校内系统导出到导入本工作台，一步步照着点就行 ——
+      <b>🎯 第一次用 / 想再看一遍？</b>从校内系统导出到导入本工作台，一步步照着点就行 ——
       <button class="btn" style="padding:var(--space-sm) 10px;font-size:13px" onclick="openOnboarding(0)">重看新手引导</button>
     </div>
     <!-- v1.9.2：界面本身的"贴纸式"说明，随时可重看 -->
     <div style="font-size:15px;color:var(--text-2);line-height:1.9;margin-top:8px">
-      <b>界面上每块东西是干什么的？</b>在界面上浮出一圈批注、逐块点给你看 ——
+      <b>🔍 界面上每块东西是干什么的？</b>在界面上浮出一圈批注、逐块点给你看 ——
       <button class="btn" style="padding:3px 10px;font-size:12.5px" onclick="startTour()">重看页面导览</button>
     </div>
   </div></div>`;
