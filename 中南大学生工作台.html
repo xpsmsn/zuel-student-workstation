@@ -1909,23 +1909,39 @@ tbody tr:hover{background-image:none}
   font-size:13px; font-weight:600; line-height:1.4; color:var(--text-secondary);
 }
 
-/* ── 细分名额 × 主表格关联（v2.3.3）──────────────────────────
-   组头行：把「分配 N 名 / 已定 N 名 / 状态 / 核对」直接摆在表格里，
-   老师不用再点开细分弹窗就能对照。视觉仍遵循契约：
-   8px 栅格、卡片 12px 圆角、色彩只表达状态、无阴影。 */
+/* ── 细分名额 × 主表格关联（v2.3.3 / v2.3.4 视觉重做）────────────
+   老师 2026-10-03 反馈：「专业在表格中呈现方式与学生列高度相似，
+   对老师直观看表造成干扰」。
+
+   重做的思路：**让组头明确是"分组标签"，不是"学生行"**。四个手段：
+     ① 压低：字号全用 13px（辅助小字档），数字不加粗 —— 学生行是 15px/600
+     ② 贴边：左侧 3px 主色竖线，一眼区分"这是分组"
+     ③ 让位：高度更矮（上下内边距比学生行小），不跟学生行抢纵向空间
+     ④ 分隔：组头上边框用 border（分组开始），学生行只有下边框（行间分隔）
+
+   数字也从 15px/600 降为 13px/400 —— 之前三个数字和姓名一样重，
+   老师分不清哪个是「这一组的名字」、哪个是「数」。 */
 .aw-group-row td{
   background:var(--bg-thead);
-  padding:var(--space-sm) var(--space-md);
+  padding:0 var(--space-md);              /* 上下 0 → 整行更矮 */
+  height:40px;
+  border-top:1px solid var(--border);
   border-bottom:1px solid var(--border);
-  font-size:13px; line-height:1.4; color:var(--text-secondary);
+  font-size:13px; line-height:1.4; font-weight:400;
+  color:var(--text-secondary);
   vertical-align:middle; white-space:nowrap;
 }
-.aw-group-name{text-align:left}
+.aw-group-row:first-child td{border-top:0}
+.aw-group-name{
+  text-align:left;
+  box-shadow:inset 3px 0 0 var(--accent);   /* 左侧主色竖线：分组标识 */
+  padding-left:var(--space-md) !important;
+}
 .aw-gcheck{display:inline-flex;align-items:center;gap:var(--space-sm);cursor:pointer}
-.aw-gcheck b{font-size:15px; font-weight:600; line-height:1.5; color:var(--text-primary)}
+.aw-gcheck b{font-size:13px; font-weight:600; line-height:1.4; color:var(--text-primary)}
 .aw-gcheck input{width:16px; height:16px; accent-color:var(--accent); cursor:pointer; flex:0 0 auto}
 .aw-group-num{text-align:right; font-variant-numeric:tabular-nums}
-.aw-group-num b{font-size:15px; font-weight:600; color:var(--text-primary)}
+.aw-group-num b{font-size:13px; font-weight:400; color:var(--text-secondary)}  /* 不加粗：别和学生姓名争 */
 .aw-group-state{text-align:left}
 .aw-state{
   display:inline-block; padding:3px var(--space-sm); border-radius:var(--radius-btn);
@@ -2112,6 +2128,42 @@ tbody tr:hover{background-image:none}
 }
 .aw-prog,.aw-chip,.aw-split-btn{transition:background .12s linear,border-color .12s linear}
 .aw-prog:hover,.aw-chip:hover,.aw-split-btn:hover{transform:none; filter:none}
+
+</style>
+
+<!-- 奖学金组头 · 视觉钉死（放在所有样式之后，避免被前面的表格规则盖掉） -->
+<style id="award-grouphead">
+/* 老师 2026-10-03：「专业在表格中呈现方式与学生列高度相似，对老师直观看表造成干扰」
+   钉死四件事，让组头明确是「分组标签」而非「学生行」：
+     ① 高度 40px（学生行 59px）—— 压低，不抢纵向空间
+     ② 字号 13px/400（学生行 15px）—— 辅助小字档，视觉更轻
+     ③ 左侧 3px 主色竖线 —— 一眼认出「这是一组的开始」
+     ④ 上边框分隔 —— 分组之间有明确的分界
+   用 !important 是因为本文件有多处表格样式按顺序覆盖，层叠不可靠。 */
+.award-table tr.aw-group-row td{
+  background:var(--bg-thead) !important;
+  padding:0 var(--space-md) !important;
+  height:40px !important;
+  font-size:13px !important; line-height:1.4 !important; font-weight:400 !important;
+  color:var(--text-secondary) !important;
+  border-top:1px solid var(--border) !important;
+  vertical-align:middle;
+}
+.award-table tr.aw-group-row:first-child td{border-top:0 !important}
+.award-table tr.aw-group-row td.aw-group-name{
+  box-shadow:inset 3px 0 0 var(--accent) !important;
+  text-align:left !important; font-size:13px !important;
+}
+.award-table tr.aw-group-row .aw-gcheck b,
+.award-table tr.aw-group-row .aw-group-num b{
+  font-size:13px !important; line-height:1.4 !important;
+}
+.award-table tr.aw-group-row .aw-gcheck b{font-weight:600 !important; color:var(--text-primary) !important}
+.award-table tr.aw-group-row .aw-group-num b{font-weight:400 !important; color:var(--text-secondary) !important}
+.award-table tr.aw-group-row.checked td{background:var(--bg-hover) !important}
+.award-table tr.aw-group-row:hover td{background:var(--bg-hover) !important}
+.aw-group-state{font-size:13px !important; line-height:1.4 !important}
+.aw-group-num{font-size:13px !important}
 </style>
 </head>
 <body>
