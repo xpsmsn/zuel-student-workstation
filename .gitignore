@@ -51,3 +51,16 @@ _AI学工汇报/
 # ---- 重构新增：架构基础设施（必须入库，否则别人无法构建）----
 # 反过来：baseline/ 也要入库 —— 它是 --verify 的比对基准
 .tmp/
+
+# ---- .build 下的过程产物（2026-10-03 清理）----
+# 截图 / GIF / 一次性脚本 / 构建日志 / 历史手册片段：都是当时干活留下的中间物，
+# 没人引用（grep 全仓库 0 命中）、也不需要留档。要看效果重新截一次即可。
+.build/*.png
+.build/*.gif
+.build/*.log
+.build/.last-*
+.build/shot-*.js
+.build/render-v*.js
+.build/verify-v*.js
+.build/manual-v[0-9]*.md
+.build/备用-*.exe
