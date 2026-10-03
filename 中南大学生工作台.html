@@ -5126,12 +5126,25 @@ const FIELD_ALIASES = {
   '学号(职工号)': '学号',
   '职工号': '学号'
 };
+/** 导出时给合并表加的列名前缀（见 mergedRows）。
+    「成绩·加权平均成绩」剥掉前缀后要还原成「加权平均成绩」才能被成绩层认出来。 */
+const EXPORT_PREFIX_RE = /^(?:成绩|评选|评价)·/;
 function normalizeKey(h){
-  const k = String(h == null ? '' : h).trim();
+  let k = String(h == null ? '' : h).trim();
   if(FIELD_ALIASES[k]) return FIELD_ALIASES[k];
   // 表头单元格里常有换行或多余空格（如「学号/␊职工号」）→ 去掉所有空白再试一次
-  const squashed = k.replace(/\s+/g, '');
-  return FIELD_ALIASES[squashed] || k;
+  let squashed = k.replace(/\s+/g, '');
+  if(FIELD_ALIASES[squashed]) return FIELD_ALIASES[squashed];
+  /* v2.5.2：CSV 导出（mergedRows）把成绩列写成「成绩·加权平均成绩」，
+     导入时若不剥前缀，splitGradeCols 一个成绩列都认不出 ——
+     这些列会被当成档案列写进学生档案，成绩一条都读不回来。
+     这里剥掉前缀再归一，全链路（成绩层 / 评选层 / 档案层）就都认得了。 */
+  const stripped = squashed.replace(EXPORT_PREFIX_RE, '');
+  if(stripped !== squashed){
+    if(FIELD_ALIASES[stripped]) return FIELD_ALIASES[stripped];
+    return stripped;
+  }
+  return k;
 }
 
 /* 已知字段清单（用于导入确认页判定「已识别 / 新字段」） */
@@ -9905,8 +9918,15 @@ function handleFile(e){
            科研创新B1…志愿顺序」都是评选列，档案列很少 —— 不单独判就会被
            误当档案表，那些列被 isAwardCol 挡掉、白白丢一整片。 */
         const awardCount = sh.header.filter(function(h){ return isAwardCol(h); }).length;
+        /* ⚠️ v2.5.2：archiveCount 才是「纯档案列数」= 总列 − 成绩列 − 评选列。
+           之前用 g.profile.length（它只分「成绩/非成绩」，把评选列也算进去了），
+           导致评选表 10 列 > 学生信息 7 列 → **评选表被误选成档案表**，
+           学生信息与成绩表反被当成成绩通道，评选列一个都没进 awardRows。 */
+        const scoreCount = g.grade.length;
+        const archiveCount = Math.max(0, sh.header.length - scoreCount - awardCount);
         return { sh: sh, g: g, awardCount: awardCount,
-                 profileCount: g.profile.length, scoreCount: g.grade.length,
+                 profileCount: g.profile.length, scoreCount: scoreCount,
+                 archiveCount: archiveCount,
                  hasId: sh.header.some(function(h){ return normalizeKey(h) === '学号'; }) };
       }).filter(x => x.hasId);
 
@@ -9914,13 +9934,17 @@ function handleFile(e){
            档案表  —— 档案列最多
            评选表  —— 档案列不多、但评选列明显多（≥2 且 ≥ 档案列的一半）
            其余含学号的表 —— 走成绩通道 */
+      /* v2.5.2 判据（三类互斥，按「纯档案列 / 成绩列 / 评选列」各自数量）：
+           档案表 —— archiveCount 最多
+           评选表 —— 评选列 ≥2 且 评选列 ≥ 纯档案列
+           其余   —— 走成绩通道 */
       const ranked = scored.slice().sort(function(a, b){
-        return (b.profileCount - a.profileCount) || (a.scoreCount - b.scoreCount);
+        return (b.archiveCount - a.archiveCount) || (a.scoreCount - b.scoreCount);
       });
       const profileSheet = ranked.length ? ranked[0] : null;
       const rest = ranked.slice(1);
       const awardSheets = rest.filter(function(x){
-        return x.awardCount >= 2 && x.awardCount * 2 >= x.profileCount;
+        return x.awardCount >= 2 && x.awardCount >= x.archiveCount;
       });
       const gradeSheets = rest.filter(function(x){ return awardSheets.indexOf(x) < 0; });
 
@@ -11343,17 +11367,25 @@ function downloadCsv(csv, filename){
   a.download = filename;
   a.click();
 }
-/* 导出用：把学生行与它绑定的成绩合并成一行（成绩列加前缀「成绩·」，避免与档案列重名）。
-   没有成绩时原样返回，不凭空多出 8 个空列。成绩列顺序走 GRADE_FIELDS 统一口径。 */
-function mergedRows(list, grades){
+/* 导出用：把学生行与它绑定的**成绩 + 评选**合并成一行。
+   列名前缀「成绩·」「评选·」用来避免与档案列重名 —— CSV 是单表格式，
+   没法像 xlsx 那样分工作表，只能并列在同一张表里。
+   导入侧 normalizeKey 会剥掉这两个前缀（v2.5.2），所以能自动分流回去。
+   没有对应数据时不凭空多出空列。 */
+function mergedRows(list, grades, awards){
   const arr = Array.isArray(grades) ? grades : [];
-  if(!arr.length) return list;
-  const m = new Map(arr.map(g=>[String(g['学号']==null?'':g['学号']).trim(), g]));
+  const aw  = Array.isArray(awards) ? awards : [];
+  if(!arr.length && !aw.length) return list;
+  const gm = new Map(arr.map(g=>[String(g['学号']==null?'':g['学号']).trim(), g]));
+  const am = new Map(aw.map(r=>[String(r['学号']==null?'':r['学号']).trim(), r]));
   return list.map(s=>{
     const o = {};
     Object.keys(s).forEach(k=>{ o[k] = s[k]; });
-    const g = m.get(String(s['学号']==null?'':s['学号']).trim());
-    GRADE_FIELDS.forEach(k=>{ o['成绩·'+k] = (g && g[k]!=null) ? g[k] : ''; });
+    const id = String(s['学号']==null?'':s['学号']).trim();
+    const g = gm.get(id), r = am.get(id);
+    if(arr.length) GRADE_FIELDS.forEach(k=>{ o['成绩·'+k] = (g && g[k]!=null) ? g[k] : ''; });
+    /* v2.5.3：评选数据也并进来。此前只并了成绩，CSV 往返会丢评选那一整片。 */
+    if(aw.length) AWARD_ONLY_COLS.forEach(k=>{ o['评选·'+k] = (r && r[k]!=null) ? r[k] : ''; });
     return o;
   });
 }
@@ -11362,7 +11394,8 @@ function mergedRows(list, grades){
 function exportBatchCsv(batch, silent){
   if(!batch){ if(!silent) toast('没有可导出的批次'); return; }
   if(!batch.students.length){ if(!silent) toast('该批次没有可导出的数据'); return; }
-  const rows = mergedRows(batch.students, batch.grades);
+  /* v2.5.3：带上 awardRows —— 只有 S.awardRows 这一个评选数据区，直接取 */
+  const rows = mergedRows(batch.students, batch.grades, S.awardRows);
   const fileName = `学生数据_${safeName(batch.name)}_${todayStr()}.csv`;
   downloadCsv(csvOf(rows), fileName);
   // v1.9.7：记入备份历史。silent=true 也要记 —— 自动备份场景（覆盖前 / 删批次前）的回退依据就在这里
@@ -11373,7 +11406,7 @@ function exportBatchCsv(batch, silent){
 function exportData(){
   const list = currentList();
   if(!list.length){ toast('当前没有可导出的数据'); return; }
-  const rows = mergedRows(list, S.grades);
+  const rows = mergedRows(list, S.grades, S.awardRows);   // v2.5.3：带上评选
   const csv = csvOf(rows);
   const fileName = `学生数据_${todayStr()}.csv`;
   downloadCsv(csv, fileName);
