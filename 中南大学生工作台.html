@@ -515,6 +515,72 @@ html[data-theme="dark"] img.brand-logo{filter:brightness(1.5) saturate(1.05)}
 }
 .aw-chip.on .aw-chip-n{background:rgba(255,255,255,.22);color:#fff}
 
+/* ── 名额输入（放在 chip 右侧）──────────────────────────
+   规格遵循视觉契约：圆角 6px、字号 13px、8px 栅格、色彩只表达状态。 */
+.aw-chip-wrap{display:inline-flex;align-items:stretch;gap:0}
+.aw-chip-wrap .aw-chip{border-top-right-radius:0;border-bottom-right-radius:0}
+.aw-quota{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:0 8px;border:1px solid var(--border);border-left:0;
+  border-radius:0 6px 6px 0;background:var(--bg-card);
+  font-size:12px;color:var(--text-3);white-space:nowrap;cursor:default;
+}
+.aw-chip-wrap.on .aw-quota{background:var(--accent);border-color:var(--accent);color:rgba(255,255,255,.85)}
+.aw-quota input{
+  width:40px;height:26px;padding:0 4px;text-align:center;
+  border:0;border-radius:4px;background:var(--bg-hover);
+  color:var(--text-primary);font-size:12px;font-family:inherit;
+  font-variant-numeric:tabular-nums;
+}
+.aw-quota input:focus{outline:none;box-shadow:0 0 0 2px var(--ring)}
+.aw-chip-wrap.on .aw-quota input{background:rgba(255,255,255,.2);color:#fff}
+.aw-quota input::-webkit-outer-spin-button,
+.aw-quota input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+
+/* ── 评选进度 ────────────────────────────────────────
+   名额 vs 已推荐。超额用警示色（规则④：色彩表达状态）。 */
+.aw-progress{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(216px,1fr));
+  gap:8px;margin-bottom:16px;
+}
+.aw-prog{
+  padding:8px 12px;border:1px solid var(--border);border-radius:8px;
+  background:var(--bg-card);cursor:pointer;transition:background .12s,border-color .12s;
+}
+.aw-prog:hover{background:var(--bg-hover)}
+.aw-prog.on{border-color:var(--accent);background:var(--accent-soft)}
+.aw-prog-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:6px}
+.aw-prog-n{font-size:13px;font-weight:600;color:var(--text-primary);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aw-prog-v{font-size:12px;color:var(--text-2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.aw-prog-v b{font-size:15px;font-weight:680;color:var(--text-primary)}
+.aw-prog-v i{font-style:normal;color:var(--text-3)}
+/* 进度条：8px 栅格（4px 高 + 上下留白），圆角 999（进度条天然是胶囊形） */
+.aw-bar{height:4px;border-radius:999px;background:var(--bg-hover);overflow:hidden}
+.aw-bar i{display:block;height:100%;border-radius:999px;background:var(--accent);transition:width .2s}
+.aw-bar i.over{background:var(--warn)}
+.aw-prog-f{font-size:11.5px;color:var(--text-3);margin-top:5px}
+
+/* ── 状态行底色：一眼看出谁定了 ──────────────────────────
+   推荐=绿（成了）· 候补=橙（在等）· 落选=灰（没成）。用浅底+深字，遵循规则⑦。 */
+.award-table tr.aw-推荐 td{background:var(--success-bg)}
+.award-table tr.aw-推荐:hover td{background:var(--success-bg)}
+.award-table tr.aw-候补 td{background:var(--warn-bg)}
+.award-table tr.aw-候补:hover td{background:var(--warn-bg)}
+.award-table tr.aw-落选 td{background:var(--bg-hover);color:var(--text-3)}
+.award-table tr.aw-picked td{box-shadow:inset 2px 0 0 var(--accent)}
+/* 已定的行，勾选框与文字对比度降一点，避免状态色被选中色盖住 */
+.award-table tr.aw-推荐 .aw-select,
+.award-table tr.aw-候补 .aw-select{background:rgba(255,255,255,.7)}
+
+/* ── 冲突提示：「不兼得」的奖撞了 ────────────────────── */
+.aw-warn{
+  display:inline-block;margin-top:4px;padding:1px 6px;border-radius:6px;
+  background:var(--danger-soft);color:var(--danger-text);
+  font-size:11.5px;line-height:1.5;white-space:normal;
+}
+.aw-status{vertical-align:top}
+
 .aw-summary{
   display:flex;align-items:center;gap:12px;flex-wrap:wrap;
   font-size:13px;color:var(--text-2);margin-bottom:8px;
@@ -536,12 +602,19 @@ html[data-theme="dark"] img.brand-logo{filter:brightness(1.5) saturate(1.05)}
 .award-table td.aw-sid{color:var(--text-2);font-variant-numeric:tabular-nums}
 /* 列宽收紧：12 列全挤在一屏，姓名/学号/专业都是短文本，不该占宽。
    「拟定」和「志愿」是评审时最常看的两列，必须留在首屏内。 */
-.award-table{table-layout:fixed;min-width:0}
-.award-table th:nth-child(2),.award-table td:nth-child(2){width:88px}          /* 姓名 */
-.award-table th:nth-child(3),.award-table td:nth-child(3){width:104px}         /* 学号 */
-.award-table th:nth-child(4),.award-table td:nth-child(4){width:96px}          /* 专业 */
-.award-table th:nth-child(5),.award-table td:nth-child(5){width:82px}          /* 智力 */
-.award-table th.aw-num-h{width:62px}                                           /* B1~B5 */
+/* 列宽（8px 栅格）
+   ⚠️ v2.1.4 修正：之前用 table-layout:fixed + 硬编码窄列（88/104/96/62px），
+   结果「商务英语+法学双学位实验班」被压成一行、姓名和学号也挤在一起 ——
+   为了「塞进一屏」牺牲了可读性。评审时眯着眼看字是不合格的。
+   现在：取消固定布局，列按内容自适应；表格超宽时**横向滚动**（这本来就是
+   表格的正常行为），把「都露出来」让给「看得清」。 */
+.award-table{table-layout:auto;min-width:1080px}
+.award-table th:nth-child(1),.award-table td:nth-child(1){width:40px}          /* 勾选 */
+.award-table th:nth-child(2),.award-table td:nth-child(2){min-width:88px}      /* 姓名 */
+.award-table th:nth-child(3),.award-table td:nth-child(3){min-width:128px}     /* 学号 12 位 */
+.award-table th:nth-child(4),.award-table td:nth-child(4){min-width:152px}     /* 专业（长：双学位实验班）*/
+.award-table th.aw-num-h{min-width:96px}                                       /* 分数列 */
+.award-table td.aw-num{white-space:nowrap}
 .award-table td.aw-num{font-size:13px;padding:8px}                              /* B 值窄一点 */
 .award-table th.aw-status{width:88px}
 .award-table .aw-wish{max-width:none;width:auto;min-width:0}
@@ -562,7 +635,7 @@ tr.aw-picked:hover td{background:var(--accent-soft)}
 }
 .aw-tag.single{background:var(--bg-hover);color:var(--text-2)}
 .aw-tag.more{background:transparent;color:var(--text-3);border:1px solid var(--line);cursor:help}
-.aw-status{width:96px}
+.aw-status{min-width:104px}
 .aw-select{
   height:32px;width:88px;padding:0 8px;
   border:1px solid var(--line);border-radius:6px;
@@ -2284,6 +2357,8 @@ function buildSavePayload(){
     awardStatus: S.awardStatus && typeof S.awardStatus === 'object' ? S.awardStatus : {},
     /* v2.1.3：评选数据独立存储（只有 6 项 + 志愿，与学生档案隔离） */
     awardRows: Array.isArray(S.awardRows) ? S.awardRows : [],
+    /* v2.1.4：各奖项名额 {奖项key: 名额}，0/缺省 = 不限 */
+    awardQuota: S.awardQuota && typeof S.awardQuota === 'object' ? S.awardQuota : {},
     /* v2.1.1：奖学金评选数据 —— 独立于批次（一年一次的重活，不混进日常名册） */
     awards: S.awards && typeof S.awards === 'object' ? S.awards : null
   };
@@ -2361,6 +2436,7 @@ function load(){
       S.awards = (d.awards && typeof d.awards === 'object') ? d.awards : null;   // v2.1.1
       S.awardStatus = (d.awardStatus && typeof d.awardStatus === 'object') ? d.awardStatus : {};   // v2.1.2
       S.awardRows = Array.isArray(d.awardRows) ? d.awardRows : [];   // v2.1.3
+      S.awardQuota = (d.awardQuota && typeof d.awardQuota === 'object') ? d.awardQuota : {};   // v2.1.4
       // 向后兼容：老数据没有 theme 字段时回落明亮
       S.theme = (d.theme==='dark' || d.theme==='eye') ? d.theme : 'light';
       // 每间宿舍床位数（用于算空位）；老数据没有它 → 默认 4 人间
@@ -9188,6 +9264,7 @@ function awardSetStatus(sid, st){
   S.awardStatus = S.awardStatus || {};
   if(st) S.awardStatus[sid] = st; else delete S.awardStatus[sid];
   save();
+  renderAward();     // v2.1.4：推荐后整行变色 + 进度条即时更新
 }
 function awardSetStatusBulk(st){
   _awSel.forEach(sid => awardSetStatus(sid, st));
@@ -9204,6 +9281,26 @@ function gotoAward(){ S.view='award'; renderSidebar(); renderMain(); closeSideba
 
 /* 拟定状态的可选值（空 = 未定） */
 const AWARD_STATUS = ['','推荐','候补','落选'];
+
+/* 每个奖项的名额：S.awardQuota = { 奖项key: 名额数 }
+   未设（0 或缺失）= 不限。名额用来算进度，也用来提示「这个奖报的人够不够」。 */
+function awardQuota(key){ return Number((S.awardQuota||{})[key]) || 0; }
+function setAwardQuota(key, n){
+  S.awardQuota = S.awardQuota || {};
+  n = Math.max(0, Number(n) || 0);
+  if(n) S.awardQuota[key] = n; else delete S.awardQuota[key];
+  save(); renderAward();
+}
+/** 某奖项的推荐进度 */
+function awardProgress(key){
+  const rows = awardRows();
+  const 报名 = rows.filter(r => r.wishes.indexOf(key) >= 0);
+  const 名额 = awardQuota(key);
+  const 已推荐 = (key === _awFilter)
+    ? 报名.filter(r => r.status === '推荐').length
+    : 报名.filter(r => r.status === '推荐').length;
+  return { 报名: 报名.length, 名额: 名额, 已推荐: 已推荐 };
+}
 
 /* ── 单元格渲染辅助 ──
    为什么要拆出来：一行里同时套三层模板字符串（外层表格 → map → 内层单元格）
@@ -9240,6 +9337,41 @@ function wishTags(r){
   }
   return out;
 }
+/* 冲突检测（终版）
+   ──────────────────────────────────────────────────────────────────
+   规则：**除单项奖学金外，其余都不兼得**；不兼得的按
+   国家奖学金 > 国家励志 > 比亚迪 > 紫光 > 优秀生一/二/三 依次评选。
+
+   什么时候算冲突？——
+   这个学生**同时报了 A 和 B**（两个都不兼得），你把他推荐给了**其中较低的那档**。
+   这意味着高档（A）可能漏掉了，或者他实际上被两个奖同时占着 ——
+   评审时最容易出的错就是这个，所以直接标出来。
+
+   单项奖学金（文体佳绩 / 社会实践 / 社会工作 / 科研创新）可兼得，不参与冲突。
+
+   所以：取他报过的所有不兼得奖项里**最靠前（最高档）的那一项**作为「他实际该拿的」，
+   如果他最终被推荐的不是这一项 → 冲突。 */
+function awardConflicts(r){
+  const out = [];
+  if(r.status !== '推荐') return out;
+  // 命中的不兼得奖项，按优先级从高到低
+  const hit = [];
+  AWARD_EXCLUSIVE.forEach(function(a){
+    if(r.wishes.indexOf(a.key) >= 0) hit.push(a.key);
+  });
+  if(hit.length <= 1) return out;
+  // hit[0] 是他报过的最高档（= 按规则他应该拿的）
+  return hit.slice(1).map(function(k){ return { 奖项: k, 应给: hit[0] }; });
+}
+
+function overHint(r){
+  const c = awardConflicts(r);
+  if(!c.length) return '';
+  const should = c[0].应给;
+  return '<span class="aw-warn" title="不兼得的奖项只能占一项；按从高到低，他应该先被考虑「' + esc(should) + '」">'
+       + '⚠ 应先看 ' + esc(should) + '</span>';
+}
+
 /* ── 页面 ── */
 function renderAward(){
   const rows = awardFiltered();
@@ -9247,13 +9379,20 @@ function renderAward(){
   const stat = st => all.filter(r => r.status === st).length;
 
   /* 筛选条：先不兼得（从高到低），再单项 —— 顺序本身就是评选动线 */
+  /* 奖项 chip：名字 + 报名人数 + 名额输入
+     名额直接放在 chip 上，评选时一眼能看到「这个奖还剩几个」。 */
   const chip = (a) => {
-    const n = all.filter(r => r.wishes.indexOf(a.key) >= 0).length;
-    return '<button class="aw-chip' + (_awFilter === a.key ? ' on' : '')
-      + '" onclick="awardFilter(\'' + a.key + '\')"'
+    const pr = awardProgress(a.key);
+    const on = _awFilter === a.key;
+    return '<span class="aw-chip-wrap' + (on ? ' on' : '') + '">'
+      + '<button class="aw-chip' + (on ? ' on' : '') + '" onclick="awardFilter(\'' + a.key + '\')"'
       + ' title="' + (a.single ? '单项奖学金，可兼得' : '不兼得，挨个评选') + '"'
-      + (n ? '' : ' disabled') + '>' + esc(a.key)
-      + '<span class="aw-chip-n">' + n + '</span></button>';
+      + (pr.报名 ? '' : ' disabled') + '>'
+      + esc(a.key) + '<span class="aw-chip-n">' + pr.报名 + '</span></button>'
+      + '<label class="aw-quota" title="名额（留空 = 不限）">名额'
+      + '<input type="number" min="0" step="1" value="' + (awardQuota(a.key) || '') + '" placeholder="不限"'
+      + ' onclick="event.stopPropagation()" onchange="setAwardQuota(\'' + a.key + '\',this.value)">'
+      + '</label></span>';
   };
 
   let h = `<div class="award-head">
@@ -9294,11 +9433,33 @@ function renderAward(){
     </div>
   </div>`;
 
-  h += `<div class="aw-summary">
-    <span>共 <b>${rows.length}</b> 人${_awFilter?`（报「${esc(_awFilter)}」的）`:''}</span>
-    ${_awFilter ? `<button class="u-btn u-btn-sm u-btn-ghost" onclick="awardFilter('')">看全部</button>` : ''}
-    <span class="aw-summary-s">推荐 ${stat('推荐')} · 候补 ${stat('候补')} · 落选 ${stat('落选')}</span>
-  </div>`;
+  /* 评选进度：名额 vs 已推荐。
+     规则：先评不兼得的（从高到低），所以一个学生被「推荐」后，
+     就不该再占用后面奖项的名额 —— 这里按「推荐即占该奖名额」统计，
+     并在超额时明确标出来（超额是真实情况，不隐藏）。 */
+  const progressCard = (a) => {
+    const pr = awardProgress(a.key);
+    if(!pr.报名) return '';
+    const pct = pr.名额 ? Math.min(100, Math.round(pr.已推荐 / pr.名额 * 100)) : 0;
+    const over = pr.名额 && pr.已推荐 > pr.名额;
+    return '<div class="aw-prog' + (_awFilter === a.key ? ' on' : '') + '" onclick="awardFilter(\'' + a.key + '\')">'
+      + '<div class="aw-prog-h"><span class="aw-prog-n">' + esc(a.key) + '</span>'
+      + '<span class="aw-prog-v"><b>' + pr.已推荐 + '</b>'
+      + (pr.名额 ? ' / ' + pr.名额 : ' <i>/ 不限</i>') + '</span></div>'
+      + '<div class="aw-bar"><i style="width:' + pct + '%" class="' + (over ? 'over' : '') + '"></i></div>'
+      + '<div class="aw-prog-f">报名 ' + pr.报名 + ' 人' + (over ? ' · 已超额' : '') + '</div>'
+      + '</div>';
+  };
+
+  h += '<div class="aw-summary">'
+    + '<span>共 <b>' + rows.length + '</b> 人' + (_awFilter ? '（报「' + esc(_awFilter) + '」的）' : '') + '</span>'
+    + (_awFilter ? '<button class="u-btn u-btn-sm u-btn-ghost" onclick="awardFilter(\'\')">看全部</button>' : '')
+    + '<span class="aw-summary-s">推荐 ' + stat('推荐') + ' · 候补 ' + stat('候补') + ' · 落选 ' + stat('落选') + '</span>'
+    + '</div>';
+
+  /* 进度条区 */
+  const prog = AWARD_LIST.map(progressCard).filter(Boolean).join('');
+  if(prog) h += '<div class="aw-progress">' + prog + '</div>';
 
   // 批量操作条：勾选后出现
   if(_awSel.size){
@@ -9332,7 +9493,7 @@ function renderAward(){
         <th class="aw-status">拟定</th>
         ${th('志愿','志愿')}
       </tr></thead>
-      <tbody>${rows.map(r=>`<tr class="${_awSel.has(r.sid)?'aw-picked':''}">
+      <tbody>${rows.map(r=>`<tr class="${_awSel.has(r.sid)?'aw-picked':''}${r.status?' aw-'+esc(r.status):''}">
         <td><input type="checkbox" ${_awSel.has(r.sid)?'checked':''} onclick="awardToggleSel('${esc(r.sid)}',this.checked)"></td>
         <td class="aw-name">${esc(r.name)}</td>
         <td class="aw-sid">${esc(r.sid)}</td>
@@ -9340,7 +9501,7 @@ function renderAward(){
         <td class="aw-num">${r.总成绩===''?'<span class="aw-none">—</span>':esc(String(r.总成绩))}</td>
         <td class="aw-num">${r.智力===''?'<span class="aw-none">—</span>':esc(String(r.智力))}</td>
         ${bCells(r)}
-        <td class="aw-status">${statusSelect(r)}</td>
+        <td class="aw-status">${statusSelect(r)}${overHint(r)}</td>
         <td class="aw-wish">${wishTags(r)}</td>
       </tr>`).join('')}</tbody>
     </table>
