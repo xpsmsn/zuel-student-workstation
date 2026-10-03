@@ -267,7 +267,7 @@ function renderDashMetrics(){
   const gradeMetrics = noGrade
     ? metricCard('plain','成绩类指标','3 项',
         '导入成绩信息表后自动出现：有不及格 / 平均加权成绩 / 平均学分绩点',
-        'openGradeImport()')
+        "openImport('成绩表：按学号绑到学生上，不会动学生档案')")
     : `${metricCard('danger','有不及格', fail,
         noFail ? gMiss('不及格门数') : (fail?'点击查看名单':'暂无不及格记录'),
         (!noFail && fail) ? `gotoList({preset:'fail'})` : '', noFail || fail===0)}
@@ -395,7 +395,7 @@ function renderDashBody(){
          本批还没导入 <b>成绩信息表</b> —— 以下三张卡需要它才能出图：<br>
          <span style="color:var(--text-2)">加权成绩分布 · 学业预警名单 · 班级平均加权成绩</span>
        </div>
-       <div style="text-align:center"><button class="btn pri" onclick="openGradeImport()">去导入成绩</button></div>`,
+       <div style="text-align:center"><button class="btn pri" onclick="openImport('成绩表：按学号绑到学生上，不会改动学生档案')">去导入成绩</button></div>`,
       false, {span:7}));
   }
   if(!noGradeTable){

@@ -244,8 +244,8 @@ function renderSettings(){
       <div class="dm-group-t">① 把数据取进来</div>
       <div class="ops-grid ops-grid-6">
         <button class="op" onclick="gotoGuide()"><span class="op-i">🧭</span><span class="op-t">导入指引</span><span class="op-d">不知道从哪导先看</span></button>
-        <button class="op" onclick="openImport()"><span class="op-i">⬇</span><span class="op-t">导入学生</span><span class="op-d">Excel 名册一步到位</span></button>
-        <button class="op" onclick="${hasGrade()?'openGradeImport()':"toast('请先导入学生批次')"}"><span class="op-i">📑</span><span class="op-t">导入成绩</span><span class="op-d">${hasGrade()?(S.grades.length+' 条'):'需先有学生批次'}</span></button>
+        <button class="op" onclick="openImport()"><span class="op-i">⬇</span><span class="op-t">导入数据</span><span class="op-d">学生表 / 成绩表都认</span></button>
+        <button class="op" onclick="${hasGrade() ? openImport('成绩表：按学号绑到学生上，不会动学生档案') : openImport('成绩要按学号绑到学生上，所以要先有学生批次 —— 选一份学生信息表开始')}"><span class="op-i">📑</span><span class="op-t">补成绩</span><span class="op-d">${hasGrade()?(S.grades.length+' 条'):'需先有学生批次'}</span></button>
       </div>
     </div>
 

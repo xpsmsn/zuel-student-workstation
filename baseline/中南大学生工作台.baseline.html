@@ -299,6 +299,14 @@ input,select,textarea{font-family:inherit;font-size:14px;outline:none}
 .tag-badge{font-size:12.5px;letter-spacing:1px;margin-left:3px;cursor:help}
 .detail-name .tag-badge{font-size:14px}
 .stat-lab{font-size:12.5px;color:var(--text-2);margin-top:3px}
+/* 窄屏：指标卡的标签容易折行（「需重点关注」→ 两行），字一折行卡片就高低不齐。
+   缩小字号并允许压缩，最差情况也是一行。 */
+@media (max-width:560px){
+  .stats-4{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .stat{padding:12px 12px 11px}
+  .stat-val{font-size:20px;letter-spacing:-.3px}
+  .stat-lab{font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+}
 /* v1.9.7.1：宿舍顶部指标卡改成"标签在上、数字在下"，并把 6 张卡收进响应式网格。
    作用域限定 .stats-dorm —— 总览页的 4 张卡是"数字在上"，不能被这条改到。 */
 .stats-dorm .stat-lab{margin-top:0;margin-bottom:2px}
@@ -320,18 +328,49 @@ input,select,textarea{font-family:inherit;font-size:14px;outline:none}
   color:var(--brand);opacity:0;transition:.18s}
 .stat-click:hover::after{opacity:1}
 
-/* ============ 筛选区 ============ */
-.filterbar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
-.fgroup{display:flex;flex-direction:column;gap:5px}
-.flabel{font-size:11.5px;color:var(--text-3);font-weight:600;letter-spacing:.3px}
-.finput,.fselect{
-  height:34px;padding:0 11px;border:1px solid var(--line);border-radius:7px;
-  background:var(--panel);color:var(--text);min-width:130px;transition:.15s;
+/* ============ 筛选区（v2.3 重做）============
+   改前的样子：.fgroup 是竖排 + 没有宽度约束，六个筛选项被挤成
+   左侧一条窄柱，右边空出一大片 —— 看着像没排完的草稿。
+
+   现在：整条筛选栏**横向铺满**，每组占一份弹性宽度，
+   搜索框吃掉多余空间，所有控件底边对齐。
+   ──────────────────────────────────────────── */
+.filterbar{
+  display:flex; flex-wrap:wrap; gap:10px 12px; align-items:flex-end;
+  width:100%;
 }
-.finput:focus,.fselect:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--ring)}
-.fsearch{min-width:210px;padding-left:30px;
+/* 每组：按内容定宽，但有下限 —— 窄屏时自然换行，不会压成一条 */
+.fgroup{display:flex; flex-direction:column; gap:5px; flex:0 1 auto; min-width:118px}
+.flabel{
+  font-size:11.5px;color:var(--text-3);font-weight:600;letter-spacing:.3px;
+  padding-left:1px; line-height:1;
+}
+.finput,.fselect{
+  height:36px;padding:0 12px;border:1px solid var(--line);border-radius:8px;
+  background:var(--panel);color:var(--text);width:100%;transition:.15s;
+  font-size:13px; font-family:inherit;
+}
+.finput:focus,.fselect:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--ring)}
+/* 搜索框吃掉剩余空间，成为视觉主体 —— 它是列表页最高频的操作 */
+.fgroup.fgroup-search{flex:1 1 220px; min-width:180px}
+.fsearch{padding-left:32px;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='%238b97ac' stroke-width='2'%3E%3Ccircle cx='6' cy='6' r='4.5'/%3E%3Cpath d='M9.5 9.5 12.5 12.5'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:10px center;}
+  background-repeat:no-repeat;background-position:11px center;}
+/* 有选中值的下拉：给一点品牌色，让人一眼看出「这里筛过了」 */
+.fselect.on{border-color:var(--brand);background:var(--brand-soft);color:var(--brand-deep);font-weight:500}
+/* 窄屏：筛选项改为整行，不再挤成几列 */
+@media (max-width:760px){
+  .filterbar{gap:9px}
+  .fgroup{flex:1 1 calc(50% - 5px); min-width:0}
+  .fgroup.fgroup-search{flex:1 1 100%}
+}
+/* 「已启用 N 项 / 清空筛选」这一行独立成条，不跟控件挤在一起 */
+.filter-status{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin-top:11px;padding-top:11px;border-top:1px solid var(--line);
+  font-size:12.5px;color:var(--text-3);
+}
+.filter-status b{color:var(--text-2);font-weight:600}
 .chips{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
 .chip{
   padding:5px 12px;border-radius:20px;border:1px solid var(--line);background:var(--panel);
@@ -424,33 +463,14 @@ tbody tr:hover{background:var(--hover)}
 .seg button{padding:6px 14px;border-radius:6px;font-size:13px;color:var(--text-2);transition:.15s}
 .seg button.on{background:var(--panel);color:var(--text);font-weight:600;box-shadow:var(--shadow)}
 
-/* ============ 登录页 ============ */
-.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(140deg,var(--login-g1) 0%,var(--login-g2) 45%,var(--login-g3) 100%);padding:20px}
-.login-card{width:100%;max-width:400px;background:var(--panel);border-radius:16px;
-  box-shadow:var(--shadow-md);padding:36px 34px;border:1px solid var(--line)}
-/* 校徽：登录页用 56px，顶栏用 26px。校徽自带透明底，暗色主题下加一点亮度避免发闷 */
-.login-mark{width:56px;height:56px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
-.login-mark img{width:56px;height:56px;object-fit:contain;display:block}
+/* ============ 表单件（登录页已取消，这些类现在被设置/导入等处复用） ============ */
 img.brand-logo{display:block}
 html[data-theme="dark"] img.brand-logo{filter:brightness(1.5) saturate(1.05)}
-.login-foot{margin-top:16px;font-size:12px;color:var(--text-3);line-height:1.9;text-align:center}
-.login-foot b{color:var(--text-2);font-weight:640}
-.login-foot a{color:var(--brand);text-decoration:none}
-.login-foot a:hover{text-decoration:underline}
-.login-title{font-size:21px;font-weight:680;letter-spacing:-.3px;text-align:center}
-.login-sub{color:var(--text-2);font-size:13.5px;margin-top:5px;margin-bottom:24px;text-align:center}
 .field{margin-bottom:15px}
 .field label{display:block;font-size:12.5px;font-weight:600;color:var(--text-2);margin-bottom:6px}
 .field input{width:100%;height:42px;padding:0 13px;border:1px solid var(--line);
   border-radius:9px;transition:.15s;background:var(--panel)}
 .field input:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--ring)}
-.btn-primary{width:100%;height:42px;background:var(--brand);color:var(--on-brand);border-radius:9px;
-  font-weight:640;font-size:14.5px;transition:.15s;margin-top:6px}
-.btn-primary:hover{background:var(--brand-deep)}
-.btn-primary:disabled{opacity:.5;cursor:not-allowed}
-.login-note{margin-top:18px;padding:11px 13px;background:var(--brand-soft);border-radius:8px;
-  font-size:12.5px;color:var(--brand-deep);line-height:1.65}
 .login-err{color:var(--danger);font-size:12.5px;margin-top:9px;min-height:17px}
 
 /* ============ 弹层 ============ */
@@ -613,33 +633,62 @@ html[data-theme="dark"] img.brand-logo{filter:brightness(1.5) saturate(1.05)}
   max-width:min(52%,540px);line-height:1.6;
 }
 
-/* ---- 指标卡 ---- */
-.dash-metrics{grid-template-columns:repeat(6,minmax(0,1fr))}
+/* ---- 指标卡（v2.3 重做）----
+   改前：6 列网格 + 每张卡 span 2 → 6×2=12，正好 3 列；4 张卡时占 8，
+   右边空出 4 格。所以总览页看起来「卡片挤在左边」。
+   而且数字在上、标签在下，卡片高度随提示语长短跳动，一排不齐。
+
+   改后：
+     · auto-fit 自适应列数 —— 有几张卡排几列，永远铺满，不留空
+     · 每张卡内部用 grid 固定三行（值 / 标签 / 提示），高度天然对齐
+     · 空值卡（is-empty）整张降饱和并去浮起，明确「不是 0，是没数据」 */
+.dash-metrics{
+  grid-template-columns:repeat(auto-fit, minmax(190px, 1fr));
+  align-items:stretch;
+}
 .metric{
-  grid-column:span 2;background:var(--panel);border:1px solid var(--line);
-  border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow);
-  position:relative;overflow:hidden;transition:.18s;
+  grid-column:auto;
+  background:var(--panel); border:1px solid var(--line);
+  border-radius:var(--radius); box-shadow:var(--shadow);
+  padding:14px 16px 13px; position:relative; overflow:hidden;
+  transition:transform .18s, box-shadow .18s, border-color .18s;
+  /* 三行固定：数字 / 标签 / 提示 —— 一排卡片高度一致，不随提示长短跳 */
+  display:grid; grid-template-rows:auto auto 1fr; gap:2px; align-content:start;
 }
 .metric.clickable{cursor:pointer}
 .metric.clickable:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);border-color:var(--brand)}
+/* 「可点」的角标：常驻半透明，不靠 hover 才出现 —— 触屏没有 hover */
 .metric.clickable::after{
-  content:'→';position:absolute;right:12px;bottom:9px;font-size:13px;
-  color:var(--brand);opacity:0;transition:.18s;
+  content:'›';position:absolute;right:13px;top:11px;font-size:17px;line-height:1;
+  color:var(--brand);opacity:.32;transition:opacity .18s;
 }
 .metric.clickable:hover::after{opacity:1}
-.metric-val{font-size:25px;font-weight:690;letter-spacing:-.6px;line-height:1.2;
-  font-variant-numeric:tabular-nums}
+.metric-val{
+  font-size:26px;font-weight:680;letter-spacing:-.6px;line-height:1.15;
+  font-variant-numeric:tabular-nums; padding-right:14px;   /* 给角标留位 */
+}
 .metric-val.brand{color:var(--brand)}
 .metric-val.ok{color:var(--ok)}
 .metric-val.warn{color:var(--warn)}
 .metric-val.danger{color:var(--danger)}
 .metric-val.plain{color:var(--text)}
+/* 空值卡：整张退到背景里。数字显示「—」而不是 0 ——
+   「0 人挂科」会被读成真的一个都没有，而实际是本批没有这个字段。 */
+.metric.is-empty{
+  background:var(--bg-sub, var(--hover)); border-style:dashed; box-shadow:none;
+  color:var(--text-3);
+}
 .metric.is-empty .metric-val{color:var(--text-3)}
-.metric-lab{font-size:12.5px;color:var(--text-2);margin-top:4px;font-weight:550}
-.metric-hint{font-size:11.5px;color:var(--text-3);margin-top:2px}
-@media(max-width:1180px){
-  .dash-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .dash-metrics .metric{grid-column:span 1}
+.metric.is-empty .metric-lab{color:var(--text-3);font-weight:500}
+.metric.is-empty.clickable:hover{transform:none;box-shadow:none;border-color:var(--line)}
+.metric-lab{font-size:12.5px;color:var(--text-2);font-weight:550;margin-top:5px}
+.metric-hint{font-size:11.5px;color:var(--text-3);margin-top:3px;line-height:1.45}
+/* 窄屏：一行两张，标签与提示都放得下 */
+@media(max-width:760px){
+  .dash-metrics{grid-template-columns:repeat(auto-fit, minmax(148px, 1fr));gap:10px}
+  .metric{padding:12px 13px 11px}
+  .metric-val{font-size:22px}
+  .metric-hint{display:none}      /* 窄屏下提示语挤，最先舍弃它 */
 }
 
 /* ---- 图表通用 ---- */
@@ -1150,6 +1199,10 @@ thead th{font-weight:600}
 /* 侧栏折叠分组（v1.3） */
 .side-label.fold{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:6px}
 .side-label.fold:hover{color:var(--brand)}
+/* 不可折的分组：条目本来就放得下，不画箭头也不给 hover 反馈 ——
+   一个点不动的箭头是「假提示」，比没有更让人困惑。 */
+.side-label.plain{cursor:default;display:block}
+.side-label.plain:hover{color:var(--text-3)}
 .side-label.fold .fold-chev{font-size:10px;transition:transform .15s;opacity:.7}
 .side-label.fold.folded .fold-chev{transform:rotate(-90deg)}
 /* 个人中心头像（v1.3） */
@@ -1524,42 +1577,160 @@ thead th{font-weight:600}
   .u-meta{gap:var(--u-gap)}
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+   styles/list-toolbar.css —— 列表页工具条
+   ────────────────────────────────────────────────────────────────────────
+   v2.3（2026-10-03）新增。
+
+   为什么单独一个文件：那批 `ls-*` 类**从来没有 CSS**，全靠 .fgroup 的默认
+   竖排撑着，于是六个筛选项挤成左侧一条窄柱、右边空一大片。
+   看着像没排完的草稿 —— 根因不是设计难看，是**样式压根没写**。
+
+   三行的层次（照着这个来改就别跑偏）：
+     ① ls-head    标题 + 结果数 + 右侧操作（列设置 / 保存筛选 / 更新成绩）
+     ② ls-search  搜索框 —— 列表页最高频的操作，给它整行的视觉重量
+     ③ ls-dims    筛选维度（班级 / 性别 / …）—— 横向铺满，不挤成柱
+     ④ ls-active  当前生效的条件 + 一键清空 —— 独立成条，随时看得清
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── ① 头部行 ── */
+.ls-head {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.ls-title { font-size: 16px; font-weight: 650; letter-spacing: -.2px; }
+.ls-sub { font-size: 12.5px; color: var(--text-3); }
+.ls-head-actions { margin-left: auto; display: flex; gap: 7px; flex-wrap: wrap; }
+
+/* ── ② 搜索框 ── */
+.ls-search {
+  position: relative; display: flex; align-items: center; width: 100%;
+  margin-bottom: 12px;
+}
+.ls-search-ico {
+  position: absolute; left: 13px; display: flex; color: var(--text-3); pointer-events: none;
+}
+.ls-search-input {
+  width: 100%; height: 42px; padding: 0 40px 0 40px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--panel); color: var(--text);
+  font-size: 16px;            /* ≥16px：否则 iOS Safari 会自动放大整页 */
+  font-family: inherit; transition: .15s;
+}
+.ls-search-input:focus {
+  outline: none; border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+.ls-search-input::placeholder { color: var(--text-3); }
+.ls-search-clear {
+  position: absolute; right: 10px; width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 50%; background: var(--hover);
+  color: var(--text-2); font-size: 15px; line-height: 1; cursor: pointer;
+}
+.ls-search-clear:hover { background: var(--line); color: var(--text); }
+
+/* ── ③ 筛选维度（本次 UI 整改的重点）──
+   改前：.fgroup 竖排 + 无宽度 → 挤成左侧一柱
+   改后：横向 flex-wrap，每组一份弹性宽度，控件底边对齐 */
+.ls-dims {
+  display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-end;
+  width: 100%;
+}
+/* 维度里的每一组：最小 118px，够放下「政治面貌」这类长标签 */
+.ls-dims .fgroup { flex: 0 1 auto; min-width: 118px; }
+.ls-dims .finput, .ls-dims .fselect { width: 100%; }
+.ls-dims > .u-btn { flex: 0 0 auto; height: 36px; align-self: flex-end; }
+
+@media (max-width: 760px) {
+  .ls-dims .fgroup { flex: 1 1 calc(50% - 6px); min-width: 0; }
+  .ls-head-actions { margin-left: 0; width: 100%; }
+}
+
+/* ── ④ 已启用的条件 ── */
+.ls-active {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 13px; padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+}
+/* 没有筛选时整条淡出：它在说「现在没有任何条件」，不该抢注意力 */
+.ls-active-empty { opacity: .62; }
+.ls-active-t {
+  flex: 0 0 auto; color: var(--text-3); font-weight: 600; font-size: 11.5px;
+  letter-spacing: .3px;
+}
+.ls-active .chips { flex: 1 1 auto; min-width: 0; }
+.ls-active-clear { flex: 0 0 auto; margin-left: auto; }
+
+/* ── 勾选后的底部浮条 ── */
+.ls-float {
+  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom));
+  transform: translateX(-50%); z-index: 150;
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  padding: 9px 14px; border-radius: 12px;
+  background: var(--panel); border: 1px solid var(--line);
+  box-shadow: var(--shadow-lg);
+  font-size: 13px;
+}
+.ls-float b { font-weight: 600; }
+.ls-float-t { color: var(--text-3); font-size: 12.5px; }
+
+/* ── 表头里那个「下拉」按钮本体 ──
+   它同时是「当前选中值」的显示位，所以宽度跟同排其它控件一致（100%） */
+.fdrop { position: relative; }
+.fdrop-btn {
+  display: flex; align-items: center; gap: 6px;
+  text-align: left; cursor: pointer; width: 100%;
+}
+.fd-txt {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fd-n {
+  flex: 0 0 auto; font-size: 11px; font-weight: 600; line-height: 1;
+  padding: 2px 5px; border-radius: 20px;
+  background: var(--brand); color: var(--on-brand);
+}
+.fd-car { flex: 0 0 auto; opacity: .5; font-size: 10px; }
+
+/* ── 下拉面板 ── */
+.fdrop-panel {
+  position: absolute; z-index: 40; top: calc(100% + 5px); left: 0;
+  min-width: 190px; max-width: 300px;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; box-shadow: var(--shadow-lg);
+  padding: 8px; display: none;
+}
+.fdrop-panel.open { display: block; }
+.fd-head {
+  font-size: 11.5px; color: var(--text-3);
+  padding: 2px 4px 7px; border-bottom: 1px solid var(--line); margin-bottom: 6px;
+}
+.fd-list { max-height: 232px; overflow: auto; }
+.fd-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 7px; border-radius: 7px; cursor: pointer; font-size: 13px;
+}
+.fd-item:hover { background: var(--hover); }
+.fd-item.on { background: var(--brand-soft); color: var(--brand-deep); }
+.fd-item input { width: 15px; height: 15px; flex: 0 0 auto; margin: 0; accent-color: var(--brand); }
+.fd-foot {
+  display: flex; gap: 7px; justify-content: flex-end;
+  padding-top: 8px; margin-top: 6px; border-top: 1px solid var(--line);
+}
 </style>
 
 </head>
 <body>
 
-<!-- ==================== 登录页 ==================== -->
-<div id="loginPage" class="login-wrap">
-  <div class="login-card">
-    <div class="login-mark"><img class="brand-logo" alt="中南财经政法大学校徽"></div>
-    <div class="login-title" id="loginTitle">中南大学生工作台</div>
-    <div class="login-sub" id="loginSub">首次使用，请为工作台设置访问密码</div>
-    <div id="loginFields">
-      <div class="field">
-        <label>访问密码</label>
-        <input type="password" id="pw1" placeholder="请设置密码（至少 4 位）" autocomplete="new-password">
-      </div>
-      <div class="field" id="pw2Field">
-        <label>确认密码</label>
-        <input type="password" id="pw2" placeholder="请再次输入密码" autocomplete="new-password">
-      </div>
-    </div>
-    <div class="login-err" id="loginErr"></div>
-    <button class="btn-primary" id="loginBtn">进入工作台</button>
-    <div class="login-note">
-      <b>数据仅保存在本机</b>，全程不联网，不上传任何服务器。密码经处理后存储，可随时在设置中修改。<br>
-      <span style="font-size:12px;color:var(--text-3)">忘记密码？解锁码 <b>8838</b> 任何时候都能进（本机数据，锁只是防顺手翻看）。</span>
-    </div>
-    <div class="login-foot">
-      作者 <b>吴章凡</b> · 使用问题请企业微信联系，或邮件
-      <a href="mailto:wuzhangfan110@163.com">wuzhangfan110@163.com</a>
-    </div>
-  </div>
-</div>
-
-<!-- ==================== 主界面 ==================== -->
-<div id="appPage" class="hidden">
+<!-- ==================== 主界面 ====================
+     打开就是工作台：没有登录页、没有密码、没有解锁码。
+     锁屏已于 2026-10-03 整体取消（用户要求）——
+     数据本来就只存本机、不联网，那把锁防的是"路过的人顺手翻一眼"，
+     代价却是「一屏遮罩把整个界面点不动」这种说不清的症状。不划算。
+     appPage 不再带 hidden：开箱即用，没有"先看登录页"这一步。 -->
+<div id="appPage">
   <div class="topbar">
     <button class="icon-btn" id="sideToggle" onclick="toggleSidebar()" title="菜单" aria-label="打开菜单">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -1585,14 +1756,6 @@ thead th{font-weight:600}
     <button class="tb-btn primary" id="importTopBtn" data-tour="import" onclick="openImport()">
       <span class="tb-plus">+</span><span class="tb-text">导入数据</span></button>
     <button class="tb-btn" id="moreMenuBtn" onclick="toggleTopMenu(event)" title="更多操作（导出 / 备份 / 批次管理 …）">⋯</button>
-    <!-- v2.x：手动锁定。启动不再设密码拦路，什么时候锁由辅导员自己点这一下 -->
-    <button class="icon-btn" id="lockBtn" onclick="lockApp()" title="锁定工作台（需密码解锁，解锁码 8838）" aria-label="锁定">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-           stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="4" y="10.5" width="16" height="10" rx="2"/>
-        <path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/>
-      </svg>
-    </button>
     <div class="user-chip" data-tour="profile" onclick="gotoProfile()" title="个人中心">
       <div class="avatar" id="chipAvatar">辅</div><span class="chip-text" id="chipName">辅导员</span>
     </div>
@@ -1841,11 +2004,30 @@ K.listenerCount = function (evt) { return (K._handlers.get(evt) || []).length; }
    ══════════════════════════════════════════════════════════════════════ */
 K._pages = new Map();
 
-/** 导航分组。侧栏按这个顺序渲染各组。 */
+/** 导航分组。侧栏按这个顺序渲染各组。
+    v2.3（2026-10-03）重排：分组按「使用时手在哪儿」而不是「功能属于哪类」。
+
+    改前：总览 / 常用工具（导航·模板·助理·校历·奖学金）/ 我的班级 / 关注视图 / 系统
+    问题：
+      · 「常用工具」是五类东西混在一起 —— 参考资料（导航、模板）、
+        日常查询（校历）、业务功能（奖学金评选）性质完全不同
+      · 名字叫「常用」，可奖学金评选一年只用几次，反而不常用
+      · 每天真正点得最多的是「导入数据」，却只在顶栏
+
+    改后：
+      总览       看数据：总览 / 全部学生 / 宿舍看板
+      日常       每天会用：导入指引 / 校历作息 / AI 助理
+      业务       一学期几次：奖学金评选
+      资料       偶尔查：校务导航 / 常用模板
+      我的班级   按班找人
+      关注视图   按情况找人
+      系统       设置 / 个人中心
+*/
 K.NAV_GROUPS = [
   { id: 'main',     label: '总览' },
-  { id: 'guide',    label: null },          // 单条常驻，不带分组标题
-  { id: 'work',     label: '常用工具' },
+  { id: 'daily',    label: '日常' },
+  { id: 'business', label: '业务' },
+  { id: 'ref',      label: '资料' },
   { id: 'system',   label: '系统' },
 ];
 
@@ -1871,7 +2053,6 @@ K.pagesIn = function (group) {
 
 /** 全部页面 id（契约断言用：防止页面被误删） */
 K.pageIds = function () { return K.pages().map(p => p.id).sort(); };
-
 /* ══════════════════════════════════════════════════════════════════════
    4. Lifecycle —— 生命周期
    ──────────────────────────────────────────────────────────────────────
@@ -1987,9 +2168,12 @@ function studentName(s) {
 /* ═══ module: core.persist  [L1 core] ═══ */
 /* ---------- 持久化 ---------- */
 /* save payload 统一构造：localStorage 与磁盘镜像（v1.5）共用同一份，避免两处字段漂移 */
+/* v2.3：不再存 password。
+   锁屏与密码已于 2026-10-03 整体取消（用户要求）。
+   读侧仍会**忽略**老存档里的 password 字段 —— 留着无害，
+   但绝不能再写出去，否则用户会以为它还有用。 */
 function buildSavePayload(){
   return {
-    password: S.password,
     batches: S.batches,
     activeBatchId: S.activeBatchId,
     savedFilters: S.savedFilters,
@@ -2079,7 +2263,6 @@ function load(){
     const raw = localStorage.getItem(STORE_KEY);
     if(raw){
       const d = JSON.parse(raw);
-      S.password = d.password || null;
       S.batches = Array.isArray(d.batches)
         ? d.batches.filter(b=>b && Array.isArray(b.students))
         : [];
@@ -2179,7 +2362,6 @@ function load(){
     if(raw1){
       const d1 = JSON.parse(raw1);
       const students = Array.isArray(d1.students) ? d1.students : [];
-      S.password = d1.password || null;
       S.savedFilters = Array.isArray(d1.savedFilters) ? d1.savedFilters : [];
       S.theme = (d1.theme==='dark' || d1.theme==='eye') ? d1.theme : 'light';
       S.batches = students.length
@@ -2201,7 +2383,6 @@ function load(){
 /* ═══ module: core.state  [L1 core] ═══ */
 /* ---------- 状态 ---------- */
 let S = {
-  password: null,
   batches: [],           // 批次列表 [{id,name,importedAt,sourceFile,mode,demo,studentCount,students:[]}]
   activeBatchId: null,   // 当前批次 id
   students: [],          // 【当前批次】的 students 数组 —— 与批次内是同一引用，勿整体重新赋值
@@ -3412,13 +3593,88 @@ function groupCountImpl(list, key, opts = {}) {
 const groupCount = groupCountImpl;
 
 
+/* ═══ module: domain.parse-grade  [L2 domain] ═══ */
+/* ════════════════════════════════════════════════════════════════════════
+   domain/parse-grade.js —— 成绩表解析（纯函数）
+   ────────────────────────────────────────────────────────────────────────
+   原先住在 features/grade-import.js，与「导入学生表」是**两套独立的 UI 流程**。
+   v2.3（2026-10-03）把两个入口合并成「选文件 → 自动认表 → 确认 → 写进去」之后，
+   这里只剩下**解析**这一件纯逻辑 —— UI 与写入都搬进了 features/import-unified.js。
+
+   之所以能这样拆：解析不碰 DOM、不读状态、不写数据（真实数据实证）：
+     · 第 1–2 行是合并的标题带（A1:K2 = "成绩信息"），真正的表头在第 3 行
+     · 末尾有「162人 / 不及格」这类合计行，必须剔除
+   纯函数住在 domain 层，可以在 node 里直接测。
+   ════════════════════════════════════════════════════════════════════════ */
+
+function parseGradeSheet(arr){
+  // ① 定位表头行：第一处出现「学号」的行（容忍前后空格与标题带）
+  let headerIdx = -1;
+  for(let i=0;i<Math.min(arr.length,20);i++){
+    const row = arr[i] || [];
+    if(row.some(c=>String(c==null?'':c).trim() === '学号')){ headerIdx = i; break; }
+  }
+  if(headerIdx < 0) return { ok:false, reason:'没找到「学号」列，这可能不是成绩表' };
+
+  const header = (arr[headerIdx]||[]).map(h=>String(h==null?'':h).trim());
+  const rows = [], dropped = [];
+  for(let i=headerIdx+1;i<arr.length;i++){
+    const raw = arr[i] || [];
+    if(!raw.some(c=>c!=null && c!=='')) continue;          // 空行
+    const o = {};
+    header.forEach((h,j)=>{ if(h) o[h] = (raw[j]==null ? '' : raw[j]); });
+    const id = String(o['学号'] == null ? '' : o['学号']).trim();
+    // ② 只认「学号是纯数字」的行 → 合计行（162人/不及格）与说明行在此剔除并留痕
+    if(!/^\d{6,}$/.test(id)){
+      const text = Object.values(o).filter(v=>v!=='').slice(0,3).join(' / ');
+      dropped.push({ row:i+1, text });
+      continue;
+    }
+    o['学号'] = id;
+    rows.push(o);
+  }
+  return { ok:true, headerIdx, header, rows, dropped };
+}
+
+
 /* ═══ module: domain.roster  [L2 domain] ═══ */
-/* ---------- v1.9.2：认出「入党积极分子名册」这类表 ----------
-   识别到以后，导入时除了正常按列合并，还会把匹配到学生的「政治面貌」
-   同步为「入党积极分子」，省得几百人一个个手点。 */
+/* ══════════════════════════════════════════════════════════════════════
+   认出这是什么表
+   ────────────────────────────────────────────────────────────────────────
+   v1.9.2 起初只分两种：名册（政治面貌名单）与其余（学生表）。
+   v2.3（2026-10-03）扩成三种 —— 因为「导入学生表」和「导入成绩表」
+   合并成了一个入口，程序必须自己认出这张表是哪一种，否则没法决定
+   该写进 S.students 还是 S.grades。
+
+     student  学生信息表 → 写档案字段
+     grades   成绩信息表 → 写成绩，**不碰档案**（ADR-0005：成绩独立挂批次）
+     roster   政治面貌名册 → 写档案，顺带同步政治面貌
+     null     认不出 → 交给用户在确认页选，**不猜**
+
+   ⚠️ 返回值用 **单数** 'student'：这是既有约定（import.js 与 import-wizard.js
+      都按 'student' 判默认值），改成 'students' 会让它们静默走错分支。
+      「单数 + 一个新值」比「统一成复数」改动小得多。
+   ══════════════════════════════════════════════════════════════════════ */
+
 const ROSTER_MARKS = ['所在党支部', '确定为入党积极分子时间', '递交入党申请书时间'];
-function detectSheetKind(cols){
-  return (cols || []).some(c => ROSTER_MARKS.indexOf(c) >= 0) ? 'roster' : 'student';
+
+/** 成绩指标列 —— 命中任意一个即视为成绩表（真实数据实证） */
+const GRADE_MARKER_COLS = ['加权平均成绩', '平均学分绩点', '不及格门数', '课程门数', '所得学分', '平均分', '总分'];
+
+function detectSheetKind(cols) {
+  const list = cols || [];
+  const has = k => list.indexOf(k) >= 0;
+
+  // ① 成绩表：必须同时有学号主键 + 至少一个成绩指标列。
+  //    为什么要学号：成绩表没有学号就没法跟学生对上，那不是成绩表，是别的报表。
+  const hasId = has('学号') || has('职工号') || has('学号/职工号');
+  if (hasId && GRADE_MARKER_COLS.some(has)) return 'grades';
+
+  // ② 名册：靠那几列独有的标记
+  if (list.some(c => ROSTER_MARKS.indexOf(c) >= 0)) return 'roster';
+
+  // ③ 学生表：其余情况（绝大多数）
+  return 'student';
 }
 
 /* ---------- v1.9.2：积极分子名册 → 自动同步「政治面貌」 ----------
@@ -3556,12 +3812,6 @@ function initResponsive(){
 /* fmtDate() 已移入 src/kernel/00-kernel.js —— core 层的 makeBatch 也要用它，
    它却住在 feature 层，会造成「core 反向依赖 feature」。 */
 
-// 简易哈希（原型用；正式版用 argon2/bcrypt）
-function hash(s){
-  let h = 5381;
-  for(let i=0;i<s.length;i++) h = ((h<<5)+h) ^ s.charCodeAt(i);
-  return 'h' + (h>>>0).toString(36) + '_' + s.length;
-}
 
 /* ---------- 侧栏：图标与折叠 ---------- */
 /* ---------- 侧栏 ---------- */
@@ -3599,17 +3849,33 @@ function toggleSideCollapse(){
   save(); renderSidebar();
 }
 
-/* 侧栏分组折叠：常用工具 / 我的班级 / 关注视图 三组可折叠，状态落盘。
-   侧栏整体收缩（58px 图标模式）时忽略折叠，保证图标始终可点。 */
-function toggleSideFold(k){
+/* ---------- 侧栏分组折叠 ---------- */
+/* 侧栏整体收缩（58px 图标模式）时忽略折叠，保证图标始终可点。 */
+function toggleSideFold(k) {
   S.sideFold = S.sideFold || {};
   S.sideFold[k] = !S.sideFold[k];
   save(); renderSidebar();
 }
-function sideGroupOpen(k){ return S.sideCollapsed || !(S.sideFold && S.sideFold[k]); }function sideLabel(k, label, tour){
+
+/** 旧的固定三组（我的班级 / 关注视图）用它；页面分组走 views/list.js 的 navGroupOpen。 */
+function sideGroupOpen(k) { return S.sideCollapsed || !(S.sideFold && S.sideFold[k]); }
+
+/**
+ * 分组标题。
+ * @param k          折叠状态的键
+ * @param label      标题文字
+ * @param tour       页面导览锚点（可选）
+ * @param cls        额外类名。传 ' plain' 表示「这一组不可折」——
+ *                   条目本来就放得下，画个折叠箭头是假提示。
+ */
+function sideLabel(k, label, tour, cls) {
   const folded = !!(S.sideFold && S.sideFold[k]);
-  return `<div class="side-label fold${folded?' folded':''}"${tour?` data-tour="${tour}"`:''} onclick="toggleSideFold('${k}')"
-    title="${folded?'展开':'折叠'}${esc(label)}"><span>${label}</span><span class="fold-chev">▾</span></div>`;
+  const plain = /\bplain\b/.test(cls || '');
+  const open = plain ? true : sideGroupOpen(k);
+  return `<div class="side-label fold${folded && !plain ? ' folded' : ''}${plain ? ' plain' : ''}"`
+    + `${tour ? ` data-tour="${tour}"` : ''}`
+    + (plain ? '' : ` onclick="toggleSideFold('${k}')" title="${open ? '折叠' : '展开'}${esc(label)}"`)
+    + `><span>${label}</span>${plain ? '' : '<span class="fold-chev">▾</span>'}</div>`;
 }
 
 /* ---------- 侧栏抽屉（窄屏专用，宽屏下这组函数无副作用） ---------- */
@@ -3665,6 +3931,52 @@ function switchBatch(id){
 }
 
 
+/* ═══ module: shell.app-start  [L3 shell] ═══ */
+/* ════════════════════════════════════════════════════════════════════════
+   shell/app-start.js —— 启动：进入工作台并画好首屏（L3 shell）
+   ────────────────────────────────────────────────────────────────────────
+   原先这些代码住在 features/lock.js 里，和「锁屏 / 解锁」缠在一起。
+   既然锁屏已经整体取消（2026-10-03 用户要求），启动逻辑就该独立成文件 ——
+   否则下次有人看到文件名带 "lock" 就会以为还有锁。
+
+   ⚠️ 这里不做任何「弹窗式引导」。以前首启会延时 420ms 自动弹一次导入向导，
+      那个遮罩盖住全屏，只要用户没意识到它是弹窗（比如点了别处以为没反应），
+      **整页就点不动了** —— 而且没有任何症状提示。
+      现在改成：引导只在用户主动点「导入指引」时出现，界面永远先给内容。
+   ════════════════════════════════════════════════════════════════════════ */
+
+function enterApp() {
+  $('appPage').classList.remove('hidden');
+
+  /* 每次进入应用：筛选回到「全部学生」，搜索清空。
+     为什么在这里重置：上一批的筛选条件对这一批没有意义，
+     留着会得到一个空列表，让人以为数据丢了。 */
+  S.classFilter = 'all'; S.filters = {}; S.quickView = 'all'; S._search = '';
+
+  S.quote = pickQuote();        // 每次进入只随机一次，绝不放 renderMain（否则每次重绘都换）
+  applyTheme(S.theme || 'light');
+
+  S.view = 'list';
+  renderBatchBar(); renderSidebar(); renderMain(); renderQuote();
+
+  /* 顶栏日期 + 周次。每分钟刷一次：跨零点、跨周要能自动更新。 */
+  renderTopbarWeek();
+  if (!renderTopbarWeek._timer) {
+    renderTopbarWeek._timer = setInterval(renderTopbarWeek, 60000);
+  }
+
+  startQuoteRotation();      // 顶栏金句轮换
+  applyDesktopPrefs();       // 托盘常驻 / 开机启动偏好同步给外壳
+
+  /* 首启**不再**自动弹任何东西。要看导入流程，侧栏「导入指引」一直都在。
+     理由很实在：自动弹窗一旦被忽略，用户就会面对一个「点不动」的页面，
+     而且完全不知道原因。给内容比给弹窗重要。 */
+}
+
+/** 启动入口：开箱即进工作台，没有密码页。 */
+function initLogin() { enterApp(); }
+
+
 /* ═══ module: shell.page-registry  [L3 shell] ═══ */
 /* ════════════════════════════════════════════════════════════════════════
    shell/page-registry.js —— 页面注册表（L3 shell）
@@ -3705,17 +4017,19 @@ function switchBatch(id){
      hideNav   true = 不在侧栏出现（只从别处跳进来的二级页）
    ════════════════════════════════════════════════════════════════════════ */
 
-/* ── 总览 ── */
+/* ════════════════════════════════════════════════════════════════════════
+   总览 —— 看数据
+   ════════════════════════════════════════════════════════════════════════ */
 K.registerPage({ id:'dashboard', title:'数据总览', icon:'dashboard', nav:'main', order:10,
-  needsData:true, render: renderDashboard, goto: gotoDashboard });
+  needsData:true, render: renderDashboard, goto: gotoDashboard,
+  badge: () => S.students.length });
 
 K.registerPage({ id:'list', title:'全部学生', icon:'students', nav:'main', order:20,
   needsData:true, render: renderList, goto: gotoList,
   /* 「全部学生」的高亮条件比「S.view==='list'」严：
      选了某个班级、或用了某个关注视图时，高亮的应该是那一条，不是这一条。
      这个判定属于「这个条目是谁」，所以跟它放在一起，而不是留在侧栏里。 */
-  isActive: () => S.view==='list' && S.classFilter==='all' && S.quickView==='all',
-  badge: () => S.students.length });
+  isActive: () => S.view==='list' && S.classFilter==='all' && S.quickView==='all' });
 
 K.registerPage({ id:'dorm', title:'宿舍看板', icon:'dorm', nav:'main', order:30,
   needsData:true, render: renderDorm, goto: gotoDorm,
@@ -3724,29 +4038,38 @@ K.registerPage({ id:'dorm', title:'宿舍看板', icon:'dorm', nav:'main', order
      更不能显示 0 —— 0 会被读成「这批学生都没宿舍」，那是错的。 */
   disabled: () => dormRoomCount() ? null : '本批数据未包含宿舍信息' });
 
-/* ── 引导（常驻单条，不带分组标题）── */
-K.registerPage({ id:'guide', title:'导入指引', icon:'compass', nav:'guide', order:0,
-  needsData:false, render: renderGuide, goto: gotoGuide });
+/* ════════════════════════════════════════════════════════════════════════
+   日常 —— 每天/每周都会点
+   ��═══════════════════════════════════════════════════════════════════════ */
+K.registerPage({ id:'guide', title:'导入指引', icon:'compass', nav:'daily', order:10,
+  needsData:false, render: renderGuide, goto: gotoGuide, tour:'guide' });
 
-/* ── 常用工具 ── */
-K.registerPage({ id:'nav', title:'校务导航', icon:'nav', nav:'work', order:10,
-  needsData:false, render: renderNav, goto: gotoNav, tour:'nav' });
-
-K.registerPage({ id:'tpl', title:'常用模板', icon:'filetext', nav:'work', order:20,
-  needsData:false, render: renderTpl, goto: gotoTpl, tour:'tpl',
-  badge: () => (S.templates||[]).length || '' });
-
-K.registerPage({ id:'pol', title:'AI 助理', icon:'chat', nav:'work', order:30,
-  needsData:false, render: renderAssistant, goto: gotoPol, tour:'pol' });
-
-K.registerPage({ id:'cal', title:'校历作息', icon:'calendar', nav:'work', order:40,
+K.registerPage({ id:'cal', title:'校历作息', icon:'calendar', nav:'daily', order:20,
   needsData:false, render: renderCalendar, goto: gotoCal, tour:'cal' });
 
-K.registerPage({ id:'award', title:'奖学金评选', icon:'award', nav:'work', order:50,
+K.registerPage({ id:'pol', title:'AI 助理', icon:'chat', nav:'daily', order:30,
+  needsData:false, render: renderAssistant, goto: gotoPol, tour:'pol' });
+
+/* ════════════════════════════════════════════════════════════════════════
+   业务 —— 一学期用几次，但用起来很重（跑一遍就是半天）
+   ════════════════════════════════════════════════════════════════════════ */
+K.registerPage({ id:'award', title:'奖学金评选', icon:'award', nav:'business', order:10,
   needsData:true, render: renderAward, goto: gotoAward, tour:'award',
   badge: () => (S.awards && Array.isArray(S.awards.students) && S.awards.students.length) || '' });
 
-/* ── 系统 ── */
+/* ════════════════════════════════════════════════════════════════════════
+   资料 —— 偶尔查一下，藏深一点没关系
+   ════════════════════════════════════════════════════════════════════════ */
+K.registerPage({ id:'nav', title:'校务导航', icon:'nav', nav:'ref', order:10,
+  needsData:false, render: renderNav, goto: gotoNav, tour:'nav' });
+
+K.registerPage({ id:'tpl', title:'常用模板', icon:'filetext', nav:'ref', order:20,
+  needsData:false, render: renderTpl, goto: gotoTpl, tour:'tpl',
+  badge: () => (S.templates||[]).length || '' });
+
+/* ════════════════════════════════════════════════════════════════════════
+   系统
+   ════════════════════════════════════════════════════════════════════════ */
 K.registerPage({ id:'settings', title:'系统设置', icon:'sliders', nav:'system', order:10,
   needsData:false, render: renderSettings, goto: gotoSettings });
 
@@ -5116,7 +5439,7 @@ function backupPayload(){
   return {
     app: 'zuel-student-workstation', kind: 'full-backup', ver: APP_VER,
     exportedAt: new Date().toISOString(),
-    password: S.password, batches: S.batches, activeBatchId: S.activeBatchId,
+    batches: S.batches, activeBatchId: S.activeBatchId,
     savedFilters: S.savedFilters, dormCap: S.dormCap || 4, listCols: S.listCols,
     hiddenFields: S.hiddenFields || [],
     hiddenPresets: S.hiddenPresets || [], hideUnavailable: S.hideUnavailable !== false,
@@ -5160,7 +5483,6 @@ function restoreBackupFile(input){
       title:'从备份恢复', danger:true, okText:'恢复',
       html:`备份包含 <b>${d.batches.length}</b> 个批次、<b>${nStu}</b> 名学生、<b>${nGrd}</b> 条成绩${d.exportedAt?`<br>导出时间：${esc(String(d.exportedAt).slice(0,10))}`:''}。<br><br><b>恢复将覆盖当前全部数据</b>（当前 ${S.batches.length} 个批次会被替换）。`,
       onOk(){
-        S.password = d.password || S.password;
         S.batches = d.batches;
         S.activeBatchId = d.activeBatchId || null;
         S.savedFilters = Array.isArray(d.savedFilters) ? d.savedFilters : [];
@@ -5279,7 +5601,7 @@ function openBatchManager(){
             </div>
             <div class="batch-acts">
               ${b.id===activeId?'':`<button class="btn" onclick="switchBatch('${b.id}');openBatchManager();">切换</button>`}
-              ${b.id===activeId?`<button class="btn" onclick="closeModal();openGradeImport()">导入成绩</button>`:''}
+              ${b.id===activeId?`<button class="btn" onclick="closeModal();openImport('成绩表：按学号绑到学生上，不会改动学生档案')">导入成绩</button>`:''}
               <button class="btn" onclick="exportBatchCsv(findBatch('${b.id}'))">CSV</button>
               <button class="btn" onclick="exportBatchXlsx(findBatch('${b.id}'))">Excel</button>
               <button class="btn"${renaming?' disabled':''} onclick="renameBatch('${b.id}')">重命名</button>
@@ -5936,6 +6258,20 @@ document.addEventListener('click', e => {
   paintFilterDrop();
 });
 
+/** 现在一共启用了几项筛选条件（字段数 + 预设视图 + 搜索词 + 班级）。
+    「清空筛选（3）」比「清空筛选」更让人知道自己清掉了什么。 */
+function countActiveFilters() {
+  let n = 0;
+  Object.keys(S.filters || {}).forEach(k => {
+    const v = S.filters[k];
+    if (Array.isArray(v) ? v.length : !!v) n++;
+  });
+  if (S.quickView && S.quickView !== 'all') n++;
+  if (S.classFilter && S.classFilter !== 'all') n++;
+  if ((S._search || '').trim()) n++;
+  return n;
+}
+
 function clearFilters(){
   S.filters = {}; S.quickView='all'; S.classFilter='all'; S._search='';
   _fdOpen = null;
@@ -6028,193 +6364,6 @@ function sortLabel(){
 
 /* 出列表的唯一口径：筛选 → 搜索 → 排序。所有需要"最终这份名单"的地方都调它 */
 function viewList(){ return sortList(searchList((S._search||'').trim())); }
-
-
-/* ═══ module: features.grade-import  [L5 feature] ═══ */
-/* ---------- 成绩导入（独立于学生导入的一趟流程） ----------
-   成绩表来自系统「成绩信息」报表，结构比学生表"脏"得多，不能套用
-   「第 1 行即表头」那套解析：
-     · 第 1–2 行是合并的标题带（A1:K2 = "成绩信息"）
-     · 真正的表头在第 3 行
-     · 末尾有「162人 / 不及格」这类合计行，必须剔除
-   所以这里单独定位表头、只认「学号是纯数字」的数据行。
-   合并口径与项目铁律一致：按学号 upsert，本次表里没出现的学生成绩原样保留。 */
-let gradeImportState = { fileName:'', parsed:null };
-
-function parseGradeSheet(arr){
-  // ① 定位表头行：第一处出现「学号」的行（容忍前后空格与标题带）
-  let headerIdx = -1;
-  for(let i=0;i<Math.min(arr.length,20);i++){
-    const row = arr[i] || [];
-    if(row.some(c=>String(c==null?'':c).trim() === '学号')){ headerIdx = i; break; }
-  }
-  if(headerIdx < 0) return { ok:false, reason:'没找到「学号」列，这可能不是成绩表' };
-
-  const header = (arr[headerIdx]||[]).map(h=>String(h==null?'':h).trim());
-  const rows = [], dropped = [];
-  for(let i=headerIdx+1;i<arr.length;i++){
-    const raw = arr[i] || [];
-    if(!raw.some(c=>c!=null && c!=='')) continue;          // 空行
-    const o = {};
-    header.forEach((h,j)=>{ if(h) o[h] = (raw[j]==null ? '' : raw[j]); });
-    const id = String(o['学号'] == null ? '' : o['学号']).trim();
-    // ② 只认「学号是纯数字」的行 → 合计行（162人/不及格）与说明行在此剔除并留痕
-    if(!/^\d{6,}$/.test(id)){
-      const text = Object.values(o).filter(v=>v!=='').slice(0,3).join(' / ');
-      dropped.push({ row:i+1, text });
-      continue;
-    }
-    o['学号'] = id;
-    rows.push(o);
-  }
-  return { ok:true, headerIdx, header, rows, dropped };
-}
-
-function openGradeImport(){
-  const cur = activeBatch();
-  if(!cur){ toast('请先导入学生数据，再导入成绩'); return; }
-  closeSidebar();
-  gradeImportState = { fileName:'', parsed:null };
-  const has = hasGrade();
-  $('modalRoot').innerHTML = `
-  <div class="mask" onclick="if(event.target===this)closeModal()">
-    <div class="modal wide" onclick="event.stopPropagation()">
-      <div class="modal-head"><div class="modal-title">导入成绩</div>
-        <div class="modal-close" onclick="closeModal()">×</div></div>
-      <div class="modal-body" id="gradeBody">${gradePickHtml(cur, has)}</div>
-      <div class="modal-foot">
-        <button class="btn" onclick="closeModal()">取消</button>
-        <button class="btn pri" id="gradeOk" style="display:none" onclick="doImportGrades()">确认导入</button>
-      </div>
-    </div>
-  </div>`;
-}
-
-function gradePickHtml(cur, has){
-  return `
-    <div class="hint">
-      <b>按「学号」把成绩绑定到当前批次「${esc(cur.name)}」的 ${cur.students.length} 名学生</b><br>
-      · 成绩<b>单独保存</b>，不会改动任何学生档案字段<br>
-      · 表头自动定位（该表第 1–2 行是标题带、末尾有合计行，都会自动跳过）<br>
-      · 按学号合并：本次表里没出现的学号，其原有成绩<b>保留不动</b>
-      ${has?`<br>· 当前已有 <b>${S.grades.length}</b> 条成绩，重复导入同一个人会更新为本次的值`:''}
-    </div>
-    <div class="drop" onclick="document.getElementById('gradeFileInput').click()">
-      <div class="drop-ico">📄</div>
-      <div class="drop-t">点击选择成绩表（.xlsx / .xls）</div>
-      <div class="drop-s">需包含「学号」及成绩指标列：加权平均成绩、平均学分绩点、排名 等</div>
-    </div>
-    <input type="file" id="gradeFileInput" accept=".xlsx,.xls" style="display:none" onchange="handleGradeFile(event)">
-  `;
-}
-
-function handleGradeFile(e){
-  const f = e.target.files[0];
-  if(!f) return;
-  if(!/\.(xlsx|xls)$/i.test(f.name)){ toast('请选择 .xlsx / .xls 文件'); return; }
-  if(typeof XLSX === 'undefined'){ toast('当前环境缺少表格解析库'); return; }
-  const reader = new FileReader();
-  reader.onload = ev => {
-    let arr;
-    try{
-      const wb = XLSX.read(new Uint8Array(ev.target.result), {type:'array', cellDates:false});
-      /* v2.2：不再硬取第一张 —— 取第一张**有数据**的表，多表时明说用了哪一张。
-         （成绩表一般是单表，这里不做"选表"界面；见 CHANGELOG 待办。） */
-      const cands = sheetsNeedingPick(wb);
-      const useName = cands.length ? cands[0].name : wb.SheetNames[0];
-      if(cands.length > 1){
-        toast(`这份文件有 ${cands.length} 张有数据的表，已按「${useName}」读取`);
-      }
-      const ws = wb.Sheets[useName];
-      arr = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:false});
-    }catch(err){
-      console.error(err);
-      toast('解析失败：请确认这是系统导出的 Excel 文件（而不是网页另存）');
-      return;
-    }
-    if(!arr || !arr.length){ toast('表格为空'); return; }
-    const p = parseGradeSheet(arr);
-    if(!p.ok){ toast(p.reason); return; }
-    gradeImportState.fileName = f.name;
-    gradeImportState.parsed = p;
-    renderGradePreview();
-  };
-  reader.readAsArrayBuffer(f);
-}
-
-function renderGradePreview(){
-  const p = gradeImportState.parsed;
-  const body = $('gradeBody');
-  if(!body || !p) return;
-  const okBtn = $('gradeOk');
-  if(okBtn) okBtn.style.display = 'inline-flex';
-
-  const sidOf = s => String(s['学号'] == null ? '' : s['学号']).trim();
-  const sids = new Set(S.students.map(sidOf).filter(Boolean));
-  const matched = p.rows.filter(r=>sids.has(sidOf(r))).length;
-  const orphans = p.rows.filter(r=>!sids.has(sidOf(r)));
-  const gids = new Set(p.rows.map(sidOf));
-  const noGrade = S.students.filter(s=>!gids.has(sidOf(s)));
-
-  body.innerHTML = `
-    <div class="filebox" style="margin-bottom:14px">
-      <div class="file-ico">X</div>
-      <div style="flex:1;min-width:0">
-        <div class="file-name">${esc(gradeImportState.fileName)}</div>
-        <div class="file-meta">表头在第 ${p.headerIdx+1} 行 · 识别到 ${p.rows.length} 条成绩记录${p.dropped.length?` · 跳过 ${p.dropped.length} 行（合计/说明）`:''}</div>
-      </div>
-    </div>
-
-    <div class="result-row" style="margin-bottom:14px">
-      <div class="result-box"><div class="v" style="color:var(--brand)">${p.rows.length}</div><div class="l">成绩记录</div></div>
-      <div class="result-box"><div class="v" style="color:var(--ok)">${matched}</div><div class="l">按学号匹配上</div></div>
-      <div class="result-box"><div class="v" style="color:${orphans.length?'var(--warn)':'var(--text-3)'}">${orphans.length}</div><div class="l">学生表中没有</div></div>
-      <div class="result-box"><div class="v" style="color:var(--text-3)">${noGrade.length}</div><div class="l">本批暂无成绩</div></div>
-    </div>
-
-    <div class="hint">
-      <b>识别到的列</b>：${p.header.filter(Boolean).map(c=>esc(c)).join('、')}
-      ${p.dropped.length?`<br><b>已跳过的非数据行</b>：${p.dropped.slice(0,4).map(d=>`第 ${d.row} 行（${esc(d.text||'空')}）`).join('；')}${p.dropped.length>4?` 等 ${p.dropped.length} 行`:''}`:''}
-    </div>
-    ${orphans.length?`<div class="hint" style="border-color:var(--warn-line);background:var(--warn-soft)">
-      <b style="color:var(--warn)">有 ${orphans.length} 条成绩在学生表里找不到对应学号</b><br>
-      这些成绩仍会保存，但不会出现在任何学生详情里：${orphans.slice(0,8).map(r=>esc(sidOf(r))).join('、')}${orphans.length>8?' …':''}
-    </div>`:''}
-    ${noGrade.length?`<div class="hint">本批有 <b>${noGrade.length}</b> 名学生在成绩表里没有记录，导入后他们的成绩将显示为「暂无成绩」（不会被丢弃）。</div>`:''}
-  `;
-}
-
-function doImportGrades(){
-  const p = gradeImportState.parsed;
-  if(!p || !p.rows.length){ toast('没有可导入的成绩记录'); return; }
-  // v1.5 导入历史：进函数先冻结「导入前」的成绩集合
-  const preGrades = (S.grades || []).slice();
-  const preBatchId = activeBatch() ? activeBatch().id : null;
-  const preBatchName = activeBatch() ? activeBatch().name : '';
-  const preFile = gradeImportState.fileName || '';
-  // 按学号 upsert：已有的更新，没有的新增；本次未出现的学号原样保留（不静默删除）
-  const m = new Map((S.grades||[]).map(g=>[String(g['学号']==null?'':g['学号']).trim(), g]));
-  let added = 0, updated = 0;
-  p.rows.forEach(r=>{
-    const id = String(r['学号']).trim();
-    const rec = {};
-    Object.entries(r).forEach(([k,v])=>{ if(v != null && v !== '') rec[k] = v; });
-    rec['学号'] = id;
-    if(m.has(id)){ Object.assign(m.get(id), rec); updated++; }
-    else{ m.set(id, rec); added++; }
-  });
-  setGrades([...m.values()]);
-  markDataChanged();   // v1.4：有新成绩 → 触发备份提醒（若尚未导出过备份）
-  save();
-  closeModal();
-  renderBatchBar(); renderSidebar(); renderMain();
-  maybeBackupRemind();   // v1.4：成绩导入成功后弹备份提醒（若尚未导出过备份）
-  // v1.5 导入历史：留档 + 快照（桌面版写磁盘）
-  recordImport('成绩', preFile,
-    { batch: preBatchName, batchId: preBatchId, added, updated, skipped: 0 },
-    { kind:'grades', batchId: preBatchId, grades: preGrades });
-  toast(`成绩已导入：更新 ${updated} 人、新增 ${added} 人`);
-}
 
 
 /* ═══ module: features.import  [L5 feature] ═══ */
@@ -6737,6 +6886,280 @@ async function deleteBackup(bid){
 }
 
 
+/* ═══ module: features.import-unified  [L5 feature] ═══ */
+/* ════════════════════════════════════════════════════════════════════════
+   features/import-unified.js —— 统一数据导入口
+   ────────────────────────────────────────────────────────────────────────
+   v2.3（2026-10-03 用户要求）：
+   原来有**两个**入口 ——「导入学生表」和「导入成绩单」，两套 UI、两条流程，
+   12 个调用点散落在各处。用户的判断很对：
+
+     「所有的信息录入其实都在一个入口，都是围绕学号进行数据的更新。」
+
+   合并成一条流水线：
+
+       选文件 → 自动认出这是什么表 → 确认 → 按学号写进去
+
+   ── 为什么能合并（不是硬凑） ────────────────────────────────────────
+   两件事的本质完全一样：**把一张表按学号 upsert 进当前批次**。
+   差别只在「写进哪一层数据」：
+     · 学生表 / 名册 → 写 S.students（档案字段）
+     · 成绩表       → 写 S.grades（成绩指标，**不碰档案**）
+
+   成绩必须单独存是硬约束（ADR-0005）：成绩一旦复制进学生记录，
+   「只更新成绩」就会把 41 列档案抹平。所以统一的是**流程**，不是**存储**。
+
+   ── 复用而非重写 ──────────────────────────────────────────────────────
+   解析逻辑沿用既有的 buildImportState() / parseGradeSheet() / detectSheetKind()，
+   这里只做「选文件 → 认类型 → 分派」。任何解析规则的修正仍然只有一处，
+   不会出现两条路径走样（v2.1.x 的教训）。
+   ════════════════════════════════════════════════════════════════════════ */
+
+let unifiedImport = { fileName: '', sheetName: '', arr: null, kind: null, auto: false, parsed: null };
+
+const KIND_LABEL = {
+  student: '学生信息表',
+  grades:  '成绩信息表',
+  roster:  '名册（政治面貌名单）',
+};
+
+/** 这个类型会写进哪一层 —— 界面上要明说，不能让用户猜 */
+function kindTarget(kind) {
+  return kind === 'grades'
+    ? '成绩<b>单独保存</b>，不会改动任何学生档案字段'
+    : '学生档案字段（姓名 / 班级 / 宿舍 / 联系方式 …）';
+}
+
+/* ── 入口 ────────────────────────────────────────────────────────────── */
+
+/**
+ * 唯一的导入口。所有「导入」按钮都调它。
+ * @param {string} [hint] 顶部一句提示（例如「本批还没有成绩，先导成绩表」）
+ */
+function openImport(hint) {
+  closeSidebar();
+  const b = activeBatch();
+  unifiedImport = { fileName: '', sheetName: '', arr: null, kind: null, auto: false, parsed: null };
+
+  const pick = dropHtml(
+    '选择要导入的表（.xlsx / .xls / .csv）',
+    b ? `当前批次「${esc(b.name)}」· ${b.students.length} 人。学生表和成绩表都能自动认出来`
+      : '还没有任何批次。选一份学生信息表就会新建一个批次');
+
+  const body = b
+    ? (hint ? `<div class="hint">${hint}</div>` : '') + pick
+    : `<div class="hint" style="border-color:var(--warn-line);background:var(--warn-soft)">
+         还没有任何数据批次。选一份<b>学生信息表</b>就会新建一个批次。
+       </div>` + pick;
+
+  $('modalRoot').innerHTML = `
+  <div class="mask" onclick="if(event.target===this)closeModal()">
+    <div class="modal wide" onclick="event.stopPropagation()">
+      <div class="modal-head">
+        <div class="modal-title">导入数据</div>
+        <div class="modal-close" onclick="closeModal()" aria-label="关闭">×</div>
+      </div>
+      <div class="modal-body" id="uiBody">${body}</div>
+      <div class="modal-foot">
+        <button class="btn" onclick="closeModal()">取消</button>
+        <button class="btn pri" id="uiOk" style="display:none" onclick="doUnifiedImport()">确认导入</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function dropHtml(title, sub) {
+  return `
+    <div class="drop" onclick="document.getElementById('uiFileInput').click()" role="button" tabindex="0">
+      <div class="drop-t">${title}</div>
+      <div class="drop-s">${sub}</div>
+    </div>
+    <input type="file" id="uiFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleUnifiedFile(event)">`;
+}
+
+/* ── 读文件 → 认类型 ────────────────────────────────────────────────── */
+
+function handleUnifiedFile(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  if (!/\.(xlsx|xls|csv)$/i.test(f.name)) { toast('请选择 .xlsx / .xls / .csv 文件'); return; }
+  if (typeof XLSX === 'undefined') { toast('当前环境缺少表格解析库'); return; }
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    let wb;
+    try {
+      wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array', cellDates: false });
+    } catch (err) {
+      console.error(err);
+      openFileError(f.name, err);   // 复用既有的「读不了就明说」弹窗
+      return;
+    }
+    try {
+      /* 一份导出里可能有多张表（真实数据：学生表 189 行 + 班委名册 90 行）。
+         有多张有数据的表时沿用既有的选择流程，不在这里另造一套。 */
+      const cands = sheetsNeedingPick(wb);
+      if (cands.length > 1) { openSheetChooser(cands, wb, f.name); return; }
+
+      const useName = cands.length ? cands[0].name : wb.SheetNames[0];
+      const arr = XLSX.utils.sheet_to_json(wb.Sheets[useName], { header: 1, defval: null, raw: false });
+      if (!arr || !arr.length) { toast('这个表里没有数据'); return; }
+      unifiedImport = { fileName: f.name, sheetName: useName, arr, kind: null, auto: false, parsed: null };
+      renderUnifiedPreview();
+    } catch (err) {
+      console.error(err);
+      openFileError(f.name, err);
+    }
+  };
+  reader.readAsArrayBuffer(f);
+}
+
+/** 多表时的选表界面：选定后回到本流程 */
+function openSheetChooser(cands, wb, fileName) {
+  importState.wb = wb;
+  importState.fileName = fileName;
+  importState.sheetChoices = cands;
+  importState.step = 0;
+  closeModal();
+  renderImport();
+}
+
+/* ── 确认页 ─────────────────────────────────────────────────────────── */
+
+function renderUnifiedPreview() {
+  const body = $('uiBody');
+  if (!body) return;
+  const okBtn = $('uiOk');
+  if (okBtn) okBtn.style.display = 'inline-flex';
+
+  /* 先按「学生表」的口径探一次表头，拿到列名才能判类型 */
+  const hdr = locateHeaderRow(unifiedImport.arr);
+  const rawHeader = (unifiedImport.arr[hdr] || []).map(x => String(x == null ? '' : x));
+  const normCols = [];
+  rawHeader.forEach(h => { const n = normalizeKey(h); if (n && normCols.indexOf(n) === -1) normCols.push(n); });
+  const kind = detectSheetKind(normCols);
+  unifiedImport.kind = kind;
+  unifiedImport.auto = true;
+
+  body.innerHTML = `
+    <div class="filebox" style="margin-bottom:14px">
+      <div class="file-ico">X</div>
+      <div style="flex:1;min-width:0">
+        <div class="file-name">${esc(unifiedImport.fileName)}</div>
+        <div class="file-meta">${unifiedImport.sheetName ? '工作表「' + esc(unifiedImport.sheetName) + '」 · ' : ''}表头在第 ${hdr + 1} 行</div>
+      </div>
+    </div>
+
+    <div class="hint" style="border-color:var(--brand-line);background:var(--brand-soft)">
+      <b>认出这是「${KIND_LABEL[kind]}」</b>（自动识别）· 写入${kindTarget(kind)}
+    </div>
+
+    <div style="margin-top:14px" id="uiDetail"></div>`;
+
+  runUnifiedParse(kind, hdr, rawHeader);
+}
+
+/** 按类型算清楚「会写进多少人」 */
+function runUnifiedParse(kind, hdr, rawHeader) {
+  const detail = $('uiDetail');
+  if (!detail) return;
+  const arr = unifiedImport.arr;
+
+  if (kind === 'grades') {
+    const p = parseGradeSheet(arr);
+    if (!p.ok) { detail.innerHTML = `<div class="hint">${esc(p.reason)}</div>`; return; }
+    unifiedImport.parsed = p;
+    const sidOf = r => String(r && r['学号'] != null ? r['学号'] : '').trim();
+    const sids = new Set(S.students.map(s => sidOf(s)).filter(Boolean));
+    const matched = p.rows.filter(r => sids.has(sidOf(r))).length;
+    const orphan = p.rows.length - matched;
+    detail.innerHTML = `
+      <div class="result-row" style="margin-bottom:12px">
+        ${rb(p.rows.length, '成绩记录', 'var(--brand)')}
+        ${rb(matched, '按学号匹配上', 'var(--ok)')}
+        ${rb(orphan, '学生表中没有', orphan ? 'var(--warn)' : 'var(--text-3)')}
+        ${rb(S.students.length, '本批学生', 'var(--text-3)')}
+      </div>
+      <div class="hint">
+        成绩表结构比较脏（开头有标题带、末尾有合计行），都已自动跳过 ·
+        表头在第 ${p.headerIdx + 1} 行${p.dropped.length ? ` · 跳过 ${p.dropped.length} 行非数据行` : ''}<br>
+        识别到的列：${p.header.filter(Boolean).slice(0, 12).map(esc).join('、')}${p.header.length > 12 ? ' …' : ''}<br>
+        本次表里没出现的学号，其原有成绩<b>保留不动</b>。
+      </div>
+      ${orphan ? `<div class="hint" style="border-color:var(--warn-line);background:var(--warn-soft)">
+        有 ${orphan} 条成绩在学生表里找不到对应学号，仍会保存但不会显示在任何学生详情里。
+      </div>` : ''}`;
+    return;
+  }
+
+  // 学生表 / 名册：交给既有解析，并算出命中情况
+  const { rows, rowNos } = buildRawRows(arr, hdr, rawHeader);
+  const ok = buildImportState(rawHeader, rows, unifiedImport.fileName, hdr, rowNos);
+  unifiedImport.parsed = ok;   // buildImportState 已把结果写进 importState
+  const sidOf = r => String(r && r['学号'] != null ? r['学号'] : '').trim();
+  const sids = new Set(S.students.map(s => sidOf(s)).filter(Boolean));
+  const exist = ok.rows.filter(x => sids.has(sidOf(x))).length;
+
+  detail.innerHTML = `
+    <div class="result-row" style="margin-bottom:12px">
+      ${rb(ok.rows.length, '有效数据行', 'var(--brand)')}
+      ${rb(exist, '按学号命中', 'var(--ok)')}
+      ${rb(ok.rows.length - exist, '新学号', (ok.rows.length - exist) ? 'var(--brand-deep)' : 'var(--text-3)')}
+      ${rb(ok.cols.length, '字段数', 'var(--text-3)')}
+    </div>
+    <div class="hint">
+      ${ok.emptyCols.length ? `有 <b>${ok.emptyCols.length}</b> 列在这张表里整列为空，导入时会勾掉 —— 不带来新信息也不覆盖旧值。<br>` : ''}
+      已有学号按<b>按列合并</b>更新：备注永不覆盖、本表没出现的列原样保留。<br>
+      下一步可以选「合并到当前批次 / 覆盖当前批次 / 新建批次」。
+    </div>`;
+}
+
+function rb(v, l, color) {
+  return `<div class="result-box"><div class="v" style="color:${color}">${v}</div><div class="l">${l}</div></div>`;
+}
+
+/* ── 确认写入 ───────────────────────────────────────────────────────── */
+
+function doUnifiedImport() {
+  const kind = unifiedImport.kind;
+  if (!kind) { toast('没能识别这个表，请重选文件'); return; }
+
+  if (kind === 'grades') {
+    const p = unifiedImport.parsed;
+    if (!p || !p.rows.length) { toast('没有可导入的成绩记录'); return; }
+    const preGrades = (S.grades || []).slice();
+    const b = activeBatch();
+    /* 按学号 upsert：已有的更新、没有的新增；本次未出现的学号原样保留 */
+    const m = new Map((S.grades || []).map(g => [String(g['学号'] == null ? '' : g['学号']).trim(), g]));
+    let added = 0, updated = 0;
+    p.rows.forEach(r => {
+      const id = String(r['学号']).trim();
+      const rec = {};
+      Object.entries(r).forEach(([k, v]) => { if (v != null && v !== '') rec[k] = v; });
+      rec['学号'] = id;
+      if (m.has(id)) { Object.assign(m.get(id), rec); updated++; } else { m.set(id, rec); added++; }
+    });
+    setGrades([...m.values()]);
+    markDataChanged(); save();
+    closeModal(); renderBatchBar(); renderSidebar(); renderMain();
+    maybeBackupRemind();
+    recordImport('成绩', unifiedImport.fileName,
+      { batch: b ? b.name : '', batchId: b ? b.id : null, added, updated, skipped: 0 },
+      { kind: 'grades', batchId: b ? b.id : null, grades: preGrades });
+    toast(`成绩已导入：更新 ${updated} 人、新增 ${added} 人`);
+    return;
+  }
+
+  /* 学生表 / 名册：buildImportState 已经把 importState 填好了，
+     直接跳到模式选择那一步（合并 / 覆盖 / 新建）。 */
+  if (!importState.rows || !importState.rows.length) { toast('这个表里没有可导入的数据行'); return; }
+  importState.step = 2;
+  importState.mode = activeBatch() ? (importState.mode || 'append') : 'new';
+  closeModal();
+  renderImport();
+}
+
+
 /* ═══ module: features.import-wizard  [L5 feature] ═══ */
 /* ---------- 导入向导 ---------- */
 let importState = {
@@ -6845,15 +7268,11 @@ function buildImportState(rawHeader, rawRows, fileName, headerIdx, rowNos){
   renderImport();
 }
 
-function openImport(){
-  importState = {
-    step:1, fileName:'', header:[], cols:[], emptyCols:[], rows:[],
-    mode:'append', headerIdx:0, rowNos:null, kind:'student',
-    skipCols:new Set()      // v1.9.6：确认页里取消勾选、不参与导入的字段（归一列名）
-  };
-  renderImport();
-  closeSidebar();
-}
+/* openImport() 已移入 features/import-unified.js ——
+   现在**只有一个**导入口，学生表与成绩表由程序自动识别
+   （v2.3：原来这里是「导入学生表」，另有 openGradeImport() 是第二条流程）。
+   本文件只负责「模式选择 → 字段勾选 → 写入」这三步，
+   也就是两种表共用的后半程。 */
 
 function renderImport(){
   const m = importState;
@@ -7889,8 +8308,8 @@ function renderList(){
               title="自定义显示哪些列、以及列的前后顺序">列设置</button>
       <button class="u-btn u-btn-sm" onclick="openSaveFilter()">保存为常用筛选</button>
       ${hasGrade()
-        ? `<button class="u-btn u-btn-sm" onclick="openGradeImport()" title="重新导入本批次的成绩表">更新成绩</button>`
-        : `<button class="u-btn u-btn-sm u-btn-primary" onclick="openGradeImport()" title="导入系统导出的「成绩信息」表，按学号与这批学生绑定">＋ 导入成绩</button>`}
+        ? `<button class="u-btn u-btn-sm" onclick="openImport('成绩表：按学号绑到学生上，不会改动学生档案')" title="重新导入本批次的成绩表">更新成绩</button>`
+        : `<button class="u-btn u-btn-sm u-btn-primary" onclick="openImport('成绩表：按学号绑到学生上，不会改动学生档案')" title="导入系统导出的「成绩信息」表，按学号与这批学生绑定">＋ 导入成绩</button>`}
     </div>
   </div>
 
@@ -7924,7 +8343,7 @@ function renderList(){
       ${hasActive
         ? activeChips
         : '<span class="u-hint-quiet">没有筛选条件，下面是全部学生</span>'}
-      ${(hasActive || S.sort.key) ? `<button class="u-btn u-btn-sm u-btn-ghost ls-active-clear" onclick="clearFilters()">清空筛选</button>` : ''}
+      ${(hasActive || S.sort.key) ? `<button class="u-btn u-btn-sm u-btn-ghost ls-active-clear" onclick="clearFilters()">清空筛选${countActiveFilters() ? `（${countActiveFilters()}）` : ''}</button>` : ''}
       ${S.sort.key ? `<button class="u-btn u-btn-sm u-btn-ghost" onclick="clearSort()" title="回到导入顺序">排序：${esc(sortLabel())} ✕</button>` : ''}
     </div>
   </div>
@@ -8177,63 +8596,6 @@ function saveColSettings(){
 }
 
 
-/* ═══ module: features.lock  [L5 feature] ═══ */
-/* ---------- 登录 / 锁定 ----------
-   v2.x 改法（辅导员 2026-10-02 要求）：
-   · 启动**不再强制设密码、也不拦着输密码** —— 打开就是工作台，密码这事儿不再挡路；
-   · 什么时候锁由你自己定：顶栏那把锁，点了才锁；
-   · 忘了自己设的密码也不会被关在外面 —— 万能解锁码 8838 任何时候都能解开。
-     数据本来就只存本机、不联网，这把锁防的是"路过的人顺手翻一眼"，不是防黑客。 */
-const DEFAULT_PW = '8838';      // 万能解锁码：忘记自设密码时的兜底
-
-function initLogin(){
-  enterApp();                   // ★ 启动直接进应用，不再弹密码页
-}
-function lockApp(){
-  if(!S.password){
-    showNotice('还没设置密码',
-      `锁定需要一个密码。先到<b>个人中心 → 安全</b>设一个，之后就能用顶栏那把锁随时锁屏。<br>
-       <span style="font-size:12.5px;color:var(--text-3)">忘了也没关系 —— 解锁码 <b>${DEFAULT_PW}</b> 任何时候都有效。</span>`);
-    return;
-  }
-  $('appPage').classList.add('hidden');
-  $('loginPage').classList.remove('hidden');
-  $('loginTitle').textContent = '已锁定';
-  $('loginSub').textContent = `输入访问密码解锁（忘记密码可用解锁码 ${DEFAULT_PW}）`;
-  $('pw2Field').classList.add('hidden');
-  $('pw1').placeholder = '请输入密码';
-  $('pw1').value = ''; $('pw2').value = ''; $('loginErr').textContent = '';
-  $('loginBtn').textContent = '解锁';
-  setTimeout(()=>{ try{ $('pw1').focus(); }catch(e){} }, 60);
-}
-function unlockApp(){
-  const p1 = $('pw1').value;
-  if(!p1){ $('loginErr').textContent = '请输入密码'; return; }
-  /* 解锁码优先：8838 一定进得去，防止把自己锁在外面 */
-  if(p1 === DEFAULT_PW || hash(p1) === S.password){ $('loginErr').textContent=''; enterApp(); return; }
-  $('loginErr').textContent = `密码错误，请重试（忘记密码可用解锁码 ${DEFAULT_PW}）`;
-}
-$('loginBtn').onclick = unlockApp;
-document.addEventListener('keydown', e=>{ if(e.key==='Enter' && !$('loginPage').classList.contains('hidden')) unlockApp(); });
-
-function enterApp(){
-  $('loginPage').classList.add('hidden');
-  $('appPage').classList.remove('hidden');
-  S.classFilter = 'all'; S.filters = {}; S.quickView = 'all'; S._search = '';
-  S.quote = pickQuote();        // 每次进入应用只随机一次，绝不放在 renderMain 里
-  applyTheme(S.theme || 'light');
-  S.view = 'list';
-  renderBatchBar(); renderSidebar(); renderMain(); renderQuote();
-  renderTopbarWeek();                                  // v1.5：顶栏日期 + 周次
-  if(!renderTopbarWeek._timer) renderTopbarWeek._timer = setInterval(renderTopbarWeek, 60000);  // 跨周/跨天自动刷新
-  startQuoteRotation();                                                        // v1.7：金句自动换
-  applyDesktopPrefs();                                                         // v1.8：托盘常驻偏好同步给外壳
-  /* 首次进入弹一次新手引导（走完或点「跳过」就不再弹）。延后一点，
-     让主界面先画出来，避免"一进来就是一堵弹窗"。 */
-  if(!S.guideSeen) setTimeout(()=>{ if(!S.guideSeen) openOnboarding(); }, 420);
-}
-
-
 /* ═══ module: features.modals  [L5 feature] ═══ */
 /* ════════════════════════════════════════════════════════════════════════
    features/modals.js —— 弹层关闭
@@ -8386,40 +8748,6 @@ function handleFile(e){
 }
 
 
-/* ═══ module: features.password  [L5 feature] ═══ */
-/* ---------- 设置 / 导出 ---------- */
-
-function changePw(){
-  const o = $('oldPw').value, n = $('newPw').value;
-  /* 没设过密码 → 直接设一个新密码，不校验「原密码」 */
-  if(S.password && hash(o) !== S.password && o !== DEFAULT_PW){ $('setErr').textContent = '原密码不正确'; return; }
-  if(n.length < 4){ $('setErr').textContent = '新密码至少 4 位'; return; }
-  S.password = hash(n); save();
-  $('setErr').textContent = '';
-  $('oldPw').value = ''; $('newPw').value = '';
-  toast('密码已更新（万一忘了，解锁码 8838 仍然有效）');
-  closeModal();
-  renderProfile();
-}
-
-function resetAll(){
-  askConfirm({
-    title:'清空全部数据', danger:true, okText:'清空全部数据',
-    html:`确定<b>清空全部本地数据</b>？<br><br>清空后将回到空白状态（不会自动生成演示数据），<b>此操作不可撤销</b>。<br>如只是想重导一批数据，请到「批次管理」删除单个批次（可撤销）。`,
-    onOk(){
-      // 软清空：写回「空批次表」而不是删 key。
-      // 删 key 的话，下次启动 boot() 会以为从未使用过，又把演示数据灌回来 —— 这是老版本的坑。
-      S.batches = []; S.activeBatchId = null; S.students = []; S.grades = []; invalidateGradeMap();
-      S.filters = {}; S.quickView = 'all'; S.classFilter = 'all'; S._search = '';
-      S.guideSeen = false;      // 清空数据 = 从头开始 → 下次进入重新走一遍新手引导
-      S.tourSeen = false;       // v1.9.2：浮窗批注导览也一并重来
-      save();
-      location.reload();
-    }
-  });
-}
-
-
 /* ═══ module: features.quote-rotation  [L5 feature] ═══ */
 /* ---------- 新手引导与金句轮换 ----------
    金句数据（QUOTES）已移入 src/data/quotes.js —— 它是启动时就要用的纯数据，
@@ -8490,6 +8818,33 @@ function renderDashGreeting(){
   const el = document.querySelector('.hero-hi');
   if(!el) return;
   el.textContent = greetWord() + '，' + greetName() + ' 👋';
+}
+
+
+/* ═══ module: features.reset  [L5 feature] ═══ */
+/* ════════════════════════════════════════════════════════════════════════
+   features/reset.js —— 清空全部数据
+   ────────────────────────────────────────────────────────────────────────
+   原先这个文件叫 features/password.js，里面一半是改密码、一半是清空数据。
+   锁屏与密码已于 2026-10-03 整体取消（用户要求），
+   只留下「清空数据」这一件仍然需要的事 —— 它就该叫自己的名字。
+
+   ⚠️ 这里用的是**软清空**：写回一张空批次表，而不是删掉存储键。
+      删 key 的话，下次启动 boot() 会以为从未使用过，又把演示数据灌回来 ——
+      那是老版本栽过的坑（「清空后又冒出 80 条假数据」）。
+   ════════════════════════════════════════════════════════════════════════ */
+
+function resetAll() {
+  askConfirm({
+    title: '清空全部数据', danger: true, okText: '清空全部数据',
+    html: `确定<b>清空全部本地数据</b>？<br><br>清空后将回到空白状态（不会自动生成演示数据），<b>此操作不可撤销</b>。<br>如只是想重导一批数据，请到「批次管理」删除单个批次（可撤销）。`,
+    onOk() {
+      S.batches = []; S.activeBatchId = null; S.students = []; S.grades = []; invalidateGradeMap();
+      S.filters = {}; S.quickView = 'all'; S.classFilter = 'all'; S._search = '';
+      save();
+      location.reload();
+    }
+  });
 }
 
 
@@ -8740,8 +9095,8 @@ function renderSettings(){
       <div class="dm-group-t">① 把数据取进来</div>
       <div class="ops-grid ops-grid-6">
         <button class="op" onclick="gotoGuide()"><span class="op-i">🧭</span><span class="op-t">导入指引</span><span class="op-d">不知道从哪导先看</span></button>
-        <button class="op" onclick="openImport()"><span class="op-i">⬇</span><span class="op-t">导入学生</span><span class="op-d">Excel 名册一步到位</span></button>
-        <button class="op" onclick="${hasGrade()?'openGradeImport()':"toast('请先导入学生批次')"}"><span class="op-i">📑</span><span class="op-t">导入成绩</span><span class="op-d">${hasGrade()?(S.grades.length+' 条'):'需先有学生批次'}</span></button>
+        <button class="op" onclick="openImport()"><span class="op-i">⬇</span><span class="op-t">导入数据</span><span class="op-d">学生表 / 成绩表都认</span></button>
+        <button class="op" onclick="${hasGrade() ? openImport('成绩表：按学号绑到学生上，不会动学生档案') : openImport('成绩要按学号绑到学生上，所以要先有学生批次 —— 选一份学生信息表开始')}"><span class="op-i">📑</span><span class="op-t">补成绩</span><span class="op-d">${hasGrade()?(S.grades.length+' 条'):'需先有学生批次'}</span></button>
       </div>
     </div>
 
@@ -9704,10 +10059,10 @@ function renderOnboarding(){
           学生表里有、成绩单里没有的，显示「<b>暂无成绩</b>」，不会被丢掉。</div></div>
       </div>
       <div class="wiz-do" style="margin-top:12px">
-        <button class="btn pri" onclick="closeModal();openGradeImport()">现在导入成绩单 →</button>
+        <button class="btn pri" onclick="closeModal();openImport('成绩表：按学号绑到学生上，不会改动学生档案')">现在导入成绩单 →</button>
         <span class="wiz-do-t">${S.students.length ? `当前已导入 ${S.students.length} 人` : '还没导学生表的话，先回第 ③ 步'}</span>
       </div>
-      <div class="gwarn ok">成绩也可以以后再补：随时点右上角「<b>+ 导入成绩</b>」就行。</div>
+      <div class="gwarn ok">成绩也可以以后再补：随时点顶栏「<b>导入数据</b>」，选成绩表就行。</div>
     </div>`;
   }else{
     body = `<div class="wiz-hero" style="padding-top:20px">
@@ -9834,31 +10189,41 @@ function closeCalZoom(){
 
 
 /* ═══ module: views.dash-filter  [L5 feature] ═══ */
-/* ---------- 总览页 · 筛选器（与列表页共享同一份状态） ---------- */
-function dashFilterBar(){
-  const classes = [...new Set(S.students.map(s=>s['班级']).filter(Boolean))].sort();
+/* ════════════════════════════════════════════════════════════════════════
+   views/dash-filter.js —— 总览页 · 筛选器
+   ────────────────────────────────────────────────────────────────────────
+   与列表页共享同一份筛选状态（S.filters / S.quickView / S._search），
+   所以在总览页筛出来的口径，切到列表页还是同一批人 —— 这是刻意设计的。
+
+   v2.3 的一处调整：搜索框**保留**。
+   原本想删掉它（跟列表页重复），但实测发现顶栏并没有全局搜索框 ——
+   ⌘K / / 唤起的是「当前页面的搜索框」，而总览页是唯一能一边看分布图
+   一边缩小范围的页面。删了它，总览页就搜不了人了。
+   → 真正该做的是让两边的搜索框长得一样（都已用 .finput + .fsearch），
+     而不是砍掉一个。
+   ════════════════════════════════════════════════════════════════════════ */
+function dashFilterBar() {
+  const classes = [...new Set(S.students.map(s => s['班级']).filter(Boolean))].sort();
+  const active = countActiveFilters();
+
   return `<div class="filterbar dash-filter">
-    <div class="fgroup">
-      <span class="flabel">快速搜索</span>
-      <input class="finput fsearch" id="dashSearchInput" title="⌘K 或 / 可快速唤起；Esc 清空" value="${esc(S._search||'')}" placeholder="姓名 / 学号 / 考生号 / 电话" oninput="dashSearch(this.value)">
+    <div class="fgroup fgroup-search">
+      <span class="flabel">搜索</span>
+      <input class="finput fsearch" id="dashSearchInput"
+        title="⌘K 或 / 可快速唤起；Esc 清空" value="${esc(S._search || '')}"
+        placeholder="姓名 / 学号 / 考生号 / 电话" oninput="dashSearch(this.value)">
     </div>
-    <!-- v1.9.3：与列表页统一成复选框面板（这里单选式交互不变，但多选体验一致） -->
     ${filterDrop('班级', '班级', classes)}
-    ${filterDrop('性别', '性别', ['男','女'])}
+    ${filterDrop('性别', '性别', ['男', '女'])}
     ${filterDrop('政治面貌', '政治面貌',
-        [...new Set(S.students.map(s=>s['政治面貌']).filter(Boolean))].sort().concat(['__EMPTY__']))}
-    <div class="fgroup">
-      <span class="flabel">预设视图</span>
-      <select class="fselect" onchange="dashPreset(this.value)">
-        ${PRESETS.map(p=>{
-          const ok = presetAvailable(p);
-          return `<option value="${p.id}" ${S.quickView===p.id?'selected':''} ${ok?'':'disabled'}>${p.label}${ok?'':'（本批未提供字段）'}</option>`;
-        }).join('')}
-      </select>
-    </div>
-    <button class="btn" style="height:34px" onclick="clearFilters()">清空筛选</button>
+        [...new Set(S.students.map(s => s['政治面貌']).filter(Boolean))].sort().concat(['__EMPTY__']))}
+    <div style="flex:1 1 auto"></div>
+    ${active
+      ? `<button class="u-btn u-btn-sm u-btn-ghost" onclick="clearFilters()">清空筛选（${active}）</button>`
+      : ''}
   </div>`;
 }
+
 
 /* ═══ module: views.dashboard  [L5 feature] ═══ */
 /* ---------- 图表：竖直柱状图 ---------- */
@@ -10130,7 +10495,7 @@ function renderDashMetrics(){
   const gradeMetrics = noGrade
     ? metricCard('plain','成绩类指标','3 项',
         '导入成绩信息表后自动出现：有不及格 / 平均加权成绩 / 平均学分绩点',
-        'openGradeImport()')
+        "openImport('成绩表：按学号绑到学生上，不会动学生档案')")
     : `${metricCard('danger','有不及格', fail,
         noFail ? gMiss('不及格门数') : (fail?'点击查看名单':'暂无不及格记录'),
         (!noFail && fail) ? `gotoList({preset:'fail'})` : '', noFail || fail===0)}
@@ -10258,7 +10623,7 @@ function renderDashBody(){
          本批还没导入 <b>成绩信息表</b> —— 以下三张卡需要它才能出图：<br>
          <span style="color:var(--text-2)">加权成绩分布 · 学业预警名单 · 班级平均加权成绩</span>
        </div>
-       <div style="text-align:center"><button class="btn pri" onclick="openGradeImport()">去导入成绩</button></div>`,
+       <div style="text-align:center"><button class="btn pri" onclick="openImport('成绩表：按学号绑到学生上，不会改动学生档案')">去导入成绩</button></div>`,
       false, {span:7}));
   }
   if(!noGradeTable){
@@ -11338,6 +11703,57 @@ function classDragEnd(e){
    ⚠️ 徽标和「点进去要做什么」仍是页面特有的，所以通过 page.badge 提供；
       没提供就不显示 —— 不用为每个页面改这里。 */
 
+/* ════════════════════════════════════════════════════════════════════════
+   侧栏渲染
+   ────────────────────────────────────────────────────────────────────────
+   ⚠️ 这里为什么统一走 onGoTo(id) 而不是各自拼 onclick="gotoXxx()"
+
+   注册表里 `goto: gotoDashboard` 存的是**函数引用**。如果直接拼进 HTML：
+       onclick="${p.goto}('${p.id}')"
+   得到的是
+       onclick="function gotoDashboard(){ S.view = ... }('dashboard')"
+   浏览器会去找一个**名叫「function gotoDashboard……」的全局变量** → 找不到，
+   于是点了没反应、也不报错。这就是「页面点不进去」的真凶（v2.3）。
+
+   代价特别隐蔽：模板字符串能正常生成、语法检查过、其它条目（像 gotoGuide）
+   恰好拼对了没暴露问题，只有大部分条目静默失效。
+
+   所以：**所有导航点击都收口到 onGoTo(id) 这一个函数**，
+   由它查注册表拿到真正的函数并调用。既短，又不会再拼错。
+   ════════════════════════════════════════════════════════════════════════ */
+
+/** 侧栏/卡片跳转的唯一入口。id 见 src/shell/page-registry.js */
+function onGoTo(id) {
+  const p = K.page(id);
+  if (!p) { toast('这个入口还没接上（' + id + '）'); return; }
+  if (p.needsData && !S.batches.length) { renderEmpty(); return; }
+  if (typeof p.goto === 'function') { p.goto(); return; }
+  // 注册表没给专门的跳转函数：直接切视图 + 重画，这是通用兜底
+  S.view = id;
+  renderSidebar(); renderMain(); closeSidebar();
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   侧栏渲染
+   ────────────────────────────────────────────────────────────────────────
+   v2.3（2026-10-03）：**完全由页面注册表驱动**。
+
+   改前这里是三段手写的 HTML 模板（总览 / 常用工具 / 系统），
+   加上「我的班级」「关注视图」两段动态生成的，加起来近 200 行。
+   改后：
+     · 页面分组 → 遍历 K.NAV_GROUPS + K.pagesIn(group)，不写死任何一条
+     · 折叠状态 → 折叠的键直接从分组 id 派生，不用再维护一张映射表
+   加一个页面 / 换一次分组，只改 shell/page-registry.js 与 kernel 里的
+   NAV_GROUPS，侧栏这一段一个字都不用动。
+
+   ── 三条布局规则 ──────────────────────────────────────────────────────
+     ① 组内 ≤5 条 → 默认展开，标题上**不画折叠符**
+        条目本来就放得下，给个"能折"的假提示反而是噪音。
+     ② 组内 >5 条 → 默认折叠成一行（侧栏纵向空间最稀缺，
+        11 个页面全展开会把下面的「我的班级」挤到看不见）
+     ③ 手动展开/收起的选择会记住（走 S.sideFold，键就是分组 id）
+   ════════════════════════════════════════════════════════════════════════ */
+
 /** 侧栏条目的徽标：显示当前分组/对象里有多少条。没提供 badge 就不显示。 */
 function pageBadge(p) {
   if (typeof p.badge !== 'function') return '';
@@ -11364,32 +11780,44 @@ function renderNavGroup(group) {
         ${sideIco(p.icon)}<span class="s-txt">${esc(p.title)}</span><span class="cnt">—</span></div>`;
     }
     return `<div class="side-item ${pageActive(p) ? 'active' : ''}"${p.tour ? ` data-tour="${p.tour}"` : ''}
-      onclick="${esc(p.goto || 'gotoView')}('${p.id}')" title="${esc(p.title)}">
+      onclick="onGoTo('${p.id}')" title="${esc(p.title)}">
       ${sideIco(p.icon)}<span class="s-txt">${esc(p.title)}</span>${pageBadge(p)}</div>`;
   }).join('');
 }
 
-function renderSidebar(){
-  const classes = orderClasses([...new Set(S.students.map(s=>s['班级']).filter(Boolean))]);
-  const cnt = c => S.students.filter(s=>s['班级']===c).length;
+/** 这一组能不能折：条目多才折（≤5 条折了也没意义，见文件头规则 ①） */
+function navGroupFoldable(group) { return K.pagesIn(group).length > 5; }
+/** 这一组默认该不该展开：条目多就收起来（规则 ②） */
+function navGroupDefaultOpen(group) { return !navGroupFoldable(group); }
+/** 这一组当前是否展开：用户没手动设过时，按默认来（规则 ③） */
+function navGroupOpen(group) {
+  if (S.sideCollapsed) return true;               // 侧栏整体收起时不谈折叠
+  const fold = S.sideFold || (S.sideFold = {});
+  if (typeof fold[group] !== 'boolean') return navGroupDefaultOpen(group);
+  return !fold[group];
+}
 
-  /* ── 总览组 ── */
-  let h = `<div class="side-label">总览</div>` + renderNavGroup('main');
+function renderSidebar() {
+  const classes = orderClasses([...new Set(S.students.map(s => s['班级']).filter(Boolean))]);
+  const cnt = c => S.students.filter(s => s['班级'] === c).length;
+  let h = '';
 
-  /* ── 导入指引：常驻单条，NEW 角标 ──
-     v1.9：新用户引导入口回侧栏（v1.6 收掉「数据管理」组时把这唯一入口一起删了，
-     导致新用户根本找不到「导入指引」——补在最上面，且带一点强调色） */
-  h += `<div class="side-item ${S.view==='guide'?'active':''}" data-tour="guide" onclick="gotoGuide()" title="导入指引 —— 第一次用先看这个">
-      ${sideIco('compass')}<span class="s-txt">导入指引</span><span class="side-new">NEW</span></div>`;
+  /* ── ① 页面分组：完全按注册表遍历 ── */
+  K.NAV_GROUPS.forEach(g => {
+    const items = K.pagesIn(g.id);
+    if (!items.length) return;                       // 注册了但一个页面都没有 → 不显示这一组
+    const foldable = navGroupFoldable(g.id);
+    h += sideLabel('nav:' + g.id, g.label, null, foldable ? '' : ' plain');
+    if (navGroupOpen(g.id)) h += renderNavGroup(g.id);
+  });
 
-  /* ── 常用工具 ── */
-  h += sideLabel('tools', '常用工具');
-  if(sideGroupOpen('tools')) h += renderNavGroup('work');
-
-  h += sideLabel('classes', `我的班级（${classes.length}）`);
-  if(sideGroupOpen('classes')){
-    classes.forEach((c,i)=>{
-      h += `<div class="side-item ${(S.view==='list' && S.classFilter===c)?'active':''}" data-class="${esc(c)}"
+  /* ── ② 我的班级 ──
+     11 个班会占掉大半屏，所以跟页面分组用同一套规则：多就默认折起来。 */
+  const foldClasses = classes.length > 5;
+  h += sideLabel('classes', `我的班级（${classes.length}）`, null, foldClasses ? '' : ' plain');
+  if (!foldClasses || sideGroupOpen('classes')) {
+    classes.forEach((c, i) => {
+      h += `<div class="side-item ${(S.view === 'list' && S.classFilter === c) ? 'active' : ''}" data-class="${esc(c)}"
         draggable="true" onclick="pickClass('${esc(c)}')" title="${esc(c)}（按住拖动可排序）"
         ondragstart="classDragStart(event, ${i})" ondragover="classDragOver(event)"
         ondragleave="classDragLeave(event)" ondrop="classDrop(event, ${i})" ondragend="classDragEnd(event)">
@@ -11397,57 +11825,56 @@ function renderSidebar(){
     });
   }
 
-  h += sideLabel('views', '关注视图', 'views');
-  if(sideGroupOpen('views')){
-  const ICO_BY_PRESET = {focus:'eye', fail:'warn', lowgpa:'trend', noscore:'doc', noremark:'pencil', hasremark:'chat', party:'flag', cadre:'star'};
-  /* v2.2（用户 2026-09-30 请求）：① 设置里取消勾选的视图不显示；
-     ② "本批暂时用不了"的视图**默认收成一行**（原先是逐个置灰各占一行，17 个预设时很杂）。
-     收起 ≠ 悄悄消失：那一行可以点开，会列出是哪些视图、各自缺什么。 */
-  const unavailable = [];
-  PRESETS.filter(p=>p.id!=='all').forEach(p=>{
-    if(isHiddenPreset(p.id)) return;
-    if(!presetAvailable(p)){
-      if(S.hideUnavailable !== false){ unavailable.push(p); return; }
-      // 字段缺失降级：本批数据没导出这个字段 → 置灰 + 显示「—」，
-      // 绝不能显示 0（0 会被误读成"这批学生没人挂科"）
-      const miss = presetMissText(p);
-      h += `<div class="side-item disabled" title="${esc(miss)}，无法统计"
-        onclick="toast('${esc(miss)}，无法统计')">
-        ${sideIco(ICO_BY_PRESET[p.id]||'eye')}<span class="s-txt">${p.label}</span><span class="cnt">—</span></div>`;
-      return;
+  /* ── ③ 关注视图（预设，不是页面）── */
+  const ICO_BY_PRESET = { focus:'eye', fail:'warn', lowgpa:'trend', noscore:'doc', noremark:'pencil', hasremark:'chat', party:'flag', cadre:'star' };
+  const shownPresets = PRESETS.filter(p => p.id !== 'all' && !isHiddenPreset(p.id));
+  /* 18 个预设全展开要滚很久 → 多就折起来（跟上面同一套规则） */
+  const foldViews = shownPresets.length > 5;
+  h += sideLabel('views', '关注视图', 'views', foldViews ? '' : ' plain');
+  if (!foldViews || sideGroupOpen('views')) {
+    /* v2.2（用户 2026-09-30 请求）：① 设置里取消勾选的视图不显示；
+       ② "本批暂时用不了"的视图**默认收成一行**（原先是逐个置灰各占一行，17 个预设时很杂）。
+       收起 ≠ 悄悄消失：那一行可以点开，会列出是哪些视图、各自缺什么。 */
+    const unavailable = [];
+    shownPresets.forEach(p => {
+      if (!presetAvailable(p)) {
+        if (S.hideUnavailable !== false) { unavailable.push(p); return; }
+        // 字段缺失降级：本批数据没导出这个字段 → 置灰 + 显示「—」，
+        // 绝不能显示 0（0 会被误读成"这批学生没人挂科"）
+        const miss = presetMissText(p);
+        h += `<div class="side-item disabled" title="${esc(miss)}，无法统计"
+          onclick="toast('${esc(miss)}，无法统计')">
+          ${sideIco(ICO_BY_PRESET[p.id] || 'eye')}<span class="s-txt">${p.label}</span><span class="cnt">—</span></div>`;
+        return;
+      }
+      const n = p.fn(S.students).length;
+      h += `<div class="side-item ${(S.view === 'list' && S.quickView === p.id) ? 'active' : ''}" onclick="pickPreset('${p.id}')" title="${p.label}">
+        ${sideIco(ICO_BY_PRESET[p.id] || 'eye')}<span class="s-txt">${p.label}</span><span class="cnt">${n}</span></div>`;
+    });
+    if (unavailable.length) {
+      const why = unavailable.map(p => `${p.label}（${presetMissText(p)}）`).join('；');
+      h += `<div class="side-item disabled" title="点击查看是哪几个：${esc(why)}"
+        onclick="toast('${esc(unavailable.length + ' 个视图本批暂时用不了：' + why)}')">
+        ${sideIco('doc')}<span class="s-txt">用不了的视图</span><span class="cnt">${unavailable.length}</span></div>`;
     }
-    const n = p.fn(S.students).length;
-    h += `<div class="side-item ${(S.view==='list' && S.quickView===p.id)?'active':''}" onclick="pickPreset('${p.id}')" title="${p.label}">
-      ${sideIco(ICO_BY_PRESET[p.id]||'eye')}<span class="s-txt">${p.label}</span><span class="cnt">${n}</span></div>`;
-  });
-  if(unavailable.length){
-    const why = unavailable.map(p=>`${p.label}（${presetMissText(p)}）`).join('；');
-    h += `<div class="side-item disabled" title="点击查看是哪几个：${esc(why)}"
-      onclick="toast('${esc(unavailable.length + ' 个视图本批暂时用不了：' + why)}')">
-      ${sideIco('doc')}<span class="s-txt">用不了的视图</span><span class="cnt">${unavailable.length}</span></div>`;
   }
 
-  }
-
-  /* v1.6：数据类入口全部收进「系统设置」，侧栏只留两组，更清爽 */
-  h += sideLabel('sys', '系统');
-  if(sideGroupOpen('sys')) h += renderNavGroup('system');
-
-  h += `<div class="side-collapse" onclick="toggleSideCollapse()" title="${S.sideCollapsed?'展开侧栏':'收起侧栏'}">
-      ${sideIco('collapse')}<span class="s-txt">${S.sideCollapsed?'展开侧栏':'收起侧栏'}</span></div>`;
+  h += `<div class="side-collapse" onclick="toggleSideCollapse()" title="${S.sideCollapsed ? '展开侧栏' : '收起侧栏'}">
+      ${sideIco('collapse')}<span class="s-txt">${S.sideCollapsed ? '展开侧栏' : '收起侧栏'}</span></div>`;
 
   $('sidebar').innerHTML = h;
   $('sidebar').classList.toggle('collapsed', !!S.sideCollapsed);
   // 顶栏用户徽章同步个人中心信息
-  try{
+  try {
     const p = S.profile || {};
     const av = $('chipAvatar'), nm = $('chipName');
-    if(av){
-      av.innerHTML = p.avatar ? `<img src="${p.avatar}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
-                              : esc((p.name||'辅').charAt(0) || '辅');
+    if (av) {
+      av.innerHTML = p.avatar
+        ? `<img src="${p.avatar}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+        : esc((p.name || '辅').charAt(0) || '辅');
     }
-    if(nm) nm.textContent = p.name || '辅导员';
-  }catch(e){}
+    if (nm) nm.textContent = p.name || '辅导员';
+  } catch (e) { /* 顶栏还没渲染完，下次再说 */ }
 }
 
 
@@ -11524,26 +11951,6 @@ function renderProfile(){
     </div>
     <div style="font-size:12px;color:var(--text-3);margin-top:10px">
       头像与姓名会用在通知短信模板、谈话记录等处（后续版本逐步打通）· 负责班级来自当前批次数据，导入后自动更新</div>
-  </div></div>
-
-  <div class="card" style="margin-bottom:16px"><div class="card-body">
-    <div style="font-weight:660;font-size:14.5px;margin-bottom:10px">🔐 安全</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:520px">
-      <div class="field"><label>原密码${S.password?'':'（未设置，可留空）'}</label><input type="password" id="oldPw" placeholder="${S.password?'请输入原密码':'还没设置过密码，留空即可'}"></div>
-      <div class="field"><label>新密码</label><input type="password" id="newPw" placeholder="至少 4 位"></div>
-    </div>
-    <div class="login-err" id="setErr"></div>
-    <button class="btn pri" onclick="changePw()">${S.password?'确认修改':'设置密码'}</button>
-    <div style="font-size:12px;color:var(--text-3);margin-top:8px">
-      密码经哈希后存储，不保存明文 · ${S.password?'顶栏那把锁可以随时锁屏':'设好密码后，顶栏会多出一把锁，点了才锁屏'} ·
-      忘记密码用解锁码 <b>8838</b>
-    </div>
-    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <button class="btn" onclick="lockApp()">🔒 立即锁定工作台</button>
-      <span style="font-size:12.3px;color:var(--text-3)">
-        ${S.password?'点一下就锁屏，下次要用密码或解锁码 8838 进来':'还没设密码 —— 先在上面设一个（至少 4 位），之后随时能锁'}
-      </span>
-    </div>
   </div></div>
 
   <div class="card"><div class="card-body">

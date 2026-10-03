@@ -1,8 +1,11 @@
 /* ---------- 持久化 ---------- */
 /* save payload 统一构造：localStorage 与磁盘镜像（v1.5）共用同一份，避免两处字段漂移 */
+/* v2.3：不再存 password。
+   锁屏与密码已于 2026-10-03 整体取消（用户要求）。
+   读侧仍会**忽略**老存档里的 password 字段 —— 留着无害，
+   但绝不能再写出去，否则用户会以为它还有用。 */
 function buildSavePayload(){
   return {
-    password: S.password,
     batches: S.batches,
     activeBatchId: S.activeBatchId,
     savedFilters: S.savedFilters,
@@ -92,7 +95,6 @@ function load(){
     const raw = localStorage.getItem(STORE_KEY);
     if(raw){
       const d = JSON.parse(raw);
-      S.password = d.password || null;
       S.batches = Array.isArray(d.batches)
         ? d.batches.filter(b=>b && Array.isArray(b.students))
         : [];
@@ -192,7 +194,6 @@ function load(){
     if(raw1){
       const d1 = JSON.parse(raw1);
       const students = Array.isArray(d1.students) ? d1.students : [];
-      S.password = d1.password || null;
       S.savedFilters = Array.isArray(d1.savedFilters) ? d1.savedFilters : [];
       S.theme = (d1.theme==='dark' || d1.theme==='eye') ? d1.theme : 'light';
       S.batches = students.length

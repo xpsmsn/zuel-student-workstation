@@ -367,7 +367,7 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
   const rendered9 = R(`$('sidebar').innerHTML + $('mainArea').innerHTML`);
   ok(rendered9.indexOf('取数') < 0, '渲染出来的界面上不再有"取数"字样（侧栏 + 指引页）');
   ok(rendered9.indexOf('导入指引') >= 0, '界面上叫「导入指引」');
-  ok(html.indexOf('<span class="s-txt">导入指引</span>') >= 0, '侧栏条目叫「导入指引」');
+  ok(html.indexOf('>导入指引</span>') >= 0, '侧栏条目叫「导入指引」');
   R(`S.batches=[]; S.activeBatchId=null; S.students=[]; S.grades=[]; gotoGuide();`);
   const gEmpty = R(`$('mainArea').innerHTML`);
   ok(gEmpty.indexOf('导入指引') >= 0, '页面标题是「导入指引」');
@@ -750,10 +750,10 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
   //    （"以下三张卡需要它：加权成绩分布 · …"），用 indexOf<0 会误判。
   ['加权成绩分布','学业预警名单','班级平均加权成绩'].forEach(t =>
     ok(dHtml.indexOf(`<div class="u-card-title">${t}</div>`) < 0, `★ 没有成绩表时不出现空转卡「${t}」`));
-  ok(dHtml.indexOf('openGradeImport()') >= 0 && dHtml.indexOf('成绩') >= 0,
+  ok(dHtml.indexOf("openImport('成绩") >= 0 && dHtml.indexOf('成绩') >= 0,
      '★ 改为一条合并提示，并带「去导入成绩」入口（不能让人以为功能没了）');
   eq(countMetric(metHtml()), 4, '★ 指标卡 6 张 → 4 张（三张成绩项收成一张）');
-  ok(metHtml().indexOf('openGradeImport()') >= 0, '合并后的那张指标卡能点进成绩导入');
+  ok(metHtml().indexOf("openImport('成绩") >= 0, '合并后的那张指标卡能点进成绩导入');
 
   // ── 尺寸跟内容走：政治面貌只有 2 类，不该独占整行 ──
   const pi = dHtml.indexOf('政治面貌构成');

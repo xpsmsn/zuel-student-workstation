@@ -54,6 +54,57 @@ function classDragEnd(e){
    ⚠️ 徽标和「点进去要做什么」仍是页面特有的，所以通过 page.badge 提供；
       没提供就不显示 —— 不用为每个页面改这里。 */
 
+/* ════════════════════════════════════════════════════════════════════════
+   侧栏渲染
+   ────────────────────────────────────────────────────────────────────────
+   ⚠️ 这里为什么统一走 onGoTo(id) 而不是各自拼 onclick="gotoXxx()"
+
+   注册表里 `goto: gotoDashboard` 存的是**函数引用**。如果直接拼进 HTML：
+       onclick="${p.goto}('${p.id}')"
+   得到的是
+       onclick="function gotoDashboard(){ S.view = ... }('dashboard')"
+   浏览器会去找一个**名叫「function gotoDashboard……」的全局变量** → 找不到，
+   于是点了没反应、也不报错。这就是「页面点不进去」的真凶（v2.3）。
+
+   代价特别隐蔽：模板字符串能正常生成、语法检查过、其它条目（像 gotoGuide）
+   恰好拼对了没暴露问题，只有大部分条目静默失效。
+
+   所以：**所有导航点击都收口到 onGoTo(id) 这一个函数**，
+   由它查注册表拿到真正的函数并调用。既短，又不会再拼错。
+   ════════════════════════════════════════════════════════════════════════ */
+
+/** 侧栏/卡片跳转的唯一入口。id 见 src/shell/page-registry.js */
+function onGoTo(id) {
+  const p = K.page(id);
+  if (!p) { toast('这个入口还没接上（' + id + '）'); return; }
+  if (p.needsData && !S.batches.length) { renderEmpty(); return; }
+  if (typeof p.goto === 'function') { p.goto(); return; }
+  // 注册表没给专门的跳转函数：直接切视图 + 重画，这是通用兜底
+  S.view = id;
+  renderSidebar(); renderMain(); closeSidebar();
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   侧栏渲染
+   ────────────────────────────────────────────────────────────────────────
+   v2.3（2026-10-03）：**完全由页面注册表驱动**。
+
+   改前这里是三段手写的 HTML 模板（总览 / 常用工具 / 系统），
+   加上「我的班级」「关注视图」两段动态生成的，加起来近 200 行。
+   改后：
+     · 页面分组 → 遍历 K.NAV_GROUPS + K.pagesIn(group)，不写死任何一条
+     · 折叠状态 → 折叠的键直接从分组 id 派生，不用再维护一张映射表
+   加一个页面 / 换一次分组，只改 shell/page-registry.js 与 kernel 里的
+   NAV_GROUPS，侧栏这一段一个字都不用动。
+
+   ── 三条布局规则 ──────────────────────────────────────────────────────
+     ① 组内 ≤5 条 → 默认展开，标题上**不画折叠符**
+        条目本来就放得下，给个"能折"的假提示反而是噪音。
+     ② 组内 >5 条 → 默认折叠成一行（侧栏纵向空间最稀缺，
+        11 个页面全展开会把下面的「我的班级」挤到看不见）
+     ③ 手动展开/收起的选择会记住（走 S.sideFold，键就是分组 id）
+   ════════════════════════════════════════════════════════════════════════ */
+
 /** 侧栏条目的徽标：显示当前分组/对象里有多少条。没提供 badge 就不显示。 */
 function pageBadge(p) {
   if (typeof p.badge !== 'function') return '';
@@ -80,32 +131,44 @@ function renderNavGroup(group) {
         ${sideIco(p.icon)}<span class="s-txt">${esc(p.title)}</span><span class="cnt">—</span></div>`;
     }
     return `<div class="side-item ${pageActive(p) ? 'active' : ''}"${p.tour ? ` data-tour="${p.tour}"` : ''}
-      onclick="${esc(p.goto || 'gotoView')}('${p.id}')" title="${esc(p.title)}">
+      onclick="onGoTo('${p.id}')" title="${esc(p.title)}">
       ${sideIco(p.icon)}<span class="s-txt">${esc(p.title)}</span>${pageBadge(p)}</div>`;
   }).join('');
 }
 
-function renderSidebar(){
-  const classes = orderClasses([...new Set(S.students.map(s=>s['班级']).filter(Boolean))]);
-  const cnt = c => S.students.filter(s=>s['班级']===c).length;
+/** 这一组能不能折：条目多才折（≤5 条折了也没意义，见文件头规则 ①） */
+function navGroupFoldable(group) { return K.pagesIn(group).length > 5; }
+/** 这一组默认该不该展开：条目多就收起来（规则 ②） */
+function navGroupDefaultOpen(group) { return !navGroupFoldable(group); }
+/** 这一组当前是否展开：用户没手动设过时，按默认来（规则 ③） */
+function navGroupOpen(group) {
+  if (S.sideCollapsed) return true;               // 侧栏整体收起时不谈折叠
+  const fold = S.sideFold || (S.sideFold = {});
+  if (typeof fold[group] !== 'boolean') return navGroupDefaultOpen(group);
+  return !fold[group];
+}
 
-  /* ── 总览组 ── */
-  let h = `<div class="side-label">总览</div>` + renderNavGroup('main');
+function renderSidebar() {
+  const classes = orderClasses([...new Set(S.students.map(s => s['班级']).filter(Boolean))]);
+  const cnt = c => S.students.filter(s => s['班级'] === c).length;
+  let h = '';
 
-  /* ── 导入指引：常驻单条，NEW 角标 ──
-     v1.9：新用户引导入口回侧栏（v1.6 收掉「数据管理」组时把这唯一入口一起删了，
-     导致新用户根本找不到「导入指引」——补在最上面，且带一点强调色） */
-  h += `<div class="side-item ${S.view==='guide'?'active':''}" data-tour="guide" onclick="gotoGuide()" title="导入指引 —— 第一次用先看这个">
-      ${sideIco('compass')}<span class="s-txt">导入指引</span><span class="side-new">NEW</span></div>`;
+  /* ── ① 页面分组：完全按注册表遍历 ── */
+  K.NAV_GROUPS.forEach(g => {
+    const items = K.pagesIn(g.id);
+    if (!items.length) return;                       // 注册了但一个页面都没有 → 不显示这一组
+    const foldable = navGroupFoldable(g.id);
+    h += sideLabel('nav:' + g.id, g.label, null, foldable ? '' : ' plain');
+    if (navGroupOpen(g.id)) h += renderNavGroup(g.id);
+  });
 
-  /* ── 常用工具 ── */
-  h += sideLabel('tools', '常用工具');
-  if(sideGroupOpen('tools')) h += renderNavGroup('work');
-
-  h += sideLabel('classes', `我的班级（${classes.length}）`);
-  if(sideGroupOpen('classes')){
-    classes.forEach((c,i)=>{
-      h += `<div class="side-item ${(S.view==='list' && S.classFilter===c)?'active':''}" data-class="${esc(c)}"
+  /* ── ② 我的班级 ──
+     11 个班会占掉大半屏，所以跟页面分组用同一套规则：多就默认折起来。 */
+  const foldClasses = classes.length > 5;
+  h += sideLabel('classes', `我的班级（${classes.length}）`, null, foldClasses ? '' : ' plain');
+  if (!foldClasses || sideGroupOpen('classes')) {
+    classes.forEach((c, i) => {
+      h += `<div class="side-item ${(S.view === 'list' && S.classFilter === c) ? 'active' : ''}" data-class="${esc(c)}"
         draggable="true" onclick="pickClass('${esc(c)}')" title="${esc(c)}（按住拖动可排序）"
         ondragstart="classDragStart(event, ${i})" ondragover="classDragOver(event)"
         ondragleave="classDragLeave(event)" ondrop="classDrop(event, ${i})" ondragend="classDragEnd(event)">
@@ -113,55 +176,54 @@ function renderSidebar(){
     });
   }
 
-  h += sideLabel('views', '关注视图', 'views');
-  if(sideGroupOpen('views')){
-  const ICO_BY_PRESET = {focus:'eye', fail:'warn', lowgpa:'trend', noscore:'doc', noremark:'pencil', hasremark:'chat', party:'flag', cadre:'star'};
-  /* v2.2（用户 2026-09-30 请求）：① 设置里取消勾选的视图不显示；
-     ② "本批暂时用不了"的视图**默认收成一行**（原先是逐个置灰各占一行，17 个预设时很杂）。
-     收起 ≠ 悄悄消失：那一行可以点开，会列出是哪些视图、各自缺什么。 */
-  const unavailable = [];
-  PRESETS.filter(p=>p.id!=='all').forEach(p=>{
-    if(isHiddenPreset(p.id)) return;
-    if(!presetAvailable(p)){
-      if(S.hideUnavailable !== false){ unavailable.push(p); return; }
-      // 字段缺失降级：本批数据没导出这个字段 → 置灰 + 显示「—」，
-      // 绝不能显示 0（0 会被误读成"这批学生没人挂科"）
-      const miss = presetMissText(p);
-      h += `<div class="side-item disabled" title="${esc(miss)}，无法统计"
-        onclick="toast('${esc(miss)}，无法统计')">
-        ${sideIco(ICO_BY_PRESET[p.id]||'eye')}<span class="s-txt">${p.label}</span><span class="cnt">—</span></div>`;
-      return;
+  /* ── ③ 关注视图（预设，不是页面）── */
+  const ICO_BY_PRESET = { focus:'eye', fail:'warn', lowgpa:'trend', noscore:'doc', noremark:'pencil', hasremark:'chat', party:'flag', cadre:'star' };
+  const shownPresets = PRESETS.filter(p => p.id !== 'all' && !isHiddenPreset(p.id));
+  /* 18 个预设全展开要滚很久 → 多就折起来（跟上面同一套规则） */
+  const foldViews = shownPresets.length > 5;
+  h += sideLabel('views', '关注视图', 'views', foldViews ? '' : ' plain');
+  if (!foldViews || sideGroupOpen('views')) {
+    /* v2.2（用户 2026-09-30 请求）：① 设置里取消勾选的视图不显示；
+       ② "本批暂时用不了"的视图**默认收成一行**（原先是逐个置灰各占一行，17 个预设时很杂）。
+       收起 ≠ 悄悄消失：那一行可以点开，会列出是哪些视图、各自缺什么。 */
+    const unavailable = [];
+    shownPresets.forEach(p => {
+      if (!presetAvailable(p)) {
+        if (S.hideUnavailable !== false) { unavailable.push(p); return; }
+        // 字段缺失降级：本批数据没导出这个字段 → 置灰 + 显示「—」，
+        // 绝不能显示 0（0 会被误读成"这批学生没人挂科"）
+        const miss = presetMissText(p);
+        h += `<div class="side-item disabled" title="${esc(miss)}，无法统计"
+          onclick="toast('${esc(miss)}，无法统计')">
+          ${sideIco(ICO_BY_PRESET[p.id] || 'eye')}<span class="s-txt">${p.label}</span><span class="cnt">—</span></div>`;
+        return;
+      }
+      const n = p.fn(S.students).length;
+      h += `<div class="side-item ${(S.view === 'list' && S.quickView === p.id) ? 'active' : ''}" onclick="pickPreset('${p.id}')" title="${p.label}">
+        ${sideIco(ICO_BY_PRESET[p.id] || 'eye')}<span class="s-txt">${p.label}</span><span class="cnt">${n}</span></div>`;
+    });
+    if (unavailable.length) {
+      const why = unavailable.map(p => `${p.label}（${presetMissText(p)}）`).join('；');
+      h += `<div class="side-item disabled" title="点击查看是哪几个：${esc(why)}"
+        onclick="toast('${esc(unavailable.length + ' 个视图本批暂时用不了：' + why)}')">
+        ${sideIco('doc')}<span class="s-txt">用不了的视图</span><span class="cnt">${unavailable.length}</span></div>`;
     }
-    const n = p.fn(S.students).length;
-    h += `<div class="side-item ${(S.view==='list' && S.quickView===p.id)?'active':''}" onclick="pickPreset('${p.id}')" title="${p.label}">
-      ${sideIco(ICO_BY_PRESET[p.id]||'eye')}<span class="s-txt">${p.label}</span><span class="cnt">${n}</span></div>`;
-  });
-  if(unavailable.length){
-    const why = unavailable.map(p=>`${p.label}（${presetMissText(p)}）`).join('；');
-    h += `<div class="side-item disabled" title="点击查看是哪几个：${esc(why)}"
-      onclick="toast('${esc(unavailable.length + ' 个视图本批暂时用不了：' + why)}')">
-      ${sideIco('doc')}<span class="s-txt">用不了的视图</span><span class="cnt">${unavailable.length}</span></div>`;
   }
 
-  }
-
-  /* v1.6：数据类入口全部收进「系统设置」，侧栏只留两组，更清爽 */
-  h += sideLabel('sys', '系统');
-  if(sideGroupOpen('sys')) h += renderNavGroup('system');
-
-  h += `<div class="side-collapse" onclick="toggleSideCollapse()" title="${S.sideCollapsed?'展开侧栏':'收起侧栏'}">
-      ${sideIco('collapse')}<span class="s-txt">${S.sideCollapsed?'展开侧栏':'收起侧栏'}</span></div>`;
+  h += `<div class="side-collapse" onclick="toggleSideCollapse()" title="${S.sideCollapsed ? '展开侧栏' : '收起侧栏'}">
+      ${sideIco('collapse')}<span class="s-txt">${S.sideCollapsed ? '展开侧栏' : '收起侧栏'}</span></div>`;
 
   $('sidebar').innerHTML = h;
   $('sidebar').classList.toggle('collapsed', !!S.sideCollapsed);
   // 顶栏用户徽章同步个人中心信息
-  try{
+  try {
     const p = S.profile || {};
     const av = $('chipAvatar'), nm = $('chipName');
-    if(av){
-      av.innerHTML = p.avatar ? `<img src="${p.avatar}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
-                              : esc((p.name||'辅').charAt(0) || '辅');
+    if (av) {
+      av.innerHTML = p.avatar
+        ? `<img src="${p.avatar}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+        : esc((p.name || '辅').charAt(0) || '辅');
     }
-    if(nm) nm.textContent = p.name || '辅导员';
-  }catch(e){}
+    if (nm) nm.textContent = p.name || '辅导员';
+  } catch (e) { /* 顶栏还没渲染完，下次再说 */ }
 }

@@ -28,8 +28,13 @@ function fresh(){
   let confirmCb = null;                 // 抓 askConfirm 的 onOk
   const reloads = [];
   const downloads = [];
+  /* 注意：setInterval 在这里必须是**空实现**。
+     启动流程会调 enterApp() → 注册「顶栏周次刷新」「金句轮换」两个定时器，
+     若放真的 setInterval，断言跑完进程也不会退出（事件循环被定时器挂住），
+     看起来就像"卡死"。这些定时器跟被测逻辑无关，直接桩掉。 */
   const sandbox = {
-    console, setTimeout, clearTimeout, setInterval, clearInterval,
+    console, setTimeout, clearTimeout,
+    setInterval:()=>0, clearInterval:()=>{},
     document: {
       getElementById:(id)=>{ const e = el(); e.id = id; return e; },
       querySelector:()=>el(), querySelectorAll:()=>[],

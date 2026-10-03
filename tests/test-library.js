@@ -180,8 +180,11 @@ if(!threw && calHtml.includes('校历作息') && calHtml.includes('2026-2027') &
   pass('校历作息页：学年校历 + 课堂时间表'); else fail('renderCalendar 异常: ' + (threw && threw.message));
 try{ R(`gotoProfile()`); }catch(e){ threw = e; }
 const pfHtml = R(`$('mainArea').innerHTML`);
-if(!threw && pfHtml.includes('个人中心') && pfHtml.includes('pfAvatar') && pfHtml.includes('oldPw'))
-  pass('个人中心页：头像/姓名/改密/数据管理'); else fail('renderProfile 异常: ' + (threw && threw.message));
+/* v2.3：锁屏与密码整体取消，个人中心只剩「资料」+ 引导去设置。
+   断言跟着改 —— 守的是「个人中心不残留任何密码相关入口」，
+   这正是取消锁屏后最该守住的一条（防止以后又被加回来）。 */
+if(!threw && pfHtml.includes('个人中心') && pfHtml.includes('pfAvatar') && !pfHtml.includes('oldPw'))
+  pass('个人中心页：头像/姓名，无密码区块'); else fail('renderProfile 异常: ' + (threw && threw.message));
 opened.length = 0;
 R(`openLinkExternal('javascript:alert(1)')`);
 if(opened.length === 0) pass('javascript: 链接被前端白名单拦截'); else fail('危险链接被放行: ' + opened[0]);
@@ -285,8 +288,9 @@ R(`closeModal();`);
 // 个人中心：只留个人资料与安全
 R(`gotoProfile();`);
 const pf16 = R(`$('mainArea').innerHTML`);
-if(pf16.includes('姓名') && pf16.includes('安全') && !pf16.includes('备份与恢复') && pf16.includes('系统设置'))
-  pass('个人中心：只留资料与安全，其余引导到系统设置');
+/* v2.3：个人中心只留资料与「去哪找设置」；安全区块（改密码/锁屏）已随锁屏取消。 */
+if(pf16.includes('姓名') && !pf16.includes('安全') && !pf16.includes('oldPw') && !pf16.includes('lockApp') && pf16.includes('系统设置'))
+  pass('个人中心：只留资料，其余引导到系统设置（无密码/锁屏残留）');
 else fail('renderProfile 精简异常');
 // 备份时间：未备份 → 提示文案
 R(`S.lastBackupAt = '';`);
@@ -391,11 +395,17 @@ R('toast = _oldToast;');
 console.log('\n[6.9] v1.9：新手引导可再进入 + 分步实操');
 // ① 回归：v1.6 删「数据管理」分组时连唯一入口一起删了 → 侧栏必须常驻导入指引入口
 //    v1.9.7.2：名称从「取数 · 导入指引」简化为「导入指引」（太长会换行，用户反馈）
-R(`S.sideCollapsed = false; renderSidebar();`);
+/* v2.3：「导入指引」从「常驻单条」移进了「日常」组（侧栏改为完全由注册表驱动）。
+   「日常」组有 3 条 ≤5，所以默认展开 —— 但断言要显式展开一次，
+   这样顺带验住了「分组折叠后仍能拿到里面的条目」这件事。 */
+R(`S.sideCollapsed = false; S.sideFold = {}; renderSidebar();`);
 const sb19 = R(`$('sidebar').innerHTML`);
-if(sb19.includes('gotoGuide()') && sb19.includes('导入指引'))
-  pass('侧栏常驻「导入指引」入口（防再次被删）');
+if(sb19.includes("onGoTo('guide')") && sb19.includes('导入指引'))
+  pass('侧栏「日常」组里有「导入指引」入口（防再次被删）');
 else fail('侧栏缺「导入指引」入口');
+if(R(`K.pagesIn('daily').some(p=>p.id==='guide')`))
+  pass('导入指引已归入「日常」组');
+else fail('导入指引不在「日常」组');
 // ② 入口页按钮：重看引导 / 页面导览
 R(`gotoGuide();`);
 const g19 = R(`$('mainArea').innerHTML`);
@@ -455,7 +465,9 @@ R(`openOnboarding(3);`);
 if(R(`$('modalRoot').innerHTML`).includes('openImport()')) pass('第 ③ 步：可点「现在导入学生表」直达导入框');
 else fail('第 ③ 步缺导入按钮');
 R(`openOnboarding(4);`);
-if(R(`$('modalRoot').innerHTML`).includes('openGradeImport()')) pass('第 ④ 步：可点「现在导入成绩单」直达成绩导入');
+/* v2.3：成绩导入已并入统一入口 openImport()，不再有单独的 openGradeImport()。
+   断言跟着改 —— 守的是「第 ④ 步能直达导入」这件事本身。 */
+if(R(`$('modalRoot').innerHTML`).includes("openImport('成绩表")) pass('第 ④ 步：可点「现在导入成绩单」直达导入');
 else fail('第 ④ 步缺导入按钮');
 // ⑥ 进度清单：勾一份、另一份仍是空的
 R(`openOnboarding(0); wizGot('student');`);
@@ -475,9 +487,24 @@ if(JSON.parse(R(`__store.get(${JSON.stringify(R('STORE_KEY'))})`) || '{}').guide
   pass('guideSeen 已落盘');
 else fail('guideSeen 未落盘');
 // ⑨ 新用户仍会看到引导；老数据（无该字段）不打扰 —— 源码级断言
-if(/if\(!S\.guideSeen\) setTimeout\(\(\)=>\{ if\(!S\.guideSeen\) openOnboarding\(\); \}, 420\)/.test(html))
-  pass('新用户：进入应用后自动弹一次引导');
-else fail('自动弹引导的条件被改动');
+/* v2.3：锁屏 / 密码 / 解锁码整体取消（用户 2026-10-03 要求）。
+   「彻底」二字很要紧 —— 只要还剩一处（比如登录页、顶栏锁按钮、个人中心改密码），
+   用户就会看到「8838」这类提示，然后困惑为什么没有密码页。 */
+if(!html.includes('8838') && !html.includes('lockApp') && !html.includes('unlockApp') && !html.includes('loginPage'))
+  pass('★ 锁屏/密码/解锁码已彻底移除（无 8838、无 lockApp、无登录页）');
+else fail('锁屏有残留：' + ['8838','lockApp','unlockApp','loginPage'].filter(k=>html.includes(k)).join(' '));
+
+/* v2.3：首启**不再**自动弹导入向导。
+   起因是一个很难查的故障：向导的遮罩盖住全屏，只要用户没意识到那是弹窗，
+   **整个界面就点不动了**，而且没有任何症状提示。
+   所以「不自动弹」现在是一条被守住的断言 —— 防止以后有人再加回来。 */
+if(/openOnboarding\(\)/.test(html) && !/setTimeout\(\(\)=>\{[^}]*openOnboarding/.test(html))
+  pass('★ 启动不再自动弹导入向导（遮罩挡点击的根因）');
+else fail('启动时又出现自动弹窗 —— 会重现「整页点不动」');
+/* 引导仍要能主动打开：侧栏「导入指引」与个人中心都留着入口 */
+if(html.includes('gotoGuide') && html.includes('openOnboarding(0)'))
+  pass('导入指引仍可主动打开（侧栏 + 个人中心）');
+else fail('导入指引入口丢失');
 if(html.includes('S.guideSeen = d.guideSeen === undefined ? true : !!d.guideSeen'))
   pass('老数据无 guideSeen 字段 → 视为看过（不打扰老用户）');
 else fail('老数据兼容逻辑被改动');

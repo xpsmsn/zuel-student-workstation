@@ -142,6 +142,20 @@ document.addEventListener('click', e => {
   paintFilterDrop();
 });
 
+/** 现在一共启用了几项筛选条件（字段数 + 预设视图 + 搜索词 + 班级）。
+    「清空筛选（3）」比「清空筛选」更让人知道自己清掉了什么。 */
+function countActiveFilters() {
+  let n = 0;
+  Object.keys(S.filters || {}).forEach(k => {
+    const v = S.filters[k];
+    if (Array.isArray(v) ? v.length : !!v) n++;
+  });
+  if (S.quickView && S.quickView !== 'all') n++;
+  if (S.classFilter && S.classFilter !== 'all') n++;
+  if ((S._search || '').trim()) n++;
+  return n;
+}
+
 function clearFilters(){
   S.filters = {}; S.quickView='all'; S.classFilter='all'; S._search='';
   _fdOpen = null;

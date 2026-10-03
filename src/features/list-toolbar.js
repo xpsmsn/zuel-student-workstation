@@ -80,8 +80,8 @@ function renderList(){
               title="自定义显示哪些列、以及列的前后顺序">列设置</button>
       <button class="u-btn u-btn-sm" onclick="openSaveFilter()">保存为常用筛选</button>
       ${hasGrade()
-        ? `<button class="u-btn u-btn-sm" onclick="openGradeImport()" title="重新导入本批次的成绩表">更新成绩</button>`
-        : `<button class="u-btn u-btn-sm u-btn-primary" onclick="openGradeImport()" title="导入系统导出的「成绩信息」表，按学号与这批学生绑定">＋ 导入成绩</button>`}
+        ? `<button class="u-btn u-btn-sm" onclick="openImport('成绩表：按学号绑到学生上，不会改动学生档案')" title="重新导入本批次的成绩表">更新成绩</button>`
+        : `<button class="u-btn u-btn-sm u-btn-primary" onclick="openImport('成绩表：按学号绑到学生上，不会改动学生档案')" title="导入系统导出的「成绩信息」表，按学号与这批学生绑定">＋ 导入成绩</button>`}
     </div>
   </div>
 
@@ -115,7 +115,7 @@ function renderList(){
       ${hasActive
         ? activeChips
         : '<span class="u-hint-quiet">没有筛选条件，下面是全部学生</span>'}
-      ${(hasActive || S.sort.key) ? `<button class="u-btn u-btn-sm u-btn-ghost ls-active-clear" onclick="clearFilters()">清空筛选</button>` : ''}
+      ${(hasActive || S.sort.key) ? `<button class="u-btn u-btn-sm u-btn-ghost ls-active-clear" onclick="clearFilters()">清空筛选${countActiveFilters() ? `（${countActiveFilters()}）` : ''}</button>` : ''}
       ${S.sort.key ? `<button class="u-btn u-btn-sm u-btn-ghost" onclick="clearSort()" title="回到导入顺序">排序：${esc(sortLabel())} ✕</button>` : ''}
     </div>
   </div>

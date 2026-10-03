@@ -238,10 +238,10 @@ function renderOnboarding(){
           学生表里有、成绩单里没有的，显示「<b>暂无成绩</b>」，不会被丢掉。</div></div>
       </div>
       <div class="wiz-do" style="margin-top:12px">
-        <button class="btn pri" onclick="closeModal();openGradeImport()">现在导入成绩单 →</button>
+        <button class="btn pri" onclick="closeModal();openImport('成绩表：按学号绑到学生上，不会改动学生档案')">现在导入成绩单 →</button>
         <span class="wiz-do-t">${S.students.length ? `当前已导入 ${S.students.length} 人` : '还没导学生表的话，先回第 ③ 步'}</span>
       </div>
-      <div class="gwarn ok">成绩也可以以后再补：随时点右上角「<b>+ 导入成绩</b>」就行。</div>
+      <div class="gwarn ok">成绩也可以以后再补：随时点顶栏「<b>导入数据</b>」，选成绩表就行。</div>
     </div>`;
   }else{
     body = `<div class="wiz-hero" style="padding-top:20px">

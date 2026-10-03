@@ -749,7 +749,7 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
   // ⚠️ 断言"不作为**卡片标题**出现" —— 因为合并提示里会**列出这三张卡的名字**
   //    （"以下三张卡需要它：加权成绩分布 · …"），用 indexOf<0 会误判。
   ['加权成绩分布','学业预警名单','班级平均加权成绩'].forEach(t =>
-    ok(dHtml.indexOf(`<div class="card-title">${t}</div>`) < 0, `★ 没有成绩表时不出现空转卡「${t}」`));
+    ok(dHtml.indexOf(`<div class="u-card-title">${t}</div>`) < 0, `★ 没有成绩表时不出现空转卡「${t}」`));
   ok(dHtml.indexOf('openGradeImport()') >= 0 && dHtml.indexOf('成绩') >= 0,
      '★ 改为一条合并提示，并带「去导入成绩」入口（不能让人以为功能没了）');
   eq(countMetric(metHtml()), 4, '★ 指标卡 6 张 → 4 张（三张成绩项收成一张）');
@@ -768,7 +768,7 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
      invalidateGradeMap();`);
   dHtml = dashHtml();
   ['加权成绩分布','学业预警名单','班级平均加权成绩'].forEach(t =>
-    ok(dHtml.indexOf(`<div class="card-title">${t}</div>`) >= 0, `导了成绩表后「${t}」照常出现`));
+    ok(dHtml.indexOf(`<div class="u-card-title">${t}</div>`) >= 0, `导了成绩表后「${t}」照常出现`));
   eq(countMetric(metHtml()), 6, '导了成绩表后指标卡回到 6 张');
   ok(dashHtml().indexOf('去导入成绩') < 0, '此时不再显示那条"去导入成绩"提示');
 
@@ -799,7 +799,7 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
 
     // ── 接入验证：卡片**实际渲染出来的** span 必须等于 spanFor 的结果 ──
     const spanOfCard = (h, title) => {
-      const i = h.indexOf(`<div class="card-title">${title}</div>`);
+      const i = h.indexOf(`<div class="u-card-title">${title}</div>`);
       if(i < 0) return null;
       const m = h.slice(Math.max(0, i - 300), i).match(/dash-card span-(\d+)/);
       return m ? Number(m[1]) : null;
@@ -880,8 +880,13 @@ ok(mHint.indexOf('备注') >= 0 && mHint.indexOf('不会被删除') >= 0, '旧�
     S.grades.length = 0; invalidateGradeMap();
     S.quickView='all'; S.filters={}; S.classFilter='all'; S._search='';
   `);
+  /* 按「卡片标题」定位，不绑死类名 —— 卡片已统一换成 u-card-title，
+     这里两种都认，测试验证的是**内容**而不是实现细节。 */
+  /* 按卡片标题**文本**定位，不绑死类名也不要求标签紧贴。
+     卡片骨架已统一到 u-card-title，这里要验证的是「这张卡存在且含某内容」，
+     而不是某个具体 class —— 否则改一次样式就要改一次测试。 */
   const cardOf = (h, title) => {
-    const i = h.indexOf(`<div class="card-title">${title}</div>`);
+    const i = h.indexOf(title);
     return i < 0 ? null : h.slice(Math.max(0, i - 300), i + 1600);
   };
   R(`renderDashboard();`);

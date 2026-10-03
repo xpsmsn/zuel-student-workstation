@@ -33,26 +33,6 @@ function renderProfile(){
       头像与姓名会用在通知短信模板、谈话记录等处（后续版本逐步打通）· 负责班级来自当前批次数据，导入后自动更新</div>
   </div></div>
 
-  <div class="card" style="margin-bottom:16px"><div class="card-body">
-    <div style="font-weight:660;font-size:14.5px;margin-bottom:10px">🔐 安全</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:520px">
-      <div class="field"><label>原密码${S.password?'':'（未设置，可留空）'}</label><input type="password" id="oldPw" placeholder="${S.password?'请输入原密码':'还没设置过密码，留空即可'}"></div>
-      <div class="field"><label>新密码</label><input type="password" id="newPw" placeholder="至少 4 位"></div>
-    </div>
-    <div class="login-err" id="setErr"></div>
-    <button class="btn pri" onclick="changePw()">${S.password?'确认修改':'设置密码'}</button>
-    <div style="font-size:12px;color:var(--text-3);margin-top:8px">
-      密码经哈希后存储，不保存明文 · ${S.password?'顶栏那把锁可以随时锁屏':'设好密码后，顶栏会多出一把锁，点了才锁屏'} ·
-      忘记密码用解锁码 <b>8838</b>
-    </div>
-    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <button class="btn" onclick="lockApp()">🔒 立即锁定工作台</button>
-      <span style="font-size:12.3px;color:var(--text-3)">
-        ${S.password?'点一下就锁屏，下次要用密码或解锁码 8838 进来':'还没设密码 —— 先在上面设一个（至少 4 位），之后随时能锁'}
-      </span>
-    </div>
-  </div></div>
-
   <div class="card"><div class="card-body">
     <div style="font-size:13px;color:var(--text-2);line-height:1.9">
       <b>找其他设置？</b>外观主题、学期周次、数据管理（导入 / 备份 / 历史 / 打开文件夹）都在

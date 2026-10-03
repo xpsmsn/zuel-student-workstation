@@ -49,12 +49,6 @@ function initResponsive(){
 /* fmtDate() 已移入 src/kernel/00-kernel.js —— core 层的 makeBatch 也要用它，
    它却住在 feature 层，会造成「core 反向依赖 feature」。 */
 
-// 简易哈希（原型用；正式版用 argon2/bcrypt）
-function hash(s){
-  let h = 5381;
-  for(let i=0;i<s.length;i++) h = ((h<<5)+h) ^ s.charCodeAt(i);
-  return 'h' + (h>>>0).toString(36) + '_' + s.length;
-}
 
 /* ---------- 侧栏：图标与折叠 ---------- */
 /* ---------- 侧栏 ---------- */
@@ -92,17 +86,33 @@ function toggleSideCollapse(){
   save(); renderSidebar();
 }
 
-/* 侧栏分组折叠：常用工具 / 我的班级 / 关注视图 三组可折叠，状态落盘。
-   侧栏整体收缩（58px 图标模式）时忽略折叠，保证图标始终可点。 */
-function toggleSideFold(k){
+/* ---------- 侧栏分组折叠 ---------- */
+/* 侧栏整体收缩（58px 图标模式）时忽略折叠，保证图标始终可点。 */
+function toggleSideFold(k) {
   S.sideFold = S.sideFold || {};
   S.sideFold[k] = !S.sideFold[k];
   save(); renderSidebar();
 }
-function sideGroupOpen(k){ return S.sideCollapsed || !(S.sideFold && S.sideFold[k]); }function sideLabel(k, label, tour){
+
+/** 旧的固定三组（我的班级 / 关注视图）用它；页面分组走 views/list.js 的 navGroupOpen。 */
+function sideGroupOpen(k) { return S.sideCollapsed || !(S.sideFold && S.sideFold[k]); }
+
+/**
+ * 分组标题。
+ * @param k          折叠状态的键
+ * @param label      标题文字
+ * @param tour       页面导览锚点（可选）
+ * @param cls        额外类名。传 ' plain' 表示「这一组不可折」——
+ *                   条目本来就放得下，画个折叠箭头是假提示。
+ */
+function sideLabel(k, label, tour, cls) {
   const folded = !!(S.sideFold && S.sideFold[k]);
-  return `<div class="side-label fold${folded?' folded':''}"${tour?` data-tour="${tour}"`:''} onclick="toggleSideFold('${k}')"
-    title="${folded?'展开':'折叠'}${esc(label)}"><span>${label}</span><span class="fold-chev">▾</span></div>`;
+  const plain = /\bplain\b/.test(cls || '');
+  const open = plain ? true : sideGroupOpen(k);
+  return `<div class="side-label fold${folded && !plain ? ' folded' : ''}${plain ? ' plain' : ''}"`
+    + `${tour ? ` data-tour="${tour}"` : ''}`
+    + (plain ? '' : ` onclick="toggleSideFold('${k}')" title="${open ? '折叠' : '展开'}${esc(label)}"`)
+    + `><span>${label}</span>${plain ? '' : '<span class="fold-chev">▾</span>'}</div>`;
 }
 
 /* ---------- 侧栏抽屉（窄屏专用，宽屏下这组函数无副作用） ---------- */

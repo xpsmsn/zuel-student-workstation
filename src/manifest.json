@@ -184,9 +184,8 @@
         "features.backup",
         "features.batch-manager",
         "features.export",
-        "features.grade-import",
         "features.import-history",
-        "features.import-wizard",
+        "features.import-unified",
         "features.library",
         "features.quote-rotation",
         "features.settings",
@@ -261,8 +260,6 @@
         "core.persist",
         "core.state",
         "core.ui-kit",
-        "features.lock",
-        "features.password",
         "features.settings",
         "features.tour",
         "kernel.00-kernel",
@@ -314,31 +311,12 @@
         "core.persist",
         "core.state",
         "core.ui-kit",
-        "features.grade-import",
-        "features.import-wizard",
+        "features.import-unified",
         "features.modals",
         "features.runtime-prefs",
         "kernel.00-kernel",
         "shell.router",
         "views.guide",
-        "views.list",
-        "views.onboarding"
-      ]
-    },
-    {
-      "id": "features.lock",
-      "file": "features/lock.js",
-      "layer": "L5 feature",
-      "deps": [
-        "core.state",
-        "core.theme",
-        "core.ui-kit",
-        "features.quote-rotation",
-        "features.runtime-prefs",
-        "features.settings",
-        "kernel.00-kernel",
-        "shell.app-shell",
-        "shell.router",
         "views.list",
         "views.onboarding"
       ]
@@ -355,7 +333,7 @@
         "features.tags",
         "kernel.00-kernel",
         "shell.app-shell",
-        "views.guide",
+        "shell.router",
         "views.student-detail"
       ]
     },
@@ -372,8 +350,7 @@
         "features.delete",
         "features.export",
         "features.filter",
-        "features.grade-import",
-        "features.import-wizard",
+        "features.import-unified",
         "features.modals",
         "features.tags",
         "kernel.00-kernel",
@@ -396,7 +373,7 @@
         "features.custom-filter",
         "features.delete",
         "features.filter",
-        "features.grade-import",
+        "features.import-unified",
         "features.modals",
         "features.tags",
         "kernel.00-kernel",
@@ -417,7 +394,7 @@
         "domain.import-rules",
         "features.batch-manager",
         "features.filter",
-        "features.grade-import",
+        "features.import-unified",
         "features.library",
         "features.quote-rotation",
         "features.tags",
@@ -435,7 +412,6 @@
         "core.state",
         "features.filter",
         "features.search",
-        "features.tags",
         "kernel.00-kernel"
       ]
     },
@@ -580,35 +556,22 @@
       ]
     },
     {
-      "id": "features.grade-import",
-      "file": "features/grade-import.js",
-      "layer": "L5 feature",
+      "id": "domain.parse-grade",
+      "file": "domain/parse-grade.js",
+      "layer": "L2 domain",
       "deps": [
-        "core.persist",
-        "core.state",
-        "core.ui-kit",
-        "features.modals",
-        "features.multisheet",
-        "features.settings",
-        "kernel.00-kernel",
-        "shell.app-shell",
-        "shell.router",
-        "views.list"
-      ]
+        "kernel.00-kernel"
+      ],
+      "orderDeps": []
     },
     {
-      "id": "features.password",
-      "file": "features/password.js",
+      "id": "features.reset",
+      "file": "features/reset.js",
       "layer": "L5 feature",
       "deps": [
         "core.persist",
         "core.state",
-        "core.ui-kit",
-        "features.lock",
-        "features.modals",
-        "kernel.00-kernel",
-        "shell.app-shell",
-        "views.profile"
+        "core.ui-kit"
       ]
     },
     {
@@ -654,8 +617,7 @@
         "shell.router",
         "views.list",
         "views.student-detail"
-      ],
-      "orderDeps": []
+      ]
     },
     {
       "id": "data.demo",
@@ -667,10 +629,10 @@
         "core.theme",
         "core.ui-kit",
         "data.seed",
-        "features.lock",
         "features.search",
         "kernel.00-kernel",
-        "shell.app-shell"
+        "shell.app-shell",
+        "shell.app-start"
       ],
       "entry": true
     },
@@ -705,7 +667,7 @@
       ],
       "routeDeps": [
         "features.batch-manager",
-        "features.import-wizard",
+        "features.import-unified",
         "views.list",
         "views.student-detail"
       ]
@@ -733,7 +695,7 @@
       ],
       "routeDeps": [
         "data.demo",
-        "features.import-wizard",
+        "features.import-unified",
         "views.guide",
         "views.list"
       ]
@@ -774,6 +736,47 @@
         "kernel.00-kernel",
         "shell.router",
         "views.student-detail"
+      ]
+    },
+    {
+      "id": "shell.app-start",
+      "file": "shell/app-start.js",
+      "layer": "L3 shell",
+      "deps": [
+        "core.state",
+        "core.theme",
+        "kernel.00-kernel",
+        "shell.app-shell",
+        "shell.router"
+      ],
+      "routeDeps": [
+        "features.quote-rotation",
+        "features.runtime-prefs",
+        "features.settings",
+        "views.list"
+      ]
+    },
+    {
+      "id": "features.import-unified",
+      "file": "features/import-unified.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "domain.field-schema",
+        "domain.parse-grade",
+        "domain.roster",
+        "domain.table-detect",
+        "features.import",
+        "features.import-wizard",
+        "features.modals",
+        "features.multisheet",
+        "features.settings",
+        "kernel.00-kernel",
+        "shell.app-shell",
+        "shell.router",
+        "views.list"
       ]
     }
   ]

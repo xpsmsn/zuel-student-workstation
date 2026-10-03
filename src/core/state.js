@@ -1,6 +1,5 @@
 /* ---------- 状态 ---------- */
 let S = {
-  password: null,
   batches: [],           // 批次列表 [{id,name,importedAt,sourceFile,mode,demo,studentCount,students:[]}]
   activeBatchId: null,   // 当前批次 id
   students: [],          // 【当前批次】的 students 数组 —— 与批次内是同一引用，勿整体重新赋值

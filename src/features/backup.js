@@ -3,7 +3,7 @@ function backupPayload(){
   return {
     app: 'zuel-student-workstation', kind: 'full-backup', ver: APP_VER,
     exportedAt: new Date().toISOString(),
-    password: S.password, batches: S.batches, activeBatchId: S.activeBatchId,
+    batches: S.batches, activeBatchId: S.activeBatchId,
     savedFilters: S.savedFilters, dormCap: S.dormCap || 4, listCols: S.listCols,
     hiddenFields: S.hiddenFields || [],
     hiddenPresets: S.hiddenPresets || [], hideUnavailable: S.hideUnavailable !== false,
@@ -47,7 +47,6 @@ function restoreBackupFile(input){
       title:'从备份恢复', danger:true, okText:'恢复',
       html:`备份包含 <b>${d.batches.length}</b> 个批次、<b>${nStu}</b> 名学生、<b>${nGrd}</b> 条成绩${d.exportedAt?`<br>导出时间：${esc(String(d.exportedAt).slice(0,10))}`:''}。<br><br><b>恢复将覆盖当前全部数据</b>（当前 ${S.batches.length} 个批次会被替换）。`,
       onOk(){
-        S.password = d.password || S.password;
         S.batches = d.batches;
         S.activeBatchId = d.activeBatchId || null;
         S.savedFilters = Array.isArray(d.savedFilters) ? d.savedFilters : [];

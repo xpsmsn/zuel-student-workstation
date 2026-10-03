@@ -36,7 +36,7 @@ function openBatchManager(){
             </div>
             <div class="batch-acts">
               ${b.id===activeId?'':`<button class="btn" onclick="switchBatch('${b.id}');openBatchManager();">切换</button>`}
-              ${b.id===activeId?`<button class="btn" onclick="closeModal();openGradeImport()">导入成绩</button>`:''}
+              ${b.id===activeId?`<button class="btn" onclick="closeModal();openImport('成绩表：按学号绑到学生上，不会改动学生档案')">导入成绩</button>`:''}
               <button class="btn" onclick="exportBatchCsv(findBatch('${b.id}'))">CSV</button>
               <button class="btn" onclick="exportBatchXlsx(findBatch('${b.id}'))">Excel</button>
               <button class="btn"${renaming?' disabled':''} onclick="renameBatch('${b.id}')">重命名</button>

@@ -37,17 +37,19 @@
      hideNav   true = 不在侧栏出现（只从别处跳进来的二级页）
    ════════════════════════════════════════════════════════════════════════ */
 
-/* ── 总览 ── */
+/* ════════════════════════════════════════════════════════════════════════
+   总览 —— 看数据
+   ════════════════════════════════════════════════════════════════════════ */
 K.registerPage({ id:'dashboard', title:'数据总览', icon:'dashboard', nav:'main', order:10,
-  needsData:true, render: renderDashboard, goto: gotoDashboard });
+  needsData:true, render: renderDashboard, goto: gotoDashboard,
+  badge: () => S.students.length });
 
 K.registerPage({ id:'list', title:'全部学生', icon:'students', nav:'main', order:20,
   needsData:true, render: renderList, goto: gotoList,
   /* 「全部学生」的高亮条件比「S.view==='list'」严：
      选了某个班级、或用了某个关注视图时，高亮的应该是那一条，不是这一条。
      这个判定属于「这个条目是谁」，所以跟它放在一起，而不是留在侧栏里。 */
-  isActive: () => S.view==='list' && S.classFilter==='all' && S.quickView==='all',
-  badge: () => S.students.length });
+  isActive: () => S.view==='list' && S.classFilter==='all' && S.quickView==='all' });
 
 K.registerPage({ id:'dorm', title:'宿舍看板', icon:'dorm', nav:'main', order:30,
   needsData:true, render: renderDorm, goto: gotoDorm,
@@ -56,29 +58,38 @@ K.registerPage({ id:'dorm', title:'宿舍看板', icon:'dorm', nav:'main', order
      更不能显示 0 —— 0 会被读成「这批学生都没宿舍」，那是错的。 */
   disabled: () => dormRoomCount() ? null : '本批数据未包含宿舍信息' });
 
-/* ── 引导（常驻单条，不带分组标题）── */
-K.registerPage({ id:'guide', title:'导入指引', icon:'compass', nav:'guide', order:0,
-  needsData:false, render: renderGuide, goto: gotoGuide });
+/* ════════════════════════════════════════════════════════════════════════
+   日常 —— 每天/每周都会点
+   ��═══════════════════════════════════════════════════════════════════════ */
+K.registerPage({ id:'guide', title:'导入指引', icon:'compass', nav:'daily', order:10,
+  needsData:false, render: renderGuide, goto: gotoGuide, tour:'guide' });
 
-/* ── 常用工具 ── */
-K.registerPage({ id:'nav', title:'校务导航', icon:'nav', nav:'work', order:10,
-  needsData:false, render: renderNav, goto: gotoNav, tour:'nav' });
-
-K.registerPage({ id:'tpl', title:'常用模板', icon:'filetext', nav:'work', order:20,
-  needsData:false, render: renderTpl, goto: gotoTpl, tour:'tpl',
-  badge: () => (S.templates||[]).length || '' });
-
-K.registerPage({ id:'pol', title:'AI 助理', icon:'chat', nav:'work', order:30,
-  needsData:false, render: renderAssistant, goto: gotoPol, tour:'pol' });
-
-K.registerPage({ id:'cal', title:'校历作息', icon:'calendar', nav:'work', order:40,
+K.registerPage({ id:'cal', title:'校历作息', icon:'calendar', nav:'daily', order:20,
   needsData:false, render: renderCalendar, goto: gotoCal, tour:'cal' });
 
-K.registerPage({ id:'award', title:'奖学金评选', icon:'award', nav:'work', order:50,
+K.registerPage({ id:'pol', title:'AI 助理', icon:'chat', nav:'daily', order:30,
+  needsData:false, render: renderAssistant, goto: gotoPol, tour:'pol' });
+
+/* ════════════════════════════════════════════════════════════════════════
+   业务 —— 一学期用几次，但用起来很重（跑一遍就是半天）
+   ════════════════════════════════════════════════════════════════════════ */
+K.registerPage({ id:'award', title:'奖学金评选', icon:'award', nav:'business', order:10,
   needsData:true, render: renderAward, goto: gotoAward, tour:'award',
   badge: () => (S.awards && Array.isArray(S.awards.students) && S.awards.students.length) || '' });
 
-/* ── 系统 ── */
+/* ════════════════════════════════════════════════════════════════════════
+   资料 —— 偶尔查一下，藏深一点没关系
+   ════════════════════════════════════════════════════════════════════════ */
+K.registerPage({ id:'nav', title:'校务导航', icon:'nav', nav:'ref', order:10,
+  needsData:false, render: renderNav, goto: gotoNav, tour:'nav' });
+
+K.registerPage({ id:'tpl', title:'常用模板', icon:'filetext', nav:'ref', order:20,
+  needsData:false, render: renderTpl, goto: gotoTpl, tour:'tpl',
+  badge: () => (S.templates||[]).length || '' });
+
+/* ════════════════════════════════════════════════════════════════════════
+   系统
+   ════════════════════════════════════════════════════════════════════════ */
 K.registerPage({ id:'settings', title:'系统设置', icon:'sliders', nav:'system', order:10,
   needsData:false, render: renderSettings, goto: gotoSettings });
 

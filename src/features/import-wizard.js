@@ -105,15 +105,11 @@ function buildImportState(rawHeader, rawRows, fileName, headerIdx, rowNos){
   renderImport();
 }
 
-function openImport(){
-  importState = {
-    step:1, fileName:'', header:[], cols:[], emptyCols:[], rows:[],
-    mode:'append', headerIdx:0, rowNos:null, kind:'student',
-    skipCols:new Set()      // v1.9.6：确认页里取消勾选、不参与导入的字段（归一列名）
-  };
-  renderImport();
-  closeSidebar();
-}
+/* openImport() 已移入 features/import-unified.js ——
+   现在**只有一个**导入口，学生表与成绩表由程序自动识别
+   （v2.3：原来这里是「导入学生表」，另有 openGradeImport() 是第二条流程）。
+   本文件只负责「模式选择 → 字段勾选 → 写入」这三步，
+   也就是两种表共用的后半程。 */
 
 function renderImport(){
   const m = importState;
