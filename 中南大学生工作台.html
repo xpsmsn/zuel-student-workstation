@@ -6368,7 +6368,15 @@ function doDeleteBatch(b){
   toast('批次已删除');
 }
 
-function pickClass(c){ S.view='list'; S.classFilter = c; S.quickView='all'; S._search=''; renderSidebar(); renderMain(); closeSidebar(); }
+/* v2.3.0：renderMain 之后还有 closeSidebar() 会再次改变布局，
+   把滚动位置又冲掉 —— 所以在最后再补一次还原（延迟到下一帧）。 */
+function pickClass(c){
+  S.view='list'; S.classFilter = c; S.quickView='all'; S._search='';
+  const snap = _snapshotPos();
+  renderSidebar(); renderMain(); closeSidebar();
+  _restorePos(snap);
+  requestAnimationFrame(function(){ _restorePos(snap); });
+}
 function pickPreset(id){ S.view='list'; S.quickView = id; S.classFilter='all'; S._search=''; renderSidebar(); renderMain(); closeSidebar(); }
 
 /* ---------- 视图路由 ---------- */
@@ -6418,6 +6426,111 @@ function applyAll(){
 function currentList(){ return viewList(); }
 
 /* ---------- 主区域：渲染入口分流 ---------- */
+/* ══════════════════════════════════════════════════════════════════
+   整页重绘时保留滚动位置与焦点（v2.3.0）
+   ──────────────────────────────────────────────────────────────────
+   现象：点「快速搜索 / 表头排序 / 取消筛选 / 切换预设」后，页面跳回顶部。
+        正在看第 40 行，一筛选就找不到刚才的位置了。
+
+   排查（实测 30 行数据）：
+     · 没有任何代码显式设置 scrollTop —— 归零是浏览器在 innerHTML 替换后的自然行为
+     · 包 renderMain / renderAward 覆盖不到：全文件有 17 处 `$('mainArea').innerHTML`，
+       且调用链嵌套（pickPreset → renderMain → renderList），内层赋值会冲掉外层快照
+     · 单次同步还原无效：新内容更短时浏览器会先把 scrollTop 夹到 0，
+       此刻赋值会被随后的布局再次归零
+
+   方案：
+     ① 用 Object.defineProperty 拦截 #mainArea 的 innerHTML 赋值 —— 一处覆盖全部 17 处，
+        且用调用深度判断，只有最外层赋值才还原（嵌套调用不会误还原）
+     ② 还原时机：同步 → 下一帧 → setTimeout(0)，等布局稳定后再落一次
+     ③ 新内容明显变短时按「比例锚定」，避免落在空白区
+   不改动任何业务逻辑 —— 只是在「写 innerHTML」这件事外面加一层位置记忆。
+   ══════════════════════════════════════════════════════════════════ */
+function _scrollHost(){
+  return document.getElementById('mainArea');
+}
+function _focusPath(el){
+  if(!el || el === document.body) return null;
+  const host = document.getElementById('mainArea');
+  if(!host || !host.contains(el)) return null;
+  const nodes = [...host.querySelectorAll('input,select,textarea,button,[tabindex]')];
+  const i = nodes.indexOf(el);
+  if(i < 0) return null;
+  return { i, tag: el.tagName, name: el.getAttribute('name') || el.id || '',
+           selStart: el.selectionStart == null ? null : el.selectionStart };
+}
+function _snapshotPos(){
+  const h = _scrollHost();
+  if(!h) return null;
+  const canScroll = h.scrollHeight - h.clientHeight;
+  return { top: h.scrollTop, left: h.scrollLeft, win: window.scrollY || 0,
+           ratio: canScroll > 0 ? h.scrollTop / canScroll : 0,
+           focus: _focusPath(document.activeElement) };
+}
+function _restorePos(snap){
+  if(!snap) return;
+  const h = _scrollHost();
+  if(h){
+    const canScroll = h.scrollHeight - h.clientHeight;
+    if(canScroll > 0){
+      /* 内容变短很多时按比例锚定（例如筛选后只剩 3 行），
+         否则会落在空白区，视觉上像是跳到了不该在的位置。 */
+      const target = canScroll < snap.top * 0.6
+        ? Math.round(canScroll * Math.min(1, snap.ratio))
+        : snap.top;
+      h.scrollTop = Math.max(0, Math.min(target, canScroll));
+      h.scrollLeft = snap.left || 0;
+    }else{
+      h.scrollTop = 0;
+    }
+  }
+  if(snap.win) window.scrollTo(0, snap.win);
+  if(snap.focus){
+    const host = document.getElementById('mainArea');
+    const nodes = host ? [...host.querySelectorAll('input,select,textarea,button,[tabindex]')] : [];
+    let el = nodes[snap.focus.i];
+    if(el && (el.tagName !== snap.focus.tag || (el.getAttribute('name')||el.id||'') !== snap.focus.name)){
+      const alt = snap.focus.name && host
+        ? host.querySelector('[name="'+snap.focus.name+'"]') || (window.CSS && CSS.escape ? host.querySelector('#'+CSS.escape(snap.focus.name)) : null)
+        : null;
+      el = alt || el;
+    }
+    if(el && el.focus){
+      try{ el.focus();
+        if(snap.focus.selStart != null && el.setSelectionRange) el.setSelectionRange(snap.focus.selStart, snap.focus.selStart);
+      }catch(e){}
+    }
+  }
+}
+/* 装上拦截器：让 $('mainArea').innerHTML = x 变成「记位置 → 赋值 → 还原位置」 */
+function _patchMainArea(){
+  const el = document.getElementById('mainArea');
+  if(!el || el.__keepPos) return;
+  el.__keepPos = true;
+  const desc = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'innerHTML');
+  if(!desc || !desc.set) return;
+  Object.defineProperty(el, 'innerHTML', {
+    configurable: true,
+    enumerable: true,
+    get(){ return desc.get.call(this); },
+    set(html){
+      const depth = _patchMainArea._d || 0;
+      const outer = depth === 0;
+      const snap = outer ? _snapshotPos() : null;
+      _patchMainArea._d = depth + 1;
+      try{ desc.set.call(this, html); }
+      finally{ _patchMainArea._d = depth; }
+      if(outer && snap && snap.top > 0){
+        /* 三次还原：容器刚建好时 scrollHeight 还没算出来，
+           同步设会被随后的布局再次归零，必须等布局稳定。 */
+        _restorePos(snap);
+        requestAnimationFrame(function(){ _restorePos(snap); });
+        setTimeout(function(){ _restorePos(snap); }, 0);
+      }
+    }
+  });
+}
+
 function renderMain(){
   /* 导入指引页要在"还没有任何数据"时也能打开 —— 所以它排在最前面，
      否则刚装好、还没导入的辅导员会被 renderEmpty 挡住，恰好看不到最该看的东西。 */
@@ -8133,11 +8246,17 @@ function quickSearch(v){
   S._search = v;
   // 只重绘表格与统计条，避免整页重绘导致输入框失焦（排序口径与 renderList 保持一致）
   const list = sortList(searchList(v));
+  /* v2.3.0：只换 tbody 不经过 #mainArea，所以 mainArea 的拦截器管不到这里。
+     表格变短后浏览器会把 scrollTop 夹到上界（实测 600 → 295），看着像"跳回上面"。
+     换内容前记位置、换完还原。 */
+  const snap = _snapshotPos();
   const tb = document.querySelector('#mainArea tbody');
   if(tb) tb.innerHTML = renderRows(list);
   // 顶部数字必须一起刷新：只刷第 1 个会让「已写备注 / 需重点关注 / 有不及格」与表格对不上
   const st = document.querySelector('#mainArea .stats');
   if(st) st.outerHTML = statsHtml(list, baseList().length);
+  _restorePos(snap);
+  requestAnimationFrame(function(){ _restorePos(snap); });
 }
 /* 取消排序，回到导入顺序 */
 function clearSort(){ S.sort = { key:'', dir:'desc' }; renderMain(); toast('已恢复导入顺序'); }
@@ -11069,6 +11188,7 @@ function demoGrades(students){
   if(pre && pre !== S.theme){ try{ lsSet('cw_theme', S.theme);}catch(e){} }
   applyTheme(S.theme || 'light');
   initResponsive();
+  _patchMainArea();      // v2.3.0：整页重绘时保留滚动位置与焦点
   enterApp();            // 打开即用：密码登录已整体移除（2026-10-03）
   if(lockGet() === '1') lockScreen();   // v2.3.4：上次上锁了，启动即锁
 })();
