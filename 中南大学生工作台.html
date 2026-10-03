@@ -1848,6 +1848,208 @@ table,.tbl-wrap,.card,.modal,.side-item,.btn{background-image:none}
 table *{box-shadow:none!important;text-shadow:none}
 tbody tr:hover{background-image:none}
 </style>
+
+<!-- ══════════════════════════════════════════════════════════
+     奖学金区块 · 视觉契约修正（纯 CSS：未改动任何 DOM / 逻辑 / 事件）
+     追加在最后 = 覆盖前面同优先级的旧规则。逐条对齐 12 条铁律。
+     ══════════════════════════════════════════════════════════ -->
+<style id="award-notion-fix">
+/* ══════════════════════════════════════════════════════════════════
+   奖学金区块 · 视觉契约修正（纯 CSS，未改动任何 DOM / 逻辑 / 事件）
+   ──────────────────────────────────────────────────────────────────
+   浏览器实测审计结果（.build/audit-award.js 逐条比对 12 条铁律）：
+     ✓ 表格：左右边框 0/0、单元格圆角 0、表头浅灰底 —— 原本就合规
+     ✓ 阴影：卡片类 0 处违规
+     ✓ Tag 配色：无深底白字
+     ✓ hover：无位移 / 无发光
+     ✗ 间距 63 处不在 8px 栅格（12 / 6 / 2 / 4 / 10 / 5 …）
+     ✗ 圆角 3 类违规：卡片 8px（应 12）、输入框 4px（应 6）、
+                      进度条 999px（属胶囊，规则⑤明令禁止）
+     ✗ 字号 3 类违规：12 / 11.5 / 10px（只允许 24 / 18 / 15 / 13）
+   下面逐条修正。所有值只用 8px 栅格（8/16/24/32/40）与四档字号。
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── ① 间距：全部落到 8px 栅格 ──────────────────────────────────
+   原来为了「塞得下」用了 12/6/2/4/10/5px。栅格锁死后行高会略增，
+   但行数不变（表格靠纵向滚动），可读性优先。 */
+.award-head{gap:var(--space-md)}                    /* 12 → 16 */
+.aw-summary{gap:var(--space-md); margin-bottom:var(--space-sm)}
+.aw-switch{gap:var(--space-sm); margin-bottom:var(--space-md)}
+
+.aw-chip{
+  gap:var(--space-sm);                              /* 6 → 8 */
+  padding:0 var(--space-md);                       /* 12 → 16 */
+  height:40px;                                     /* 原 32px → 40px（8 的倍数） */
+  border-radius:var(--radius-btn);                 /* 6px */
+  font-size:13px;                                  /* 辅助小字档 */
+}
+.aw-chip .aw-chip-n{padding:0 var(--space-sm); border-radius:var(--radius-btn); font-size:13px}
+
+/* ── 布局修正：进度卡必须横排 ──────────────────────────────
+   ⚠️ 旧样式里 .aw-progress 是 display:grid，.aw-prog-row（真正排卡的）
+      是它唯一的子元素 → grid 容器宽度按 auto-fill 算成「单列 216px」，
+      1340px 宽的地方只排 1 张卡，看起来像竖排。
+      正确做法：外层只负责块级间距与上下边距，排列交给 .aw-prog-row。 */
+.aw-progress{
+  display:block;
+  margin-bottom:var(--space-md);
+}
+.aw-progress + .aw-progress{margin-top:0}
+.aw-prog-row{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(216px,1fr));
+  gap:var(--space-sm);
+  margin-bottom:var(--space-sm);
+  align-items:stretch;
+}
+.aw-prog-row:last-child{margin-bottom:0}
+.aw-prog-t{
+  display:block;
+  margin-bottom:var(--space-sm);
+  font-size:13px; font-weight:600; line-height:1.4; color:var(--text-secondary);
+}
+
+.aw-prog{
+  gap:var(--space-sm);
+  padding:var(--space-sm) var(--space-md);         /* 6→8 / 12→16 */
+  border-radius:var(--radius-card);                /* 8 → 12（规则⑤ 卡片 12px） */
+}
+.aw-prog-t{margin-bottom:0; font-size:13px; line-height:1.4; font-weight:600}
+.aw-prog-row{gap:var(--space-sm); margin-bottom:var(--space-sm)}
+.aw-prog-h{gap:var(--space-sm); margin-bottom:var(--space-sm)}
+.aw-prog-n{font-size:13px; line-height:1.4}        /* 辅助小字 */
+.aw-prog-v{font-size:13px; line-height:1.4; gap:var(--space-sm) /* 原 3px */}
+.aw-prog-v b{font-size:15px; font-weight:600; line-height:1.5}  /* 15px 正文档，680→600 */
+.aw-prog-f{font-size:13px; line-height:1.4; margin-top:var(--space-sm)}  /* 11.5→13 */
+
+/* 进度条：4px 高属「尺寸」不属于「间距」，保留；
+   圆角 999 是胶囊形，规则⑤明令禁止 → 改 0（与表格单元格一致） */
+.aw-bar{height:4px; border-radius:0; margin-top:var(--space-sm)}
+.aw-bar i{border-radius:0}
+
+.aw-split-btn{
+  margin-top:var(--space-sm);
+  padding:0 var(--space-sm); height:32px;         /* 2px 8px → 0 8px，高度 32 */
+  border-radius:var(--radius-btn);                 /* 6px */
+  font-size:13px; line-height:1.4;
+}
+
+.aw-bulk{
+  gap:var(--space-sm);
+  padding:var(--space-sm) var(--space-md);         /* 8 16 → 8 16 */
+  margin-bottom:var(--space-sm);
+  border-radius:var(--radius-card);                /* 8 → 12 */
+  font-size:13px; line-height:1.4;
+}
+.aw-bulk-t{font-size:13px}
+.aw-bulk .btn{height:40px; padding:0 var(--space-md); border-radius:var(--radius-btn); font-size:15px}
+
+.aw-filter-t{gap:var(--space-sm); min-width:112px; padding-top:var(--space-sm)}
+.aw-filter-t em{font-size:13px; line-height:1.4; margin-top:var(--space-sm)/* 原 1px */}
+
+.aw-switch-chip-gap,.aw-switch .aw-chip{height:40px}
+
+/* 表格：padding 落到 8px 栅格（8 行高 16px 内边距） */
+.award-table th{padding:var(--space-sm) var(--space-md); font-size:13px; line-height:1.4; font-weight:600}
+.award-table td{padding:var(--space-sm) var(--space-md); font-size:15px; line-height:1.5; font-weight:400}
+.award-table th:nth-child(1),
+.award-table td:nth-child(1){width:48px; padding-left:var(--space-md); padding-right:var(--space-sm)}
+
+/* ── ② 圆角：输入框 4 → 6（规则⑤）── */
+.aw-q-num{
+  width:56px; height:40px; padding:0 var(--space-sm);
+  border-radius:var(--radius-btn);                 /* 4 → 6 */
+  font-size:15px; line-height:1.5;                /* 12 → 15（正文档） */
+}
+.aw-q-num:focus{box-shadow:none; border-color:var(--accent)}   /* 规则⑧：聚焦仅变色 */
+.aw-select{
+  height:40px; padding:0 var(--space-sm);
+  border-radius:var(--radius-btn); font-size:15px;
+}
+.aw-select:focus{box-shadow:none; border-color:var(--accent)}
+
+/* 细分弹窗里的输入框与按钮 */
+.aw-split-row{gap:var(--space-sm); padding:var(--space-sm) var(--space-md); border-radius:var(--radius-card)}
+.aw-split-row input{
+  flex:0 0 72px; width:72px; height:40px; padding:0 var(--space-sm);
+  border-radius:var(--radius-btn); font-size:15px; line-height:1.5;
+}
+.aw-split-row input:focus{box-shadow:none; border-color:var(--accent)}
+.aw-split-n{font-size:15px; line-height:1.5}     /* 13 → 15 */
+.aw-split-c{font-size:13px; line-height:1.4}
+.aw-split-sum{
+  gap:var(--space-sm); padding:var(--space-sm) var(--space-md);
+  margin:var(--space-md) 0; border-radius:var(--radius-card);
+  font-size:13px; line-height:1.4;
+}
+.aw-split-sum b{font-size:15px; font-weight:600; line-height:1.5}
+.aw-split-tip{font-size:13px; line-height:1.4}
+.aw-split-sug{font-size:13px; line-height:1.4; margin-bottom:var(--space-md)}
+.aw-split-grid{gap:var(--space-sm)}
+.aw-split-act{gap:var(--space-sm); margin-top:var(--space-md)}
+.aw-split-act .btn{height:40px; padding:0 var(--space-md); border-radius:var(--radius-btn); font-size:15px}
+
+/* ── ③ 字号：只用 24/18/15/13 四档 ────────────────────────────
+   原来 aw-prog-v 12 / aw-prog-f 11.5 / aw-tag 12 / aw-badge 10.5 都不在档内。 */
+.award-title{font-size:18px; font-weight:600; line-height:1.35}   /* 区块标题档 */
+.award-sub{font-size:13px; line-height:1.4; margin-top:var(--space-sm)}
+
+.aw-tag{
+  padding:3px var(--space-sm);                    /* 规则⑨ Tag：3px 8px、13px */
+  border-radius:var(--radius-btn);
+  font-size:13px; line-height:1.4; font-weight:400;
+  margin:0 var(--space-sm) var(--space-sm) 0;     /* 原 1px 4px → 8px 栅格 */
+}
+.aw-badge{font-size:13px; line-height:1.4; padding:3px var(--space-sm); border-radius:var(--radius-btn)}
+.aw-warn{font-size:13px; line-height:1.4; padding:3px var(--space-sm); border-radius:var(--radius-btn); margin-top:var(--space-sm)}
+.aw-none{font-size:13px; line-height:1.4}
+.award-table td.aw-name{font-size:15px; font-weight:600; line-height:1.5}
+.award-table td.aw-sid{font-size:15px; line-height:1.5}
+.aw-num{font-size:15px; line-height:1.5; font-variant-numeric:tabular-nums}
+
+/* 「已拟定」标签：浅底深字（规则⑦），尺寸对齐栅格 */
+.aw-award-tag{
+  gap:var(--space-sm);
+  padding:3px var(--space-sm) 3px var(--space-md);
+  border-radius:var(--radius-btn);
+  font-size:13px; line-height:1.4; font-weight:400;
+}
+.aw-x{width:24px; height:24px; border-radius:var(--radius-btn); font-size:15px}
+.aw-x:hover{background:var(--bg-hover); color:var(--danger-text)}   /* hover 仅背景/文字色 */
+
+/* ── ④ 交互（规则⑧）：hover 只许变背景，聚焦只许变色 ─────────── */
+.aw-chip:hover{background:var(--bg-hover); color:var(--text-primary); transform:none}
+.aw-chip.on{background:var(--accent); border-color:var(--accent); color:#fff}
+.aw-chip.on:hover{background:var(--accent); color:#fff}
+.aw-chip.picked{background:var(--bg-hover); color:var(--text-primary); border-color:var(--border)}
+.aw-chip.picked:hover{background:var(--bg-hover); color:var(--text-primary)}
+.aw-prog:hover{background:var(--bg-hover); border-color:var(--border); transform:none}
+.aw-prog.on{background:var(--bg-hover); border-color:var(--accent)}
+.aw-split-btn:hover{background:var(--bg-hover); border-color:var(--border); color:var(--text-primary)}
+.award-table tbody tr:hover{background:var(--bg-hover)}
+.award-table tbody tr.aw-done td{background:var(--success-bg)}       /* 状态底色不随 hover 变 */
+.award-table tbody tr.aw-done:hover td{background:var(--success-bg)}
+.award-table tbody tr.aw-picked td{box-shadow:inset 2px 0 0 var(--accent)}
+.aw-prog-h,.aw-bar{cursor:pointer}
+
+/* ── ⑤ 卡片/弹窗（规则③⑨）───────────────────────────────── */
+.award-page .card{border-radius:var(--radius-card); box-shadow:none}
+.modal{border-radius:var(--radius-card); box-shadow:var(--shadow-float)}
+.modal-body{padding:var(--space-md)}               /* 16px（规则⑨）*/
+.modal-head{padding:var(--space-md)}
+.modal-foot{padding:var(--space-md)}
+.mask{background:rgba(0,0,0,.22)}
+
+/* ── ⑥ 禁用项守卫（规则⑪）─────────────────────────────────
+   渐变 / 发光 / 位移 —— 全部显式清零，防止旧样式漏网。 */
+.aw-prog,.aw-chip,.aw-split-btn,.aw-tag,.aw-award-tag,.aw-bulk,.award-table td{
+  background-image:none;
+  text-shadow:none;
+  box-shadow:none;
+}
+.aw-prog,.aw-chip,.aw-split-btn{transition:background .12s linear,border-color .12s linear}
+.aw-prog:hover,.aw-chip:hover,.aw-split-btn:hover{transform:none; filter:none}
+</style>
 </head>
 <body>
 
