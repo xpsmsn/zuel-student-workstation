@@ -158,11 +158,22 @@ input,select,textarea{font-family:inherit;font-size:14px;outline:none}
   height:var(--topbar-h);background:var(--panel);border-bottom:1px solid var(--line);
   display:flex;align-items:center;padding:0 18px;gap:14px;position:sticky;top:0;z-index:50;
 }
+/* 顶栏图标按钮
+   ⚠️ 这里原本写着 `display:none`，只有窄屏媒体查询才恢复 inline-flex ——
+      导致宽屏下 #themeCycle（显示模式）、#sideToggle（菜单）
+      一直不可见。锁屏按钮照抄这个类时同样中招。
+      现在显式可见，并按 Notion 契约给 6px 圆角、hover 只变背景。 */
 .icon-btn{
-  display:none;width:34px;height:34px;border-radius:8px;color:var(--text-2);
-  align-items:center;justify-content:center;flex-shrink:0;transition:.15s;
+  display:inline-flex;
+  width:34px; height:34px;
+  border:1px solid transparent; border-radius:6px;
+  color:var(--text-2); background:transparent;
+  align-items:center; justify-content:center;
+  flex-shrink:0; cursor:pointer;
+  transition:background .12s linear, color .12s linear;
 }
-.icon-btn:hover{background:var(--line-2);color:var(--text)}
+.icon-btn:hover{background:var(--bg-hover); color:var(--text-primary)}
+.icon-btn.on{background:var(--bg-hover); color:var(--accent)}
 .logo{display:flex;align-items:center;gap:9px;font-weight:650;font-size:15px;letter-spacing:.2px}
 .logo-mark{
   width:26px;height:26px;display:flex;align-items:center;justify-content:center;flex:none;
@@ -2165,6 +2176,44 @@ tbody tr:hover{background-image:none}
 .aw-group-state{font-size:13px !important; line-height:1.4 !important}
 .aw-group-num{font-size:13px !important}
 </style>
+
+<!-- 锁屏 · 视觉（遵循 Notion 契约：大面积中性灰、无渐变、无阴影、圆角 6/12） -->
+<style id="lock-screen-style">
+/* 锁屏遮罩：盖住整个视口，z-index 最高 */
+.lock-screen{
+  position:fixed; inset:0; z-index:9999;
+  display:none;
+  background:var(--bg-page);
+  align-items:center; justify-content:center;
+}
+.lock-screen.on{display:flex}
+.lock-inner{
+  display:flex; flex-direction:column; align-items:center; gap:var(--space-sm);
+  text-align:center; padding:var(--space-lg);
+}
+.lock-ico{color:var(--text-3); margin-bottom:var(--space-sm)}
+.lock-title{font-size:18px; font-weight:600; line-height:1.35; color:var(--text-primary)}
+.lock-sub{font-size:13px; line-height:1.4; color:var(--text-secondary)}
+.lock-input{
+  width:240px; height:36px; margin-top:var(--space-md);
+  padding:0 10px; text-align:center;
+  border:1px solid var(--border); border-radius:var(--radius-btn);
+  background:var(--bg-card); color:var(--text-primary);
+  font-family:inherit; font-size:15px;
+}
+.lock-input:focus{outline:none; border-color:var(--accent); box-shadow:none}
+.lock-inner .btn{height:36px; padding:0 14px; margin-top:var(--space-md); border-radius:var(--radius-btn); font-size:15px}
+.lock-err{min-height:18px; font-size:13px; line-height:1.4; color:var(--danger-text)}
+.lock-foot{margin-top:var(--space-lg)}
+.lock-mini{
+  border:0; background:transparent; color:var(--text-3);
+  font-size:13px; font-family:inherit; cursor:pointer; padding:var(--space-sm);
+  border-radius:var(--radius-btn);
+}
+.lock-mini:hover{background:var(--bg-hover); color:var(--text-primary)}
+/* 上锁时把下面的内容彻底压住（避免滚动穿透） */
+body.locked{overflow:hidden}
+</style>
 </head>
 <body>
 
@@ -2186,6 +2235,12 @@ tbody tr:hover{background-image:none}
       </button>
     </div>
     <div class="topbar-spacer"></div>
+    <button class="icon-btn" id="lockBtn" onclick="toggleLock()" title="锁屏（挡住屏幕，防止旁人看到学生数据）" aria-label="锁屏">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="4" y="10.5" width="16" height="10.5" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>
+      </svg>
+    </button>
     <button class="icon-btn" id="themeCycle" onclick="cycleTheme()" title="显示模式：点击切换 明亮 / 暗黑 / 护眼"></button>
     <div class="seg theme-seg" id="themeSeg">
       <button data-theme-btn="light" class="on" onclick="setTheme('light')" title="明亮模式">☀</button>
@@ -2780,6 +2835,8 @@ function buildSavePayload(){
     awardSplit: S.awardSplit && typeof S.awardSplit === 'object' ? S.awardSplit : {},
     /* v2.3.3：已核对的专业细分 {奖项|专业: 时间戳} */
     awardSplitCheck: S.awardSplitCheck && typeof S.awardSplitCheck === 'object' ? S.awardSplitCheck : {},
+    /* v2.3.4：锁屏密码（只存哈希，不存明文） */
+    lockPw: S.lockPw || null,
     /* v2.1.1：奖学金评选数据 —— 独立于批次（一年一次的重活，不混进日常名册） */
     awards: S.awards && typeof S.awards === 'object' ? S.awards : null
   };
@@ -2860,6 +2917,7 @@ function load(){
       S.awardQuota = (d.awardQuota && typeof d.awardQuota === 'object') ? d.awardQuota : {};   // v2.1.4
       S.awardSplit = (d.awardSplit && typeof d.awardSplit === 'object') ? d.awardSplit : {};   // v2.3.2
       S.awardSplitCheck = (d.awardSplitCheck && typeof d.awardSplitCheck === 'object') ? d.awardSplitCheck : {};   // v2.3.3
+      S.lockPw = d.lockPw || null;   // v2.3.4
       // 向后兼容：老数据没有 theme 字段时回落明亮
       S.theme = (d.theme==='dark' || d.theme==='eye') ? d.theme : 'light';
       // 每间宿舍床位数（用于算空位）；老数据没有它 → 默认 4 人间
@@ -5735,6 +5793,129 @@ function bindOnboardingControls(){
   const initial = root.querySelector('[data-wiz-action="skip"]') || focusables()[0];
   if(initial && typeof initial.focus === 'function') initial.focus();
 }
+
+
+/* ══════════════════════════════════════════════════════════════════
+   锁屏（v2.3.4）
+   ──────────────────────────────────────────────────────────────────
+   一句话：把整个工作台盖住，让人看不到屏幕上的学生信息。
+   数据不丢、状态不改、程序不退出 —— 解锁后回到原样。
+   默认无需密码（一键锁/一键开）；需要时可设密码，并把「已上锁」记下来。
+   ══════════════════════════════════════════════════════════════════ */
+let _locked = false;
+
+/** 锁屏遮罩（不存在时才建，避免每次 render 都重绘） */
+function lockEl(){
+  let el = document.getElementById('lockScreen');
+  if(el) return el;
+  el = document.createElement('div');
+  el.id = 'lockScreen';
+  el.className = 'lock-screen';
+  document.body.appendChild(el);
+  return el;
+}
+
+function toggleLock(){ _locked ? unlockScreen() : lockScreen(); }
+
+function lockScreen(){
+  _locked = true;
+  const el = lockEl();
+  const needPw = !!lockPwHash();
+  el.innerHTML =
+    '<div class="lock-inner">'
+    + '<svg class="lock-ico" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"'
+    + ' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'
+    + '<rect x="4" y="10.5" width="16" height="10.5" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>'
+    + '<div class="lock-title">已锁屏</div>'
+    + '<div class="lock-sub">屏幕上什么都看不到，数据一点没丢</div>'
+    + (needPw
+        ? '<input class="lock-input" id="lockPw" type="password" placeholder="输入锁屏密码"'
+          + ' onkeydown="if(event.key===\'Enter\')unlockScreen()">'
+          + '<div class="lock-err" id="lockErr"></div>'
+          + '<button class="btn pri" onclick="unlockScreen()">解锁</button>'
+        : '<button class="btn pri" onclick="unlockScreen()">点一下解锁</button>')
+    + '<div class="lock-foot">'
+      + (needPw
+          ? '<button class="lock-mini" onclick="toggleLockPw()">关闭密码</button>'
+          : '<button class="lock-mini" onclick="openLockPwSet()">设置锁屏密码</button>')
+    + '</div>';
+  el.classList.add('on');
+  document.body.classList.add('locked');
+  const inp = document.getElementById('lockPw');
+  if(inp) setTimeout(()=>inp.focus(), 60);
+  if(needPw) lockSet('1');          // 记下「已上锁」，刷新后仍要求解锁
+}
+
+function unlockScreen(){
+  const el = document.getElementById('lockScreen');
+  const needPw = !!lockPwHash();
+  if(needPw){
+    const v = (document.getElementById('lockPw') || {}).value || '';
+    if(hash32(v) !== lockPwHash()){
+      const e2 = document.getElementById('lockErr');
+      if(e2) e2.textContent = '密码不对';
+      const i2 = document.getElementById('lockPw');
+      if(i2){ i2.value = ''; i2.focus(); }
+      return;
+    }
+  }
+  _locked = false;
+  lockSet('0');
+  document.body.classList.remove('locked');
+  if(el){ el.classList.remove('on'); el.innerHTML = ''; }
+}
+
+/** 锁屏密码（存哈希，和当初登录用同一套；不设密码时返回 null） */
+function lockPwHash(){ return (S.lockPw && String(S.lockPw)) || null; }
+function openLockPwSet(){
+  $('modalRoot').innerHTML =
+    '<div class="mask" onclick="if(event.target===this)closeModal()">'
+    + '<div class="modal" style="max-width:360px" onclick="event.stopPropagation()">'
+    + '<div class="modal-head"><div class="modal-title">设置锁屏密码</div>'
+    + '<div class="modal-close" onclick="closeModal()">×</div></div>'
+    + '<div class="modal-body">'
+      + '<div class="hint" style="margin-bottom:16px">设了之后，点锁屏需要输入密码才能解锁。'
+      + '<b>忘记密码可以清空浏览器数据重来</b>（数据会一起没，请先导出备份）。</div>'
+      + '<div class="field" style="margin-bottom:16px"><label>新密码（至少 4 位）</label>'
+      + '<input class="input" type="password" id="lpw1" placeholder="至少 4 位"></div>'
+      + '<div class="field"><label>再输一次</label>'
+      + '<input class="input" type="password" id="lpw2" placeholder="再输一次"></div>'
+      + '<div class="lock-err" id="lpwErr" style="margin-top:8px"></div>'
+    + '</div>'
+    + '<div class="modal-foot"><button class="btn" onclick="closeModal()">取消</button>'
+    + '<button class="btn pri" onclick="saveLockPw()">保存</button></div>'
+    + '</div></div>';
+}
+function saveLockPw(){
+  const a = ($('lpw1') || {}).value || '', b = ($('lpw2') || {}).value || '';
+  const err = (t) => { const e2 = $('lpwErr'); if(e2) e2.textContent = t; };
+  if(a.length < 4) return err('密码至少 4 位');
+  if(a !== b) return err('两次输入不一致');
+  S.lockPw = hash32(a);
+  save(); closeModal();
+  toast('锁屏密码已设置');
+}
+/** 开关密码（锁屏界面上直接切） */
+function toggleLockPw(){
+  if(lockPwHash()){ S.lockPw = null; save(); lockScreen(); toast('已关闭锁屏密码，点一下就能解锁'); }
+  else openLockPwSet();
+}
+/** 轻量哈希（锁屏用，不追求强度，只是不想把明文摆在那儿） */
+function hash32(s){
+  let h = 0x811c9dc5;
+  for(let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = (h + ((h<<1)+(h<<4)+(h<<7)+(h<<8)+(h<<24))) >>> 0; }
+  return h.toString(16);
+}
+/* 锁屏状态记忆（用独立 key，不进主存档，避免和业务数据混在一起） */
+function lockSet(v){ try{ lsSet('ws_locked', v); }catch(e){} }
+function lockGet(){ try{ return lsGet('ws_locked'); }catch(e){ return null; } }
+/* 快捷键：Ctrl/Cmd + L（和浏览器一致，但这里不会真的锁浏览器） */
+document.addEventListener('keydown', function(e){
+  if((e.ctrlKey || e.metaKey) && (e.key === 'l' || e.key === 'L')){
+    e.preventDefault(); toggleLock();
+  }
+  if(_locked && e.key === 'Escape'){ unlockScreen(); }
+});
 
 function enterApp(){
   $('appPage').classList.remove('hidden');
@@ -10797,6 +10978,7 @@ function demoGrades(students){
   applyTheme(S.theme || 'light');
   initResponsive();
   enterApp();            // 打开即用：密码登录已整体移除（2026-10-03）
+  if(lockGet() === '1') lockScreen();   // v2.3.4：上次上锁了，启动即锁
 })();
 </script>
 
