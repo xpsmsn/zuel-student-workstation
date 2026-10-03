@@ -2001,13 +2001,27 @@ tbody tr:hover{background-image:none}
   margin:0 var(--space-sm) var(--space-sm) 0;     /* 原 1px 4px → 8px 栅格 */
 }
 .aw-badge{font-size:13px; line-height:1.4; padding:3px var(--space-sm); border-radius:var(--radius-btn)}
-.aw-warn{font-size:13px; line-height:1.4; padding:3px var(--space-sm); border-radius:var(--radius-btn); margin-top:var(--space-sm)}
+/* .aw-warn 已停用：2026-10-03「警报内容不需要 我自己定 我的规矩就是规矩」
+   规则保留但表格不再渲染（overHint 已从 td 里摘掉）。 */
+.aw-warn{font-size:13px; line-height:1.4; padding:3px var(--space-sm); border-radius:var(--radius-btn)}
 .aw-none{font-size:13px; line-height:1.4}
 .award-table td.aw-name{font-size:15px; font-weight:600; line-height:1.5}
 .award-table td.aw-sid{font-size:15px; line-height:1.5}
 .aw-num{font-size:15px; line-height:1.5; font-variant-numeric:tabular-nums}
 
-/* 「已拟定」标签：浅底深字（规则⑦），尺寸对齐栅格 */
+/* 「拟定」列（2026-10-03 改：标签块 → 纯文字）
+   为什么改：标签块（浅绿底 + × 按钮）把这一列撑到 195px，
+   而 B1~B5 只有 103px —— 表格七列里只有它特别宽，视觉上「不同步」。
+   加上评审规则由老师定，程序不该用底色块替他强调。
+   现在：纯文字、宽度与相邻列同量级，行高也与全表一致。 */
+.aw-picked-text{
+  font-size:15px; line-height:1.5; font-weight:400;
+  color:var(--success-text);        /* 已拟定用状态色文字，不用底色块 */
+  white-space:nowrap;
+}
+.award-table td.aw-status{width:160px; min-width:160px; text-align:center; vertical-align:middle}
+.award-table th.aw-status{width:160px; text-align:center}
+/* 保留旧类名（不再渲染元素，但规则留着以防别处引用） */
 .aw-award-tag{
   gap:var(--space-sm);
   padding:3px var(--space-sm) 3px var(--space-md);
@@ -2042,7 +2056,7 @@ tbody tr:hover{background-image:none}
 
 /* ── ⑥ 禁用项守卫（规则⑪）─────────────────────────────────
    渐变 / 发光 / 位移 —— 全部显式清零，防止旧样式漏网。 */
-.aw-prog,.aw-chip,.aw-split-btn,.aw-tag,.aw-award-tag,.aw-bulk,.award-table td{
+.aw-prog,.aw-chip,.aw-split-btn,.aw-tag,.aw-picked-text,.aw-bulk,.award-table td{
   background-image:none;
   text-shadow:none;
   box-shadow:none;
@@ -9660,11 +9674,17 @@ function bCells(r){
 /* 「拟定」列：直接显示**拟定了哪个奖**。
    不再是一堆下拉选项 —— 打标签太麻烦（用户 2026-10-03 原话）。
    取消拟定：点 × 即可。 */
+/* 「拟定」列：只显示奖项名，纯文字。
+   ⚠️ 2026-10-03 用户原话：「警报内容不需要 我自己定 我的规矩就是规矩」
+   —— 所以去掉了：
+     ① 冲突警报（overHint）        —— 凭什么由程序来判定该不该拿
+     ② 标签底色块 + × 取消按钮     —— 标签块把列撑到 195px（B1~B5 只有 103px），
+        视觉上「不同步」；而取消拟定用「批量条 → 取消拟定」即可，不必每行挂按钮。
+   改完这一列宽度回落到与其他列同一量级，行高也齐了。 */
 function statusCell(r){
   const cur = awardOf(r.sid);
   if(!cur) return '<span class="aw-none">—</span>';
-  return '<span class="aw-award-tag" title="点 × 取消拟定">' + esc(cur)
-    + '<button class="aw-x" onclick="awardSetStatus(\'' + esc(r.sid) + '\',\'\')" title="取消拟定">×</button></span>';
+  return '<span class="aw-picked-text">' + esc(cur) + '</span>';
 }
 /* 志愿标签：前 4 个直接显示，更多的折叠成「+N」——
    真实数据里有人报了 9 项，全铺开会把行撑成两倍高，反而看不清人。 */
@@ -9699,6 +9719,11 @@ function wishTags(r){
 
    所以：取他报过的所有不兼得奖项里**最靠前（最高档）的那一项**作为「他实际该拿的」，
    如果他最终被推荐的不是这一项 → 冲突。 */
+/* ⚠️ 以下两个函数已**停用**（2026-10-03）
+   辅导员原话：「警报内容不需要 我自己定 我的规矩就是规矩」
+   —— 评审规则是老师定的，程序不该在旁边提示「你应该先看哪个奖」。
+   函数保留但表格里已不再调用（statusCell 改为纯文字、overHint 从 td 里摘掉）。
+   以后若真需要提醒，先跟老师确认口径再启用。 */
 function awardConflicts(r){
   const out = [];
   if(!r.award) return out;
@@ -10065,7 +10090,7 @@ function renderAward(){
         <td class="aw-num">${r.总成绩===''?'<span class="aw-none">—</span>':esc(String(r.总成绩))}</td>
         <td class="aw-num">${r.智力===''?'<span class="aw-none">—</span>':esc(String(r.智力))}</td>
         ${bCells(r)}
-        <td class="aw-status">${statusCell(r)}${overHint(r)}</td>
+        <td class="aw-status">${statusCell(r)}</td>
         <td class="aw-wish">${wishTags(r)}</td>
       </tr>`).join('')}</tbody>
     </table>
