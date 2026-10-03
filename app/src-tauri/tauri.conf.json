@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "中南大学生工作台",
+  "productName": "中南大工作台",
   "version": "2.3.0",
   "identifier": "cn.edu.zuel.studentworkstation",
   "build": {
