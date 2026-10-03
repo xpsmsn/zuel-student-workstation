@@ -537,6 +537,47 @@ html[data-theme="dark"] img.brand-logo{filter:brightness(1.5) saturate(1.05)}
 .aw-quota input::-webkit-outer-spin-button,
 .aw-quota input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 
+/* ── 筛选条可读性（用户：字都灰的，可读性差）────────────────
+   规则：文字用 text-primary（最深），标签用 text-2，
+   只有「选中」和「已满额」才用彩色 —— 色彩表达状态，不是装饰。 */
+.aw-filter-t{
+  display:flex;flex-direction:column;gap:1px;
+  min-width:104px;flex:0 0 auto;
+  font-size:12.5px;font-weight:600;color:var(--text-primary);   /* 不再是灰的 */
+  line-height:1.35;
+}
+.aw-filter-t em{font-style:normal;font-size:11px;font-weight:400;color:var(--text-3)}
+.aw-chip{color:var(--text-primary)}                              /* 奖项名也要深色 */
+.aw-chip .aw-chip-n{background:var(--bg-hover);color:var(--text-2)}
+
+/* 名额：与 chip 拼成一组，视觉上属于同一块 */
+.aw-quota input{width:36px}
+/* 名额已填 → chip 上加一个细提示点，避免「填了没看见」 */
+.aw-chip-wrap.has-quota .aw-quota{background:var(--accent-soft);color:var(--accent-strong)}
+
+/* 「已拟定 N」chip：与奖项 chip 视觉区分（深色底），表示「已处理过的人」 */
+.aw-chip.picked{background:var(--text-primary);color:#fff;border-color:var(--text-primary)}
+.aw-chip.picked .aw-chip-n{background:rgba(255,255,255,.22);color:#fff}
+.aw-chip.picked:hover:not(.on){background:var(--text);color:#fff}
+.aw-chip.picked.on{background:var(--text-primary);color:#fff}
+
+/* ── 「已拟定为某奖」标签 ──────────────────────────────────
+   替代原来的下拉框：一个浅色底 + 奖项名 + 一个 × 取消。 */
+.aw-award-tag{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:2px 4px 2px 8px;border-radius:6px;
+  background:var(--success-bg);color:var(--success-text);
+  font-size:12.5px;line-height:1.6;white-space:nowrap;
+}
+.aw-x{
+  width:16px;height:16px;flex:0 0 auto;
+  display:inline-flex;align-items:center;justify-content:center;
+  border:0;border-radius:4px;background:transparent;
+  color:inherit;font-size:13px;line-height:1;cursor:pointer;opacity:.55;
+}
+.aw-x:hover{opacity:1;background:rgba(0,0,0,.06)}
+.aw-status{min-width:132px;vertical-align:top}
+
 /* ── 评选进度 ────────────────────────────────────────
    名额 vs 已推荐。超额用警示色（规则④：色彩表达状态）。 */
 .aw-progress{
@@ -563,15 +604,8 @@ html[data-theme="dark"] img.brand-logo{filter:brightness(1.5) saturate(1.05)}
 
 /* ── 状态行底色：一眼看出谁定了 ──────────────────────────
    推荐=绿（成了）· 候补=橙（在等）· 落选=灰（没成）。用浅底+深字，遵循规则⑦。 */
-.award-table tr.aw-推荐 td{background:var(--success-bg)}
-.award-table tr.aw-推荐:hover td{background:var(--success-bg)}
-.award-table tr.aw-候补 td{background:var(--warn-bg)}
-.award-table tr.aw-候补:hover td{background:var(--warn-bg)}
-.award-table tr.aw-落选 td{background:var(--bg-hover);color:var(--text-3)}
-.award-table tr.aw-picked td{box-shadow:inset 2px 0 0 var(--accent)}
-/* 已定的行，勾选框与文字对比度降一点，避免状态色被选中色盖住 */
-.award-table tr.aw-推荐 .aw-select,
-.award-table tr.aw-候补 .aw-select{background:rgba(255,255,255,.7)}
+.award-table tr.aw-picked td{background:var(--accent-soft)}
+.award-table tr.aw-picked:hover td{background:var(--accent-soft)}
 
 /* ── 冲突提示：「不兼得」的奖撞了 ────────────────────── */
 .aw-warn{
@@ -9222,7 +9256,7 @@ function awardRows(){
       B3: r['文体特长B3'] || '', B4: r['社会工作B4'] || '',
       B5: r['社会实践B5'] || '',
       wishes: parseWishes(r['志愿顺序']),
-      status: (S.awardStatus && S.awardStatus[sid]) || '',
+      award: awardOf(sid),        // 已拟定的奖项名（空 = 还没定）
     };
   }).filter(r => r.智力 !== '' || r.wishes.length);
 }
@@ -9232,9 +9266,32 @@ let _awFilter = '';        // '' = 全部；否则是奖项 key
 let _awSort = { key:'智力', dir:'desc' };
 let _awSel = new Set();    // 勾选的学号
 
+/* 核心规则（用户 2026-10-03）：
+     「我选了三个人…然后统一打上拟定国家奖学金…然后这4个人就剔除我们的奖学金评选，
+       不再出现在其他奖项名单中了。否则重复地来看，影响观瞻。」
+
+   所以在看某个**不兼得**奖项时：已经拟定了别的（不兼得）奖的人不再出现 ——
+   他已经有了归属，重复看没有意义。
+   单项奖可兼得：已拟定不兼得奖的人**仍然出现**在单项名单里（这是对的）。
+   自己这一档已拟定的人也不显示（已经定了，在「已拟定」里看）。 */
 function awardFiltered(){
   let rows = awardRows();
-  if(_awFilter) rows = rows.filter(r => r.wishes.indexOf(_awFilter) >= 0);
+  if(_awFilter === '__picked'){
+    /* 「已拟定」视图：只显示已定的人，并按拟定的奖项分组 */
+    const order = AWARD_LIST.map(a=>a.key);
+    return rows.filter(r => r.award).sort(function(a, b){
+      return order.indexOf(a.award) - order.indexOf(b.award);
+    });
+  }
+  if(_awFilter){
+    const def = AWARD_LIST.filter(x=>x.key===_awFilter)[0] || {};
+    rows = rows.filter(function(r){
+      if(r.wishes.indexOf(_awFilter) < 0) return false;
+      if(r.award === _awFilter) return false;                 // 本档已定 → 移出
+      if(!def.single && awardLocked(r.sid)) return false;     // 已定了别的（不兼得）→ 移出
+      return true;
+    });
+  }
   const k = _awSort.key, dir = _awSort.dir === 'desc' ? -1 : 1;
   const num = v => { const n = parseFloat(v); return isNaN(n) ? null : n; };
   rows = rows.slice().sort((a,b)=>{
@@ -9260,16 +9317,22 @@ function awardSelectAll(on){
   if(on) rows.forEach(r=>_awSel.add(r.sid)); else _awSel.clear();
   renderAward();
 }
-function awardSetStatus(sid, st){
+/* 把选中的人**批量拟定给某个奖**。
+   传 award 为空 = 取消拟定（放回所有名单）。 */
+function awardSetStatus(sid, award){
   S.awardStatus = S.awardStatus || {};
-  if(st) S.awardStatus[sid] = st; else delete S.awardStatus[sid];
+  if(award) S.awardStatus[sid] = award; else delete S.awardStatus[sid];
   save();
-  renderAward();     // v2.1.4：推荐后整行变色 + 进度条即时更新
+  renderAward();
 }
-function awardSetStatusBulk(st){
-  _awSel.forEach(sid => awardSetStatus(sid, st));
-  _awSel.clear(); renderAward();
-  toast('已把 ' + (st||'清空') + ' 了批量选中的学生');
+function awardSetStatusBulk(award){
+  const n = _awSel.size;
+  if(!n) return;
+  _awSel.forEach(sid => awardSetStatus(sid, award));
+  _awSel.clear();
+  renderAward();
+  if(award) toast('已把 ' + n + ' 人拟定为「' + award + '」，他们已从其他不兼得奖项的名单中移除');
+  else toast('已取消 ' + n + ' 人的拟定');
 }
 function awardClearStatus(){
   askConfirm({ title:'清空全部拟定', danger:true, okText:'清空',
@@ -9279,8 +9342,17 @@ function awardClearStatus(){
 
 function gotoAward(){ S.view='award'; renderSidebar(); renderMain(); closeSidebar(); }
 
-/* 拟定状态的可选值（空 = 未定） */
-const AWARD_STATUS = ['','推荐','候补','落选'];
+/* v2.2：不再有「推荐/候补/落选」这种状态标签。
+   取值只有两种：空 = 还没定；非空 = **已拟定给了这个奖项**。
+   界面上「拟定」那一列直接显示奖项名，不再是一堆下拉选项。 */
+function awardOf(sid){ return (S.awardStatus && S.awardStatus[sid]) || ''; }
+/** 这个人是否已被拟定给某个不兼得的奖 */
+function awardLocked(sid){
+  const a = awardOf(sid);
+  if(!a) return false;
+  const def = AWARD_LIST.filter(x=>x.key===a)[0];
+  return !!def && !def.single;      // 单项奖可兼得，不锁定
+}
 
 /* 每个奖项的名额：S.awardQuota = { 奖项key: 名额数 }
    未设（0 或缺失）= 不限。名额用来算进度，也用来提示「这个奖报的人够不够」。 */
@@ -9296,9 +9368,7 @@ function awardProgress(key){
   const rows = awardRows();
   const 报名 = rows.filter(r => r.wishes.indexOf(key) >= 0);
   const 名额 = awardQuota(key);
-  const 已推荐 = (key === _awFilter)
-    ? 报名.filter(r => r.status === '推荐').length
-    : 报名.filter(r => r.status === '推荐').length;
+  const 已推荐 = 报名.filter(r => r.award === key).length;
   return { 报名: 报名.length, 名额: 名额, 已推荐: 已推荐 };
 }
 
@@ -9312,11 +9382,14 @@ function bCells(r){
     return '<td class="aw-num"><span class="aw-b">' + esc(String(v)) + '</span></td>';
   }).join('');
 }
-function statusSelect(r){
-  const opts = AWARD_STATUS.map(function(st){
-    return '<option value="' + st + '"' + (r.status === st ? ' selected' : '') + '>' + (st || '未定') + '</option>';
-  }).join('');
-  return '<select class="aw-select" onchange="awardSetStatus(\'' + esc(r.sid) + '\',this.value)">' + opts + '</select>';
+/* 「拟定」列：直接显示**拟定了哪个奖**。
+   不再是一堆下拉选项 —— 打标签太麻烦（用户 2026-10-03 原话）。
+   取消拟定：点 × 即可。 */
+function statusCell(r){
+  const cur = awardOf(r.sid);
+  if(!cur) return '<span class="aw-none">—</span>';
+  return '<span class="aw-award-tag" title="点 × 取消拟定">' + esc(cur)
+    + '<button class="aw-x" onclick="awardSetStatus(\'' + esc(r.sid) + '\',\'\')" title="取消拟定">×</button></span>';
 }
 /* 志愿标签：前 4 个直接显示，更多的折叠成「+N」——
    真实数据里有人报了 9 项，全铺开会把行撑成两倍高，反而看不清人。 */
@@ -9353,15 +9426,18 @@ function wishTags(r){
    如果他最终被推荐的不是这一项 → 冲突。 */
 function awardConflicts(r){
   const out = [];
-  if(r.status !== '推荐') return out;
+  if(!r.award) return out;
   // 命中的不兼得奖项，按优先级从高到低
   const hit = [];
   AWARD_EXCLUSIVE.forEach(function(a){
     if(r.wishes.indexOf(a.key) >= 0) hit.push(a.key);
   });
   if(hit.length <= 1) return out;
-  // hit[0] 是他报过的最高档（= 按规则他应该拿的）
-  return hit.slice(1).map(function(k){ return { 奖项: k, 应给: hit[0] }; });
+  /* 只在「实际拟定的档」低于「他报过的最高档」时提示。
+     拟定给最高档 = 正确；拟定给较低档 = 提示他本该先看哪个。 */
+  const gotIdx = hit.indexOf(r.award);
+  if(gotIdx <= 0) return out;                 // 拟定的正是最高档 → 无问题
+  return [{ 奖项: r.award, 应给: hit[0] }];
 }
 
 function overHint(r){
@@ -9376,15 +9452,31 @@ function overHint(r){
 function renderAward(){
   const rows = awardFiltered();
   const all = awardRows();
-  const stat = st => all.filter(r => r.status === st).length;
+  const 已定 = all.filter(r => r.award).length;
 
   /* 筛选条：先不兼得（从高到低），再单项 —— 顺序本身就是评选动线 */
   /* 奖项 chip：名字 + 报名人数 + 名额输入
      名额直接放在 chip 上，评选时一眼能看到「这个奖还剩几个」。 */
+  /* 「已拟定 N」入口 —— 关键：拟定后的人会从各奖项名单里移出（避免重复看），
+     如果没有这个入口，他就从视野里彻底消失了，再也看不到自己定了谁。 */
+  const pickedN = all.filter(r => r.award).length;
+  const chipPicked = () => {
+    if(!pickedN) return '';
+    const on = _awFilter === '__picked';
+    return '<button class="aw-chip picked' + (on ? ' on' : '') + '"'
+      + ' onclick="awardFilter(' + String.fromCharCode(39,39) + '__picked' + String.fromCharCode(39) + ')"'
+      + ' title="已拟定给某个奖的学生">已拟定<span class="aw-chip-n">' + pickedN + '</span></button>';
+  };
+
+  const Q = String.fromCharCode(39);
+  const chipAll = (all) => '<button class="aw-chip' + (_awFilter === '' ? ' on' : '') + '" onclick="awardFilter(' + Q + Q + ')">全部<span class="aw-chip-n">' + all.length + '</span></button>';
+
   const chip = (a) => {
+    if(!a) return '';
     const pr = awardProgress(a.key);
     const on = _awFilter === a.key;
-    return '<span class="aw-chip-wrap' + (on ? ' on' : '') + '">'
+    const hq = awardQuota(a.key) ? ' has-quota' : '';
+    return '<span class="aw-chip-wrap' + hq + (on ? ' on' : '') + '">'
       + '<button class="aw-chip' + (on ? ' on' : '') + '" onclick="awardFilter(\'' + a.key + '\')"'
       + ' title="' + (a.single ? '单项奖学金，可兼得' : '不兼得，挨个评选') + '"'
       + (pr.报名 ? '' : ' disabled') + '>'
@@ -9421,17 +9513,30 @@ function renderAward(){
     return;
   }
 
-  h += `<div class="aw-filter">
-    <div class="aw-filter-row">
-      <span class="aw-filter-t">不兼得（挨个评选）</span>
-      <button class="aw-chip${_awFilter===''?' on':''}" onclick="awardFilter('')">全部<span class="aw-chip-n">${all.length}</span></button>
-      ${AWARD_EXCLUSIVE.map(chip).join('')}
-    </div>
-    <div class="aw-filter-row">
-      <span class="aw-filter-t">单项（可兼得）</span>
-      ${AWARD_SINGLE.map(chip).join('')}
-    </div>
-  </div>`;
+  /* 筛选条分组（用户 2026-10-03）：
+     「比如已经都两行了，不如国家奖学金、励志奖学金、比亚迪、紫光奖学金，这个为一行，
+       下面一行是一等奖、二等奖、三等奖」
+     —— 按「档次」分两组，而不是按「兼得与否」分。第一组是四强奖，
+     第二组是优秀学生奖学金三个等级 + 单项奖（都属同一档）。 */
+  const TIER1 = ['国家奖学金', '国家励志奖学金', '比亚迪奖学金', '紫光励学金'];
+  const tier1 = AWARD_LIST.filter(a => TIER1.indexOf(a.key) >= 0);
+  const tier2 = AWARD_LIST.filter(a => TIER1.indexOf(a.key) < 0);
+  h += '<div class="aw-filter">'
+    + '<div class="aw-filter-row">'
+      + '<span class="aw-filter-t">四强奖<em>不兼得，挨个评</em></span>'
+      + chipAll(all)
+      + chipPicked()
+      + tier1.map(chip).join('')
+    + '</div>'
+    + '<div class="aw-filter-row">'
+      + '<span class="aw-filter-t">优秀学生奖学金<em>不兼得</em></span>'
+      + tier2.filter(a => !a.single).map(chip).join('')
+    + '</div>'
+    + '<div class="aw-filter-row">'
+      + '<span class="aw-filter-t">单项奖<em>可兼得</em></span>'
+      + AWARD_SINGLE.map(chip).join('')
+    + '</div>'
+    + '</div>';
 
   /* 评选进度：名额 vs 已推荐。
      规则：先评不兼得的（从高到低），所以一个学生被「推荐」后，
@@ -9454,7 +9559,7 @@ function renderAward(){
   h += '<div class="aw-summary">'
     + '<span>共 <b>' + rows.length + '</b> 人' + (_awFilter ? '（报「' + esc(_awFilter) + '」的）' : '') + '</span>'
     + (_awFilter ? '<button class="u-btn u-btn-sm u-btn-ghost" onclick="awardFilter(\'\')">看全部</button>' : '')
-    + '<span class="aw-summary-s">推荐 ' + stat('推荐') + ' · 候补 ' + stat('候补') + ' · 落选 ' + stat('落选') + '</span>'
+    + '<span class="aw-summary-s">已拟定 ' + 已定 + ' 人 · 共 ' + all.length + ' 人</span>'
     + '</div>';
 
   /* 进度条区 */
@@ -9463,13 +9568,18 @@ function renderAward(){
 
   // 批量操作条：勾选后出现
   if(_awSel.size){
-    h += `<div class="aw-bulk">
-      <b>已选 ${_awSel.size} 人</b>
-      <span class="aw-bulk-t">统一设为</span>
-      ${AWARD_STATUS.filter(Boolean).map(st=>'<button class="btn" onclick="awardSetStatusBulk(\'' + st + '\')">' + st + '</button>').join('')}
-      <button class="btn" onclick="awardSetStatusBulk('')">清空</button>
-      <button class="u-btn u-btn-sm u-btn-ghost" onclick="awardSelectAll(false)">取消选择</button>
-    </div>`;
+    /* 拟定到「当前正在看的那个奖」—— 选人 → 点一下完事，不用逐行打标签。
+       正在看「全部」时不显示这个按钮：先选奖项，再选人。 */
+    h += '<div class="aw-bulk">'
+      + '<b>已选 ' + _awSel.size + ' 人</b>'
+      + (_awFilter
+          ? '<span class="aw-bulk-t">全部拟定为</span>'
+            + '<button class="btn pri" onclick="awardSetStatusBulk(\'' + esc(_awFilter) + '\')">拟定「'
+            + esc(_awFilter) + '」</button>'
+          : '<span class="aw-bulk-t">先在上面选一个奖项，再点这里批量拟定</span>')
+      + '<button class="btn" onclick="awardSetStatusBulk(\'\')">取消拟定</button>'
+      + '<button class="u-btn u-btn-sm u-btn-ghost" onclick="awardSelectAll(false)">取消选择</button>'
+      + '</div>';
   }
 
   const th = (label, k, cls) =>
@@ -9493,7 +9603,7 @@ function renderAward(){
         <th class="aw-status">拟定</th>
         ${th('志愿','志愿')}
       </tr></thead>
-      <tbody>${rows.map(r=>`<tr class="${_awSel.has(r.sid)?'aw-picked':''}${r.status?' aw-'+esc(r.status):''}">
+      <tbody>${rows.map(r=>`<tr class="${_awSel.has(r.sid)?'aw-picked':''}">
         <td><input type="checkbox" ${_awSel.has(r.sid)?'checked':''} onclick="awardToggleSel('${esc(r.sid)}',this.checked)"></td>
         <td class="aw-name">${esc(r.name)}</td>
         <td class="aw-sid">${esc(r.sid)}</td>
@@ -9501,7 +9611,7 @@ function renderAward(){
         <td class="aw-num">${r.总成绩===''?'<span class="aw-none">—</span>':esc(String(r.总成绩))}</td>
         <td class="aw-num">${r.智力===''?'<span class="aw-none">—</span>':esc(String(r.智力))}</td>
         ${bCells(r)}
-        <td class="aw-status">${statusSelect(r)}${overHint(r)}</td>
+        <td class="aw-status">${statusCell(r)}${overHint(r)}</td>
         <td class="aw-wish">${wishTags(r)}</td>
       </tr>`).join('')}</tbody>
     </table>
@@ -9511,18 +9621,29 @@ function renderAward(){
   $('mainArea').innerHTML = h;
 }
 
+/* 导出（用户 2026-10-03：「导出的信息就是姓名、学号、专业、你推荐奖学金名称、
+   所有的成绩信息和志愿信息」）
+   注意：导出的是**全部**评选数据，不受当前筛选影响 ——
+   筛选只是给眼睛看的，最后要交的是完整名单。 */
 function awardExportCsv(){
-  const rows = awardFiltered();
+  const rows = awardRows();
   if(!rows.length){ toast('没有数据可导出'); return; }
-  const head = ['姓名','学号','专业','智力水平评价','B1科研创新','B2专业技能','B3文体特长','B4社会工作','B5社会实践','拟定','志愿'];
+  const head = ['姓名','学号','专业','推荐奖学金',
+    '总成绩','智力水平评价','B1科研创新','B2专业技能','B3文体特长','B4社会工作','B5社会实践',
+    '志愿'];
   const q = v => { v = v==null?'':String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
-  const body = rows.map(r => [r.name,r.sid,r.major,r.智力,r.B1,r.B2,r.B3,r.B4,r.B5,r.status,r.wishes.join(' ')].map(q).join(','));
+  const body = rows.map(function(r){
+    return [r.name, r.sid, r.major, r.award || '',
+      r.总成绩, r.智力, r.B1, r.B2, r.B3, r.B4, r.B5,
+      r.wishes.join(' ')].map(q).join(',');
+  });
   const csv = '\ufeff' + head.join(',') + '\n' + body.join('\n');
   const blob = new Blob([csv], {type:'text/csv'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = '奖学金评选.csv';
   a.click(); URL.revokeObjectURL(a.href);
+  toast('已导出 ' + rows.length + ' 人（含推荐奖学金、全部成绩与志愿）');
 }
 
 /* ---------- 设置 / 导出 ---------- */
