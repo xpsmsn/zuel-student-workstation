@@ -7086,12 +7086,25 @@ let colDragFrom = null;  // 拖动源下标
 
 /* 候选列 = 当前顺序 + 默认列 + 本批真实存在的全部字段（含自定义字段）。
    「邮箱 / 身份证号 / 家长电话」这类只要导入表里有，就会出现在这里。 */
+/* v2.5.4：奖学金评选相关的列 —— 「数据隔离，主数据不要有评选条目」。
+   辅导员口径「不显示但保留」：数据仍留在档案里（导出仍带、以后想用能再开），
+   只是列设置里**默认不预勾**，并排到列表末尾。
+   含 AWARD_ONLY_COLS（总成绩/知识水平评价/B1~B5/志愿顺序…）。 */
+function isAwardishCol(k){
+  const n = normalizeKey(k);
+  if(AWARD_ONLY_COLS.indexOf(n) >= 0) return true;
+  /* 「总成绩」在评选表里是综合分、与学业成绩同名，误认的概率最高，单独点名 */
+  return false;
+}
 function colCandidates(){
   const out = [], seen = new Set();
   const push = k=>{ if(k && k !== '' && !seen.has(k)){ seen.add(k); out.push(k); } };
   (Array.isArray(S.listCols) ? S.listCols : DEFAULT_COLS).forEach(push);
   DEFAULT_COLS.forEach(push);
-  [...allFieldKeys()].sort((a,b)=>a.localeCompare(b,'zh')).forEach(push);
+  /* 常规列在前，评选类列排后面 —— 避免一打开列设置就被一屏评分项淹没 */
+  const rest = [...allFieldKeys()].sort((a,b)=>a.localeCompare(b,'zh'));
+  rest.filter(k => !isAwardishCol(k)).forEach(push);
+  rest.filter(k =>  isAwardishCol(k)).forEach(push);
   if(hasGrade()) push('成绩');
   return out;
 }
@@ -7109,7 +7122,11 @@ function colMissReason(k){
 
 function openColSettings(){
   colDraft = colCandidates();
-  colOn = new Set(Array.isArray(S.listCols) ? S.listCols : DEFAULT_COLS.filter(colAvailable));
+  /* v2.5.4：第一次打开（还没自定义过）时，评选类列**不预勾** ——
+     辅导员「主数据可以不要奖学金相关的条目」；数据仍保留，想看时可勾上。 */
+  colOn = new Set(Array.isArray(S.listCols)
+    ? S.listCols
+    : DEFAULT_COLS.filter(colAvailable));
   renderColSettings();
 }
 function renderColSettings(){
@@ -10546,10 +10563,18 @@ function parseWishes(v){
 
    改之前是从学生档案里「捞」这些列（读 s['知识水平评价'] 等），
    副作用是评选表导一次，学生档案就被污染一批列。现在两边彻底分开。 */
-const AWARD_KEEP_COLS = ['学号', '姓名', '专业', '总成绩', '知识水平评价',
+/* 评选区只保留**真正只属于评选**的字段。
+   v2.5.4：原来还存「姓名 / 专业」，但它们本来就在学生档案里 ——
+   两份存会出现「名册改了名、评选区还是旧名」，且看不出该听谁的。
+   现在身份列一律从名册取（见 awardRows()），这里不再存。
+   导出时仍会带上姓名/专业作为可读校验，不影响。 */
+const AWARD_KEEP_COLS = ['总成绩', '知识水平评价',
   '科研创新B1', '专业技能B2', '文体特长B3', '社会工作B4', '社会实践B5', '志愿顺序'];
 
-/* 评选表：独立存储。姓名/专业可从名册补（只读，不写回）。 */
+/* 评选表：独立存储。
+   v2.5.4：姓名/专业**只从名册取**（辅导员「数据隔离，主数据可以不要评选相关条目」）。
+   原来还兜一层 r['姓名']，两份存会出现「名册改了名、评选区还是旧名」而看不出听谁的。
+   评选区只留「学号 + 各项评分 + 志愿顺序」这些真正只属于评选的字段。 */
 function awardRows(){
   const src = (S.awardRows && S.awardRows.length) ? S.awardRows : [];
   return src.map(function(r){
@@ -10557,8 +10582,8 @@ function awardRows(){
     const stu = (S.students||[]).filter(x => String(x['学号']) === sid)[0] || {};
     return {
       sid: sid,
-      name: r['姓名'] || stu['姓名'] || stu['姓名1'] || '',
-      major: r['专业'] || stu['专业'] || '',
+      name: stu['姓名'] || stu['姓名1'] || '',
+      major: stu['专业'] || '',
       总成绩: r['总成绩'] || '',
       智力: r['知识水平评价'] || '',
       B1: r['科研创新B1'] || '', B2: r['专业技能B2'] || '',
@@ -11350,9 +11375,17 @@ function todayStr(){
 function safeName(s){
   return String(s==null?'':s).replace(/[\\/:*?"<>|\r\n\t]+/g,'_').replace(/\s+/g,'').slice(0,40) || '批次';
 }
+/* v2.5.4c：表头取**所有行的键的并集**，不再只看第一行。
+   原来用 Object.keys(list[0]) —— 学生记录只带「该生实际填了的字段」，
+   所以只要第一个人恰好没填某列（家庭电话/微信号/电子信箱…），
+   那一列在表头里就不存在，整列数据在 CSV 里全部丢失。
+   xlsx 那条路用 fieldOrderOf（遍历所有行）没这个问题 —— 现在两条路一致了。 */
 function csvOf(list){
   if(!list || !list.length) return '';
-  const header = Object.keys(list[0]);
+  const seen = new Set();
+  list.forEach(r=>Object.keys(r).forEach(k=>seen.add(k)));
+  const header = fieldOrderOf(list).filter(k => seen.has(k));
+  seen.forEach(k=>{ if(header.indexOf(k) < 0) header.push(k); });
   const esc2 = v => {
     const s = v==null?'':String(v);
     return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
