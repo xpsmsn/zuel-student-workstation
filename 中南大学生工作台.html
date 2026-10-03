@@ -2871,7 +2871,9 @@ function setStudents(arr){
      save() 持久化的是「批次」，那样写等于"界面看着对、重开全没了"。
      正常路径走不到这里（导入前会先自动建批次）；真走到就当场建一个，保住数据。 */
   if(!b && arr.length){
-    const nb = makeBatch(newBatchName(), 'new', arr, '');
+    /* v2.5.0：第 5 个参数是成绩。不传的话新批次 grades: []，
+       attachBatch 随后把 S.grades 清空 —— 多工作表导入时成绩就是这么丢的。 */
+    const nb = makeBatch(newBatchName(), 'new', arr, '', S.grades);
     S.batches.push(nb);
     attachBatch(nb.id);
     b = activeBatch();
@@ -8468,6 +8470,10 @@ function filterMark(k,v){
    总览页为了不打断搜索框输入只重绘图表区，那种情况下面板没被重建，
    就由 paintFilterDrop() 就地同步勾选态。两种路径共用同一个函数。 */
 let _fdOpen = null;                       // 当前展开的字段名（null = 都收起）
+/* v2.5.0：多工作表导入时，成绩表（导出端的第 2 张）先行落进成绩层。
+   这里记一笔，导入确认页要把它一并显示出来 —— 否则用户只看到「学生 N 人」，
+   不知道成绩已经读进来了。 */
+let pendingExtraGrade = null;              // { added, updated }
 
 /* v2.3.1：增加可选第 4 参 displayName —— 只改「显示成什么」，
    参与匹配的仍是原值。宿舍筛选用它把「滨湖1栋-634」显示成「滨湖1栋634」。
@@ -9279,6 +9285,21 @@ function excelRowNo(idx){
   return idx + ((importState && importState.headerIdx) || 0) + 2;
 }
 
+/** 把「按列号索引的原始行数组」对象化成「表头名 → 值」，再做别名归一。
+    v2.5.0：多工作表导入要自己把成绩行交给 applyGradeRows，
+    而 buildRawRows 给的是数组、对象化原只在 buildImportState 里做 —— 这里补上，
+    两处口径必须一致（都用 normalizeRow）。 */
+function sheetToRecords(rawHeader, rawRows){
+  return (rawRows||[]).map(function(r){
+    const o = {};
+    (rawHeader||[]).forEach(function(h, i){
+      const raw = String(h == null ? '' : h).trim();
+      if(raw) o[raw] = (r[i] == null ? '' : r[i]);
+    });
+    return normalizeRow(o);
+  });
+}
+
 function buildImportState(rawHeader, rawRows, fileName, headerIdx, rowNos){
   const cols = [];                        // 归一后的列（去重）
   const headerMap = rawHeader.map(h=>{
@@ -9854,14 +9875,83 @@ function handleFile(e){
       if(typeof XLSX === 'undefined'){
         throw new Error('内置的表格解析库没加载起来');
       }
+      pendingExtraGrade = null;
       const wb = XLSX.read(new Uint8Array(ev.target.result), {type:'array', cellDates:true});
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const arr = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:false});
-      if(!arr.length){ toast('这张表是空的，没有任何一行数据'); return; }
-      const headerIdx = locateHeaderRow(arr);          // v1.9.2：表头不一定在第 1 行
-      const rawHeader = (arr[headerIdx] || []).map(h=>h==null?'':String(h));
-      const { rows: rawRows, rowNos } = buildRawRows(arr, headerIdx, rawHeader);
-      buildImportState(rawHeader, rawRows, f.name, headerIdx, rowNos);
+      /* v2.5.0：原来只读第 1 张工作表，于是「导出 → 导回」时，
+         导出端写在第 2 张的「成绩」表从没被看过（成绩表里就有「加权平均成绩」列）。
+         现在遍历所有工作表：命中成绩表的走成绩通道，其余走档案通道。 */
+      const sheets = (wb.SheetNames || []).map(function(name){
+        const ws = wb.Sheets[name];
+        const arr = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:false});
+        if(!arr || !arr.length) return null;
+        const headerIdx = locateHeaderRow(arr);        // v1.9.2：表头不一定在第 1 行
+        const rawHeader = (arr[headerIdx] || []).map(h=>h==null?'':String(h));
+        const parsed = buildRawRows(arr, headerIdx, rawHeader);
+        return { name: name, header: rawHeader, rows: parsed.rows, rowNos: parsed.rowNos,
+                 headerIdx: headerIdx };
+      }).filter(Boolean);
+
+      if(!sheets.length){ toast('这张表是空的，没有任何一行数据'); return; }
+
+      /* 挑出「档案表」：**非成绩列最多**的那张（导出时的「学生信息」就是它）。
+         ⚠️ v2.5.0 一度写成「成绩列最少」—— 反了：导出的「成绩」表本来就只有
+            学号/姓名/班级 + 几个成绩列，成绩列更少，会被误选成档案表，
+            于是真正的学生信息表被当成成绩表，成绩没进成绩层、大量档案字段丢失。
+            （当时没暴露，是因为演示数据的学生档案里也带「加权平均成绩」列兜住了；
+              真实数据的学生档案没有成绩列，一旦导回就真丢。） */
+      const scored = sheets.map(function(sh){
+        const g = splitGradeCols(sh.header);
+        return { sh: sh, g: g,
+                 profileCount: g.profile.length, scoreCount: g.grade.length,
+                 hasId: sh.header.some(function(h){ return normalizeKey(h) === '学号'; }) };
+      }).filter(x => x.hasId);
+
+      const profileSheet = scored.length
+        ? scored.slice().sort(function(a, b){
+            return (b.profileCount - a.profileCount) || (a.scoreCount - b.scoreCount);
+          })[0]
+        : null;
+      const gradeSheets = scored.filter(x => x !== profileSheet);
+
+      if(!profileSheet && !gradeSheets.length){
+        /* 一张都认不出来（多半不是系统导出的表）→ 退回原行为：按第 1 张表当档案表 */
+        const first = sheets[0];
+        buildImportState(first.header, first.rows, f.name, first.headerIdx, first.rowNos);
+        return;
+      }
+
+      /* 成绩表先落成绩层（按学号 upsert，不进学生档案） */
+      let gradeAdded = 0, gradeUpdated = 0;
+      gradeSheets.forEach(function(x){
+        /* ⚠️ v2.5.0 第一版直接传 x.sh.rows —— 那是按列号索引的数组，
+           r['学号'] 全 undefined，80 行被 `if(!id) return` 丢光（症状：成绩没匹配上）。
+           必须先对象化。 */
+        const recs = sheetToRecords(x.sh.header, x.sh.rows);
+        const stat = applyGradeRows(recs, x.g);
+        gradeAdded += stat.added; gradeUpdated += stat.updated;
+      });
+      if(gradeAdded + gradeUpdated > 0){
+        invalidateGradeMap();
+        markDataChanged();
+      }
+
+      if(profileSheet){
+        buildImportState(profileSheet.sh.header, profileSheet.sh.rows, f.name,
+                         profileSheet.sh.headerIdx, profileSheet.sh.rowNos);
+      }else{
+        /* 只有成绩表、没有档案表：给一个只含学号的档案表框架，
+           这样「新建批次」等后续流程仍能跑（成绩按学号挂上去即可）。 */
+        const x = gradeSheets[0];
+        const recs = sheetToRecords(x.sh.header, x.sh.rows);   // v2.5.0：同样先对象化
+        const keep = x.sh.header.filter(function(h){ return normalizeKey(h) === '学号'; });
+        const rows = recs.map(function(r){
+          const o = {}; keep.forEach(function(h){ if(r[h] != null) o[h] = r[h]; }); return o;
+        });
+        buildImportState(keep, rows, f.name, x.sh.headerIdx, x.sh.rowNos);
+      }
+      if(gradeAdded + gradeUpdated > 0){
+        pendingExtraGrade = { added: gradeAdded, updated: gradeUpdated };
+      }
     }catch(err){
       console.error('[中南大学生工作台] 表格解析失败', err);
       openFileError(f.name, err);
@@ -9968,7 +10058,8 @@ function doImport(){
       recMap.set(id, rec);
     });
     const recs = [...recMap.values()];
-    const b = makeBatch(newBatchName(), 'new', recs, importState.fileName);
+    /* v2.5.0：同上，把成绩一并挂进新批次 */
+    const b = makeBatch(newBatchName(), 'new', recs, importState.fileName, S.grades);
     S.batches.push(b);
     attachBatch(b.id);
     S.filters = {}; S.quickView = 'all'; S.classFilter = 'all'; S._search = '';
@@ -10046,7 +10137,8 @@ function doImportMerge(rows, cols, mode, remarkMap, backupName, clearedCount, pr
   if(mode !== 'new' && !activeBatch()){
     const base = String((importState && importState.fileName) || '').replace(/\.(xlsx|xls|csv)$/i, '').trim();
     autoBatchName = base || newBatchName();
-    const b = makeBatch(autoBatchName, 'new', [], importState ? importState.fileName : '');
+    /* v2.5.0：同样要把成绩挂进新批次，否则 attachBatch 会把 S.grades 清空 */
+    const b = makeBatch(autoBatchName, 'new', [], importState ? importState.fileName : '', S.grades);
     S.batches.push(b);
     attachBatch(b.id);
   }
