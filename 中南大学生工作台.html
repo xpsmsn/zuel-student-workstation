@@ -536,6 +536,59 @@ html[data-theme="dark"] img.brand-logo{filter:brightness(1.5) saturate(1.05)}
 .award-table tr.aw-picked.aw-done td{background:var(--success-bg)}
 .award-table tr.aw-done .aw-select{background:rgba(255,255,255,.6)}
 
+/* ── 进度条分组 ─────────────────────────────────────
+   用户 2026-10-03：第一行不兼得 7 个奖，第二行 4 个单项奖。 */
+.aw-prog-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(216px,1fr));gap:8px;align-items:stretch}
+.aw-prog-t{
+  grid-column:1/-1;font-size:12px;font-weight:600;color:var(--text-2);
+  margin-bottom:2px;
+}
+.aw-progress{margin-bottom:16px}
+.aw-progress+.aw-progress{margin-top:-8px}
+/* 顶部只留「全部 / 已拟定」两个切换 */
+.aw-switch{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.aw-switch-tip{font-size:12.5px;color:var(--text-2)}
+.aw-switch-tip b{color:var(--text-primary)}
+
+/* ── 「按专业细分」按钮（收在卡片底部）──────────────── */
+.aw-split-btn{
+  margin-top:6px;padding:2px 8px;border:1px dashed var(--border);border-radius:6px;
+  background:transparent;color:var(--text-3);font-size:11.5px;font-family:inherit;
+  cursor:pointer;transition:background .12s,border-color .12s,color .12s;
+}
+.aw-split-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.aw-split-btn.on{border-style:solid;border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+
+/* ── 细分弹窗 ──────────────────────────────────────── */
+.aw-split-sum{
+  display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;
+  padding:8px 12px;margin:12px 0 8px;border-radius:8px;background:var(--bg-hover);
+  font-size:13px;color:var(--text-2);
+}
+.aw-split-sum b{font-size:15px;font-weight:680;color:var(--text-primary);font-variant-numeric:tabular-nums}
+.aw-split-tip{font-size:12.5px}
+.aw-split-sug{font-size:12px;color:var(--text-3);line-height:1.7;margin-bottom:12px}
+.aw-split-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:8px;
+  max-height:min(46vh,380px);overflow-y:auto;
+}
+.aw-split-row{
+  display:flex;align-items:center;gap:8px;
+  padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);
+}
+.aw-split-n{flex:1 1 auto;min-width:0;font-size:13px;color:var(--text-primary);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aw-split-c{flex:0 0 auto;font-size:12px;color:var(--text-3);font-variant-numeric:tabular-nums}
+.aw-split-row input{
+  flex:0 0 64px;width:64px;height:28px;padding:0 6px;text-align:center;
+  border:1px solid var(--border);border-radius:6px;background:var(--bg-page);
+  color:var(--text-primary);font-size:13px;font-family:inherit;font-variant-numeric:tabular-nums;
+}
+.aw-split-row input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--ring)}
+.aw-split-row input::-webkit-outer-spin-button,
+.aw-split-row input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.aw-split-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+
 /* 进度卡内的名额输入：卡片可点，input 独立 */
 .aw-q-num{
   width:44px;height:22px;padding:0 4px;text-align:center;
@@ -2406,6 +2459,8 @@ function buildSavePayload(){
     awardRows: Array.isArray(S.awardRows) ? S.awardRows : [],
     /* v2.1.4：各奖项名额 {奖项key: 名额}，0/缺省 = 不限 */
     awardQuota: S.awardQuota && typeof S.awardQuota === 'object' ? S.awardQuota : {},
+    /* v2.3.2：按专业细分的名额 {奖项: {专业: 名额}} —— 老师最终填的值为准 */
+    awardSplit: S.awardSplit && typeof S.awardSplit === 'object' ? S.awardSplit : {},
     /* v2.1.1：奖学金评选数据 —— 独立于批次（一年一次的重活，不混进日常名册） */
     awards: S.awards && typeof S.awards === 'object' ? S.awards : null
   };
@@ -2484,6 +2539,7 @@ function load(){
       S.awardStatus = (d.awardStatus && typeof d.awardStatus === 'object') ? d.awardStatus : {};   // v2.1.2
       S.awardRows = Array.isArray(d.awardRows) ? d.awardRows : [];   // v2.1.3
       S.awardQuota = (d.awardQuota && typeof d.awardQuota === 'object') ? d.awardQuota : {};   // v2.1.4
+      S.awardSplit = (d.awardSplit && typeof d.awardSplit === 'object') ? d.awardSplit : {};   // v2.3.2
       // 向后兼容：老数据没有 theme 字段时回落明亮
       S.theme = (d.theme==='dark' || d.theme==='eye') ? d.theme : 'light';
       // 每间宿舍床位数（用于算空位）；老数据没有它 → 默认 4 人间
@@ -9465,6 +9521,182 @@ function overHint(r){
        + '⚠ 应先看 ' + esc(should) + '</span>';
 }
 
+
+/* ══════════════════════════════════════════════════════════════════
+   按专业细分名额（v2.3.2）
+   ──────────────────────────────────────────────────────────────────
+   「奖项名额虽然已经确定了，但是实际上还要根据年级内的专业总人数来进行一个细分。
+     总人数可以通过全部学生的那边来进行统计。」
+
+   统计口径：当前批次的**学生名册**（S.students），按「专业」分组。
+   名册里专业为空的，算作「未填专业」单独一组（不能悄悄丢掉 —— 人数对不上时
+   老师需要知道差在哪）。
+
+   分配方式三种（老师决定）：
+     ratio  按比例 —— 名额 × 该专业人数 / 总人数，差额补到人数最多的专业
+     equal  平均分 —— 名额 ÷ 专业数，余数依次给前面的专业
+     manual 手动   —— 老师自己填
+   算出来的只是**建议值**（S.awardSplit 里存的才是最终值），老师改了就以老师的为准。 */
+function awardMajorStats(){
+  const map = new Map();
+  (S.students || []).forEach(function(s){
+    const m = String(s['专业'] == null ? '' : s['专业']).trim() || '未填专业';
+    map.set(m, (map.get(m) || 0) + 1);
+  });
+  const arr = [...map.entries()].map(function(e){ return { 专业: e[0], 人数: e[1] }; });
+  arr.sort(function(a, b){ return b.人数 - a.人数 || a.专业.localeCompare(b.专业, 'zh'); });
+  return arr;
+}
+/** 按某算法算建议分额；返回 {专业: 名额} */
+function awardSplitSuggest(total, stats, mode){
+  const out = {};
+  if(!total || !stats.length) return out;
+  if(mode === 'equal'){
+    const per = Math.floor(total / stats.length);
+    const rest = total - per * stats.length;
+    stats.forEach(function(m, i){
+      out[m.专业] = per + (i < rest ? 1 : 0);
+    });
+    return out;
+  }
+  // 默认按比例
+  const sum = stats.reduce(function(a, m){ return a + m.人数; }, 0);
+  if(!sum) return out;
+  let used = 0, best = stats[0];
+  stats.forEach(function(m){
+    const v = Math.round(total * m.人数 / sum);
+    out[m.专业] = v; used += v;
+    if(m.人数 > best.人数) best = m;
+  });
+  /* 补差额：优先补到人数最多的专业（那里最不容易引起争议） */
+  let diff = total - used;
+  const order = stats.slice().sort(function(a, b){ return b.人数 - a.人数; });
+  let i = 0;
+  while(diff > 0){ out[order[i % order.length].专业]++; diff--; i++; }
+  while(diff < 0){
+    const t = order[i % order.length];
+    if(out[t.专业] > 0){ out[t.专业]--; diff++; }
+    i++;
+  }
+  return out;
+}
+function awardSplitOf(key){ return (S.awardSplit && S.awardSplit[key]) || null; }
+function setAwardSplit(key, val){
+  S.awardSplit = S.awardSplit || {};
+  if(val == null || val === '') delete S.awardSplit[key];
+  else S.awardSplit[key] = val;
+  save(); renderAward();
+}
+/** 打开「按专业细分」弹窗 */
+function openAwardSplit(key){
+  const stats = awardMajorStats();
+  const total = awardQuota(key);
+  const cur = awardSplitOf(key) || {};
+  const sug = awardSplitSuggest(total, stats, 'ratio');
+  const sugEqual = awardSplitSuggest(total, stats, 'equal');
+  const q = String.fromCharCode(39);       // 单引号：拼 onclick 用，避免转义地狱
+  const sugTxt = Object.keys(sug).map(function(k){ return k + ' ' + sug[k]; }).join(' · ') || '（名额为 0，无法细分）';
+  const equalTxt = Object.keys(sugEqual).map(function(k){ return k + ' ' + sugEqual[k]; }).join(' · ') || '—';
+
+  $('modalRoot').innerHTML =
+    '<div class="mask" onclick="if(event.target===this)closeModal()">'
+    + '<div class="modal wide" onclick="event.stopPropagation()">'
+    + '<div class="modal-head"><div class="modal-title">按专业细分「' + esc(key) + '」名额</div>'
+    + '<div class="modal-close" onclick="closeModal()">×</div></div>'
+    + '<div class="modal-body">'
+      + '<div class="hint">下面的人数来自<b>当前批次的全部学生</b>（按专业统计），'
+        + '共 <b>' + stats.reduce(function(a, m){ return a + m.人数; }, 0) + '</b> 人。'
+        + '名额 = <b>' + (total || '未设') + '</b>。分给谁由你决定，下面的数字可以直接改。</div>'
+      + '<div class="aw-split-sum">该奖名额 <b>' + (total || 0) + '</b> 名 · 已分配 <b id="awSpUsed">0</b> 名'
+        + '<span id="awSpTip" class="aw-split-tip"></span></div>'
+      + '<div class="aw-split-sug">按比例建议：' + esc(sugTxt)
+        + '<br>平均分建议：' + esc(equalTxt) + '</div>'
+      + '<div class="aw-split-grid">'
+        + stats.map(function(m){
+          const v = cur[m.专业];
+          return '<label class="aw-split-row"><span class="aw-split-n">' + esc(m.专业) + '</span>'
+            + '<span class="aw-split-c">' + m.人数 + ' 人</span>'
+            + '<input type="number" min="0" step="1" value="' + (v == null ? '' : v) + '" placeholder="—'
+            + '" data-k="' + esc(key) + '" data-m="' + esc(m.专业) + '"'
+            + ' oninput="awardSplitInput(this)"></label>';
+        }).join('')
+      + '</div>'
+      + '<div class="aw-split-act" data-split-key="' + esc(key) + '">'
+        + '<button class="btn" data-fill="ratio">填入按比例</button>'
+        + '<button class="btn" data-fill="equal">填入平均分</button>'
+        + '<button class="btn" data-clear="1">清空细分</button>'
+      + '</div>'
+    + '</div>'
+    + '<div class="modal-foot"><button class="btn" onclick="closeModal()">取消</button>'
+    + '<button class="btn pri" data-split-save="1">保存</button></div>'
+    + '</div></div>';
+  /* 建议值存全局 + 事件委托。
+     ⚠️ 早先把对象写进 onclick="f('x',{...})"，对象里的双引号会提前截断
+     HTML 属性 —— 按钮渲染正常，点了报「Unexpected end of input」。 */
+  AWARD_SPLIT_SUGGEST.ratio[key] = sug;
+  AWARD_SPLIT_SUGGEST.equal[key] = sugEqual;
+  const act = document.querySelector('.aw-split-act');
+  if(act) act.onclick = function(e){
+    const t = e.target.closest('button');
+    if(!t) return;
+    const kk = act.getAttribute('data-split-key');
+    if(t.hasAttribute('data-fill')) awardFillSplit(t.getAttribute('data-fill'), kk);
+    else if(t.hasAttribute('data-clear')) awardClearSplit(kk);
+  };
+  const saveBtn = document.querySelector('[data-split-save]');
+  if(saveBtn) saveBtn.onclick = function(){
+    const kk2 = document.querySelector('.aw-split-act').getAttribute('data-split-key');
+    saveAwardSplit(kk2);
+  };
+  updateSplitUsed();
+}
+/* 建议分额暂存（供按钮取用），点「保存」才落盘 */
+const AWARD_SPLIT_SUGGEST = { ratio:{}, equal:{} };
+/** 把建议分额填进输入框（不落盘，点「保存」才算） */
+function awardFillSplit(mode, key){
+  const obj = (AWARD_SPLIT_SUGGEST[mode] || {})[key];
+  if(!obj) return;
+  document.querySelectorAll('.aw-split-row input').forEach(function(inp){
+    const v = obj[inp.getAttribute('data-m')];
+    inp.value = (v == null ? '' : v);
+  });
+  updateSplitUsed();
+}
+function awardClearSplit(key){ setAwardSplit(key, null); closeModal(); }
+function awardSplitInput(){ updateSplitUsed(); }
+/* 边填边显示「已分配 / 与名额差多少」——
+   老师最容易出的错就是各专业加起来超过总名额，所以这个提示要实时。 */
+function updateSplitUsed(){
+  let used = 0;
+  document.querySelectorAll('.aw-split-row input').forEach(function(i){
+    used += Number(i.value) || 0;
+  });
+  const el = document.getElementById('awSpUsed');
+  if(el) el.textContent = used;
+  const tip = document.getElementById('awSpTip');
+  const first = document.querySelector('.aw-split-row input');
+  if(!tip || !first) return;
+  const t = awardQuota(first.getAttribute('data-k')) || 0;
+  if(t && used !== t){
+    tip.textContent = used > t ? '（超出 ' + (used - t) + ' 名）' : '（还差 ' + (t - used) + ' 名）';
+    tip.style.color = 'var(--warn-text)';
+  }else{
+    tip.textContent = (used === t && t) ? '✓ 与名额一致' : '';
+    tip.style.color = 'var(--success-text)';
+  }
+}
+function saveAwardSplit(key){
+  const obj = {};
+  document.querySelectorAll('.aw-split-row input').forEach(function(inp){
+    const m = inp.getAttribute('data-m');
+    const v = inp.value.trim();
+    if(v !== '') obj[m] = Math.max(0, Number(v) || 0);
+  });
+  setAwardSplit(key, Object.keys(obj).length ? obj : null);
+  closeModal();
+  toast(Object.keys(obj).length ? '已保存「' + key + '」的专业分额' : '已清空「' + key + '」的专业分额');
+}
+
 /* ── 页面 ── */
 function renderAward(){
   const rows = awardFiltered();
@@ -9477,28 +9709,7 @@ function renderAward(){
   /* 「已拟定 N」入口 —— 关键：拟定后的人会从各奖项名单里移出（避免重复看），
      如果没有这个入口，他就从视野里彻底消失了，再也看不到自己定了谁。 */
   const pickedN = all.filter(r => r.award).length;
-  const chipPicked = () => {
-    if(!pickedN) return '';
-    const on = _awFilter === '__picked';
-    return '<button class="aw-chip picked' + (on ? ' on' : '') + '"'
-      + ' onclick="awardFilter(' + String.fromCharCode(39,39) + '__picked' + String.fromCharCode(39) + ')"'
-      + ' title="已拟定给某个奖的学生">已拟定<span class="aw-chip-n">' + pickedN + '</span></button>';
-  };
 
-  const Q = String.fromCharCode(39);
-  const chipAll = (all) => '<button class="aw-chip' + (_awFilter === '' ? ' on' : '') + '" onclick="awardFilter(' + Q + Q + ')">全部<span class="aw-chip-n">' + all.length + '</span></button>';
-
-  const chip = (a) => {
-    if(!a) return '';
-    const pr = awardProgress(a.key);
-    const on = _awFilter === a.key;
-    return '<span class="aw-chip-wrap' + (on ? ' on' : '') + '">'
-      + '<button class="aw-chip' + (on ? ' on' : '') + '" onclick="awardFilter(\'' + a.key + '\')"'
-      + ' title="' + (a.single ? '单项奖学金，可兼得' : '不兼得，挨个评选') + '"'
-      + (pr.报名 ? '' : ' disabled') + '>'
-      + esc(a.key) + '<span class="aw-chip-n">' + pr.报名 + '</span></button>'
-      + '</span>';
-  };
 
   let h = `<div class="award-head">
     <div>
@@ -9534,27 +9745,23 @@ function renderAward(){
   const TIER1 = ['国家奖学金', '国家励志奖学金', '比亚迪奖学金', '紫光励学金'];
   const tier1 = AWARD_LIST.filter(a => TIER1.indexOf(a.key) >= 0);
   const tier2 = AWARD_LIST.filter(a => TIER1.indexOf(a.key) < 0);
-  h += '<div class="aw-filter">'
-    + '<div class="aw-filter-row">'
-      + '<span class="aw-filter-t">四强奖<em>不兼得，挨个评</em></span>'
-      + chipAll(all)
-      + chipPicked()
-      + tier1.map(chip).join('')
-    + '</div>'
-    + '<div class="aw-filter-row">'
-      + '<span class="aw-filter-t">优秀学生奖学金<em>不兼得</em></span>'
-      + tier2.filter(a => !a.single).map(chip).join('')
-    + '</div>'
-    + '<div class="aw-filter-row">'
-      + '<span class="aw-filter-t">单项奖<em>可兼得</em></span>'
-      + AWARD_SINGLE.map(chip).join('')
-    + '</div>'
-    + '</div>';
-
   /* 评选进度：名额 vs 已推荐。
      规则：先评不兼得的（从高到低），所以一个学生被「推荐」后，
      就不该再占用后面奖项的名额 —— 这里按「推荐即占该奖名额」统计，
      并在超额时明确标出来（超额是真实情况，不隐藏）。 */
+  /* 「专业细分」入口：低频操作（名额定下来之后才做一次），
+     所以收成一个小按钮，而不是在主流程里常驻一个大编辑器。 */
+  const splitChip = (key) => {
+    const sp = awardSplitOf(key);
+    const on = !!sp && Object.keys(sp).length;
+    /* 用 data-* 而非内联 onclick：奖项名可能带引号，且内联属性里拼字符串
+       一旦出现双引号就会截断 HTML（按钮看着正常，点了没反应）。 */
+    return '<button class="aw-split-btn' + (on ? ' on' : '') + '"'
+      + ' data-split-open="' + esc(key) + '"'
+      + ' title="按专业人数把 ' + (awardQuota(key) || 0) + ' 个名额细分下去">'
+      + (on ? '已细分 ' + Object.keys(sp).length + ' 个专业' : '按专业细分') + '</button>';
+  };
+
   /* 进度卡：奖项名 + 名额输入 + 进度条（用户 2026-10-03：
      「名额分配能否整合到下面的进度表中？可以直接在进度表中填写评选名额」）
      名额 = 0 表示不限，与筛选条分开后这里就是唯一的名额入口。 */
@@ -9573,7 +9780,9 @@ function renderAward(){
           + ' onchange="setAwardQuota(\'' + a.key + '\',this.value)"></span>'
       + '</div>'
       + '<div class="aw-bar" onclick="awardFilter(\'' + a.key + '\')"><i style="width:' + pct + '%" class="' + (over ? 'over' : '') + '"></i></div>'
-      + '<div class="aw-prog-f">报名 ' + pr.报名 + ' 人' + (over ? ' · 已超额' : '') + '</div>'
+      + '<div class="aw-prog-f" onclick="awardFilter(\'' + a.key + '\')">报名 ' + pr.报名 + ' 人'
+        + (over ? ' · 已超额' : '') + '</div>'
+      + splitChip(a.key)
       + '</div>';
   };
 
@@ -9584,8 +9793,30 @@ function renderAward(){
     + '</div>';
 
   /* 进度条区 */
-  const prog = AWARD_LIST.map(progressCard).filter(Boolean).join('');
-  if(prog) h += '<div class="aw-progress">' + prog + '</div>';
+  /* 进度条分两组（用户 2026-10-03：「换行一下 国家奖学金一直到优秀学生奖学金三等奖。
+     然后换行，下面是4个单项奖」）：
+     第一行 = 7 个不兼得奖（从国家奖学金到优秀学生三等奖）
+     第二行 = 4 个单项奖（可兼得）
+     筛选条已按用户要求删掉，**筛选入口改由进度卡承担**：点卡片 = 筛到该奖。 */
+  const progExclusive = AWARD_EXCLUSIVE.map(progressCard).filter(Boolean).join('');
+  const progSingle = AWARD_SINGLE.map(progressCard).filter(Boolean).join('');
+
+  /* 顶部只留两个入口：全部 / 已拟定（其余靠点卡片切） */
+  const pickedN2 = all.filter(r => r.award).length;
+  h += '<div class="aw-switch">'
+    + '<button class="aw-chip' + (_awFilter === '' ? ' on' : '') + '" onclick="awardFilter(\'' + '\')">'
+      + '全部<span class="aw-chip-n">' + all.length + '</span></button>'
+    + (pickedN2 ? '<button class="aw-chip picked' + (_awFilter === '__picked' ? ' on' : '')
+        + '" onclick="awardFilter(\'' + '__picked' + '\')" title="已拟定给某个奖的学生">'
+        + '已拟定<span class="aw-chip-n">' + pickedN2 + '</span></button>' : '')
+    + (_awFilter ? '<span class="aw-switch-tip">正在看：<b>' + esc(_awFilter === '__picked' ? '已拟定' : _awFilter) + '</b> · '
+        + awardFiltered().length + ' 人</span><button class="u-btn u-btn-sm u-btn-ghost" onclick="awardFilter(\'' + '\')">看全部</button>' : '')
+    + '</div>';
+
+  if(progExclusive) h += '<div class="aw-progress"><div class="aw-prog-row">'
+    + '<div class="aw-prog-t">不兼得 · 挨个评选</div>' + progExclusive + '</div></div>';
+  if(progSingle) h += '<div class="aw-progress"><div class="aw-prog-row">'
+    + '<div class="aw-prog-t">单项奖 · 可兼得</div>' + progSingle + '</div></div>';
 
   // 批量操作条：勾选后出现
   if(_awSel.size){
@@ -9640,6 +9871,20 @@ function renderAward(){
   </div></div>`;
 
   $('mainArea').innerHTML = h;
+
+  /* 进度卡里的「按专业细分」按钮：事件委托。
+     不用内联 onclick —— 奖项名里一旦出现双引号就会截断 HTML 属性，
+     按钮渲染正常但点了没反应（这类问题极难从代码上看出来）。 */
+  const progWrap = $('mainArea').querySelector('.aw-progress');
+  if(progWrap && progWrap.parentNode){
+    const box = progWrap.parentNode;
+    box.addEventListener('click', function(e){
+      const t = e.target.closest('[data-split-open]');
+      if(!t || !box.contains(t)) return;
+      e.stopPropagation();
+      openAwardSplit(t.getAttribute('data-split-open'));
+    });
+  }
 }
 
 /* 导出（用户 2026-10-03：「导出的信息就是姓名、学号、专业、你推荐奖学金名称、
