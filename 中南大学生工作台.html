@@ -9901,24 +9901,44 @@ function handleFile(e){
               真实数据的学生档案没有成绩列，一旦导回就真丢。） */
       const scored = sheets.map(function(sh){
         const g = splitGradeCols(sh.header);
-        return { sh: sh, g: g,
+        /* v2.5.1：还要看评选列。评选表（综合测评/申报表）里「知识水平评价、
+           科研创新B1…志愿顺序」都是评选列，档案列很少 —— 不单独判就会被
+           误当档案表，那些列被 isAwardCol 挡掉、白白丢一整片。 */
+        const awardCount = sh.header.filter(function(h){ return isAwardCol(h); }).length;
+        return { sh: sh, g: g, awardCount: awardCount,
                  profileCount: g.profile.length, scoreCount: g.grade.length,
                  hasId: sh.header.some(function(h){ return normalizeKey(h) === '学号'; }) };
       }).filter(x => x.hasId);
 
-      const profileSheet = scored.length
-        ? scored.slice().sort(function(a, b){
-            return (b.profileCount - a.profileCount) || (a.scoreCount - b.scoreCount);
-          })[0]
-        : null;
-      const gradeSheets = scored.filter(x => x !== profileSheet);
+      /* 角色判定（互斥，一张表只归一类）：
+           档案表  —— 档案列最多
+           评选表  —— 档案列不多、但评选列明显多（≥2 且 ≥ 档案列的一半）
+           其余含学号的表 —— 走成绩通道 */
+      const ranked = scored.slice().sort(function(a, b){
+        return (b.profileCount - a.profileCount) || (a.scoreCount - b.scoreCount);
+      });
+      const profileSheet = ranked.length ? ranked[0] : null;
+      const rest = ranked.slice(1);
+      const awardSheets = rest.filter(function(x){
+        return x.awardCount >= 2 && x.awardCount * 2 >= x.profileCount;
+      });
+      const gradeSheets = rest.filter(function(x){ return awardSheets.indexOf(x) < 0; });
 
-      if(!profileSheet && !gradeSheets.length){
+      if(!profileSheet && !gradeSheets.length && !awardSheets.length){
         /* 一张都认不出来（多半不是系统导出的表）→ 退回原行为：按第 1 张表当档案表 */
         const first = sheets[0];
         buildImportState(first.header, first.rows, f.name, first.headerIdx, first.rowNos);
         return;
       }
+
+      /* 评选表先落评选数据区（独立于名册，v2.1.3 起就是这个口径） */
+      let awardAdded = 0, awardUpdated = 0;
+      awardSheets.forEach(function(x){
+        const recs = sheetToRecords(x.sh.header, x.sh.rows);
+        const st = applyAwardRows(recs);
+        awardAdded += st.added; awardUpdated += st.updated;
+      });
+      if(awardAdded + awardUpdated > 0) markDataChanged();
 
       /* 成绩表先落成绩层（按学号 upsert，不进学生档案） */
       let gradeAdded = 0, gradeUpdated = 0;
@@ -9949,8 +9969,9 @@ function handleFile(e){
         });
         buildImportState(keep, rows, f.name, x.sh.headerIdx, x.sh.rowNos);
       }
-      if(gradeAdded + gradeUpdated > 0){
-        pendingExtraGrade = { added: gradeAdded, updated: gradeUpdated };
+      if(gradeAdded + gradeUpdated > 0 || awardAdded + awardUpdated > 0){
+        pendingExtraGrade = { added: gradeAdded, updated: gradeUpdated,
+                              awardAdded: awardAdded, awardUpdated: awardUpdated };
       }
     }catch(err){
       console.error('[中南大学生工作台] 表格解析失败', err);
@@ -11397,10 +11418,19 @@ function exportBatchXlsx(batch, silent){
     const gOrder = ['学号','姓名','班级'].concat(GRADE_FIELDS);
     xlsxSheet(wb, grades, '成绩', gOrder);
   }
+  /* v2.5.1：评选数据（知识水平评价 / 各项 B1~B5 / 志愿顺序）原先根本没进导出文件 ——
+     闭环从出口就断了。补上第三张表。 */
+  const awards = batch.awardRows || [];
+  if(awards.length){
+    const aOrder = ['学号','姓名','专业'].concat(AWARD_ONLY_COLS);
+    xlsxSheet(wb, awards, '评选', aOrder);
+  }
   const bytes = XLSX.write(wb, { bookType:'xlsx', type:'array' });
   const file = `学生数据_${safeName(batch.name)}_${todayStr()}.xlsx`;
+  const sheetsTxt = ['学生信息', grades.length?'成绩':'', awards.length?'评选':''].filter(Boolean).join(' / ');
   saveExportFile(file, bytes, `已导出 Excel：${batch.students.length} 人${
-    grades.length?`、${grades.length} 条成绩`:''}（工作表：学生信息${grades.length?' / 成绩':''}）`);
+    grades.length?`、${grades.length} 条成绩`:''}${
+    awards.length?`、${awards.length} 条评选`:''}（工作表：${sheetsTxt}）`);
 }
 /* 列表页顶栏：导出当前筛选结果 —— 学生信息按筛选结果，成绩也只带筛选里这些人的，
    两张表各自都能直接导回 */
@@ -11408,8 +11438,11 @@ function exportDataXlsx(){
   const list = currentList();
   if(!list.length){ toast('当前没有可导出的数据'); return; }
   const ids = new Set(list.map(s=>String(s['学号']==null?'':s['学号']).trim()));
-  const grades = (S.grades||[]).filter(g=> ids.has(String(g['学号']==null?'':g['学号']).trim()));
-  exportBatchXlsx({ name: todayStr() + ' 筛选结果', students: list, grades }, true);
+  const inIds = g => ids.has(String(g['学号']==null?'':g['学号']).trim());
+  const grades = (S.grades||[]).filter(inIds);
+  /* v2.5.1：评选数据同样要带上，否则「导出 → 导回」丢一整片 */
+  const awardRows = (S.awardRows||[]).filter(inIds);
+  exportBatchXlsx({ name: todayStr() + ' 筛选结果', students: list, grades, awardRows }, true);
 }
 /* xlsx 落盘：桌面版进「下载」文件夹；浏览器版走浏览器下载。
    ⚠️ XLSX.write({type:'array'}) 返回的是 ArrayBuffer（不是 Uint8Array）：
