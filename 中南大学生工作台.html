@@ -9428,10 +9428,15 @@ function isGradeCol(k){
    只留 AWARD_KEEP_COLS，其余列直接丢 —— 这是「数据隔离」的落点。
    合并语义与档案一致：空值不覆盖、备注类不动。 */
 function applyAwardRows(rows){
-  const map = new Map((S.awardRows||[]).map(function(r){ return [String(r['学号'] == null ? '' : r['学号']), r]; }));
+  /* v2.5.5a：学号要与档案通道**同口径**。
+     unscientificNum 原先只在 normalizeRow（档案通道入口）里调用，
+     这里绕过了它 —— 学号被 Excel 存成 2.02421110077e11 时，
+     与名册的 202421110077 对不上 → awardRows() 找不到人 → 姓名/专业整列空白。 */
+  const _awId = v => String(unscientificNum(v == null ? '' : v)).trim();
+  const map = new Map((S.awardRows||[]).map(function(r){ return [_awId(r['学号']), r]; }));
   let added = 0, updated = 0;
   rows.forEach(function(r){
-    const id = String(r['学号'] == null ? '' : r['学号']).trim();
+    const id = _awId(r['学号']);
     if(!id) return;
     const patch = {};
     AWARD_KEEP_COLS.forEach(function(k){
@@ -10582,22 +10587,27 @@ function parseWishes(v){
    两份存会出现「名册改了名、评选区还是旧名」，且看不出该听谁的。
    现在身份列一律从名册取（见 awardRows()），这里不再存。
    导出时仍会带上姓名/专业作为可读校验，不影响。 */
-const AWARD_KEEP_COLS = ['总成绩', '知识水平评价',
+/* v2.5.6：身份列**加回来** —— 评选表自带姓名/专业，存进评选区即可。
+   v2.5.4 把它删掉、改为「只从名册取」，导致**只用评选模块、不导名册的老师
+   整列姓名/专业全空白**（辅导员截图）。既然数据是隔离的，就不该依赖名册。 */
+const AWARD_KEEP_COLS = ['姓名', '专业', '总成绩', '知识水平评价',
   '科研创新B1', '专业技能B2', '文体特长B3', '社会工作B4', '社会实践B5', '志愿顺序'];
 
 /* 评选表：独立存储。
    v2.5.4：姓名/专业**只从名册取**（辅导员「数据隔离，主数据可以不要评选相关条目」）。
    原来还兜一层 r['姓名']，两份存会出现「名册改了名、评选区还是旧名」而看不出听谁的。
    评选区只留「学号 + 各项评分 + 志愿顺序」这些真正只属于评选的字段。 */
+/* 评选区只用自己的数据（v2.5.6）—— 不去名册查。
+   「数据隔离」的含义就是两边互不依赖：不导名册也能正常评选。
+   顺带把「每个学生 filter 全表扫一遍」改成先建 Map（132×189 = 2.5 万次 → 132 次）。 */
 function awardRows(){
   const src = (S.awardRows && S.awardRows.length) ? S.awardRows : [];
   return src.map(function(r){
-    const sid = String(r['学号'] == null ? '' : r['学号']);
-    const stu = (S.students||[]).filter(x => String(x['学号']) === sid)[0] || {};
+    const sid = String(unscientificNum(r['学号'] == null ? '' : r['学号']));
     return {
       sid: sid,
-      name: stu['姓名'] || stu['姓名1'] || '',
-      major: stu['专业'] || '',
+      name: r['姓名'] || r['姓名1'] || '',
+      major: r['专业'] || '',
       总成绩: r['总成绩'] || '',
       智力: r['知识水平评价'] || '',
       B1: r['科研创新B1'] || '', B2: r['专业技能B2'] || '',
