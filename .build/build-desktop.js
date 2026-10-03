@@ -18,6 +18,18 @@
 const fs = require('fs');
 const path = require('path');
 
+/* 出包前先对齐版本号（2026-10-04）：
+   以前版本号散在 4 个文件里手动维护，辅导员在「系统设置 → 关于」里
+   看到的是 v2.1.0（漏了两轮）。现在以 app/package.json 为唯一来源，
+   每次出包自动写入 HTML 的 APP_VER / tauri.conf.json / Cargo.toml。 */
+/* ⚠️ 不用 execFileSync 起子进程 —— 本机火绒常拦（EBUSY），
+   同进程 require 才稳。sync-version 导出成函数，这里直接调。 */
+try {
+  require(path.join(__dirname, 'sync-version.js')).syncVersion();
+} catch (e) {
+  console.warn('[build-desktop] 版本号同步失败（不阻断构建）：', e && e.message);
+}
+
 const SELFTEST = process.argv.includes('--selftest');
 
 const ROOT = path.resolve(__dirname, '..');

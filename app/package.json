@@ -6,7 +6,8 @@
   "scripts": {
     "tauri": "tauri",
     "sync": "node ../.build/build-desktop.js",
-    "build": "node ../.build/build-desktop.js && tauri build"
+    "build": "node ../.build/sync-version.js && node ../.build/build-desktop.js && tauri build",
+    "version:sync": "node ../.build/sync-version.js"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2"
