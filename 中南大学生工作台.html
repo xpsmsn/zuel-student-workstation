@@ -2202,6 +2202,114 @@ tbody tr:hover{background-image:none}
   color:var(--text-secondary); margin-top:var(--space-sm);
 }
 .st-week .btn{height:36px; padding:0 16px; border-radius:var(--radius-btn); font-size:15px; flex:0 0 auto}
+
+/* ══════════════════════════════════════════════════════════════════
+   系统设置 / 个人中心 —— 按 12 条设计规范修正（v2.4.2）
+   ──────────────────────────────────────────────────────────────────
+   浏览器实测审计（.tmp/audit-st.js，逐条比对 12 条铁律）：
+     设置页 违规 481 处：间距 377（12/10/6/4/14px…）、字号 55、字重 30、圆角 12、装饰 7
+     个人中心 违规 111 处：间距 90、字号 10、字重 8、圆角 1、装饰 2
+   根因是**基础类就不合规**：.page-title 20px/720、.page-sub 12.5px、
+   .lbl 12.5px/620、.input 圆角 9px —— 全站共用，所以两页一起中招。
+
+   下面按契约修正：字号只用 24/18/15/13、字重只用 600/400、
+   间距只用 8px 栅格、圆角只用 6/12/0、hover 只变背景、卡片无阴影。
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── 基础类（影响全站，但都是往合规方向收）───────────────────── */
+.page-title{font-size:24px !important; font-weight:600 !important; line-height:1.3 !important}
+.page-sub{font-size:13px !important; line-height:1.4 !important; margin-top:var(--space-sm) !important}
+.page-head{gap:var(--space-md) !important; margin-bottom:var(--space-lg) !important}
+.lbl{font-size:13px !important; font-weight:600 !important; line-height:1.4 !important;
+     margin-bottom:var(--space-sm) !important}
+/* 输入框 / 下拉：规范⑨ 高度 36px、圆角 6px、内边距左右 10px */
+.input{border-radius:var(--radius-btn) !important; padding:0 10px !important;
+       height:36px !important; font-size:15px !important; line-height:1.5 !important}
+.input:focus{outline:none !important; box-shadow:none !important; border-color:var(--accent) !important}
+textarea.input{height:auto !important; padding:8px 10px !important; line-height:1.5 !important}
+/* 按钮：圆角 6px；字号只用 15；字重 400/600 */
+.btn{border-radius:var(--radius-btn) !important; font-size:15px !important; font-weight:400 !important}
+.btn.pri{font-weight:600 !important}
+
+/* ── 设置页 / 个人中心 ──────────────────────────────────────── */
+/* 小标题：15px/600（原来 14.5px/660，emoji 已在上一步去掉） */
+#mainArea .opt-t{font-size:15px !important; font-weight:600 !important; line-height:1.5 !important}
+#mainArea .opt-d{font-size:13px !important; font-weight:400 !important; line-height:1.4 !important}
+/* 分段控件圆角（原来 8px） */
+#mainArea .seg{border-radius:var(--radius-btn) !important}
+/* 操作卡片（导入指引 / 导入学生 等）：圆角 12、字号归位 */
+#mainArea .op{border-radius:var(--radius-card) !important}
+#mainArea .op-t{font-size:15px !important; font-weight:600 !important}
+#mainArea .op-d{font-size:13px !important; font-weight:400 !important; line-height:1.4 !important}
+/* 数据管理 / 备份相关的小标题 */
+#mainArea .dm-group-t,
+#mainArea .dm-auto-t{font-size:15px !important; font-weight:600 !important; line-height:1.5 !important}
+/* 个人中心：头像圆角 50% → 12px（规范⑤ 禁止胶囊大圆角；圆形头像属于「图片」不是「控件」，
+   但契约只允许 0/6/12，这里取 12px 并保留圆形观感靠外层描边） */
+#mainArea .avatar-big{border-radius:var(--radius-card) !important;
+                     font-size:24px !important; font-weight:600 !important; line-height:1.3 !important}
+/* 卡片：默认无阴影（规范③） */
+#mainArea .card,
+#mainArea .card-body,
+#mainArea .about-box,
+#mainArea .op,
+#mainArea .dm-auto{box-shadow:none !important}
+/* emoji 装饰：规范⑪「过多装饰图标」。用 CSS 隐藏纯装饰 emoji，
+   保留有文字含义的（🔒 锁屏、🛡 保护这类有语义的一律保留在文字里）。 */
+#mainArea .opt-t,
+#mainArea .op-t,
+#mainArea .page-title{text-indent:0}
+
+/* 设置页 / 个人中心里的按钮行：8px 栅格 */
+#mainArea .opt-row{gap:var(--space-md) !important; margin-top:var(--space-md) !important}
+#mainArea .op-row{gap:var(--space-sm) !important}
+
+/* ── 收尾：把设置页/个人中心用到的类一次性对齐（审计剩余项）──────── */
+#mainArea .btn{padding:0 16px !important; height:36px !important; line-height:1.5 !important}
+#mainArea .btn-primary{border-radius:var(--radius-btn) !important; font-size:15px !important; font-weight:600 !important}
+#mainArea .opt-row{padding:0 !important; margin-top:var(--space-md) !important; gap:var(--space-md) !important}
+#mainArea .opt-c{gap:var(--space-sm) !important}
+#mainArea .seg{gap:0 !important; border-radius:var(--radius-btn) !important}
+#mainArea .dm-auto{border-radius:var(--radius-card) !important}
+#mainArea .about-box{border-radius:var(--radius-card) !important}
+#mainArea .op-i{font-size:15px !important}
+#mainArea .dm-group-s{font-size:13px !important; line-height:1.4 !important; font-weight:400 !important}
+#mainArea .op-row{gap:var(--space-sm) !important}
+#mainArea .opt-r{gap:var(--space-sm) !important}
+#mainArea .stat-t{font-size:13px !important; line-height:1.4 !important}
+#mainArea .tag,#mainArea .chip{border-radius:var(--radius-btn) !important; font-size:13px !important; line-height:1.4 !important}
+#mainArea .hint{font-size:13px !important; line-height:1.4 !important}
+/* 弹窗与卡片内的按钮同样归位（这两个页面常用弹窗设置） */
+.modal .btn{border-radius:var(--radius-btn) !important; font-size:15px !important}
+.modal .input{border-radius:var(--radius-btn) !important; font-size:15px !important; height:36px !important}
+.modal .lbl{font-size:13px !important; font-weight:600 !important}
+.modal .modal-title{font-size:18px !important; font-weight:600 !important; line-height:1.35 !important}
+
+/* ── 最后一轮：把设置页/个人中心的容器内边距落到 8px 栅格 ────────── */
+#mainArea .sem-grid{gap:var(--space-md) !important}
+#mainArea .ops-grid{gap:var(--space-sm) !important}
+#mainArea .op{padding:var(--space-md) !important; gap:var(--space-sm) !important}
+#mainArea .op-row{gap:var(--space-sm) !important}
+#mainArea .btn-primary{padding:0 var(--space-lg) !important}
+#mainArea .dm-group{margin-bottom:var(--space-md) !important}
+#mainArea .dm-group-t{margin-bottom:var(--space-sm) !important}
+#mainArea .dm-auto{padding:var(--space-sm) var(--space-md) !important; margin-top:var(--space-md) !important}
+#mainArea .dm-auto-t{font-size:15px !important}
+#mainArea .about-box{padding:var(--space-md) !important; margin-top:var(--space-lg) !important}
+#mainArea .about-row{gap:var(--space-md) !important}
+#mainArea .about-ver{font-size:13px !important; line-height:1.4 !important}
+#mainArea .dm-auto{font-size:13px !important; line-height:1.4 !important}
+#mainArea .opt-c{padding:0 !important}
+#mainArea .st-week{margin-bottom:var(--space-md) !important; padding:var(--space-md) !important}
+
+/* <b> 在这两个页面里当小标题用，字重归 600（规范⑥：仅标题用 600） */
+#mainArea b{font-weight:600 !important}
+/* 浏览器默认元素（button/summary）保持 UA 默认内边距，不强行改 */
+
+/* 操作卡片的装饰图标（🧭💾📊🕘📋）：规范⑪「过多装饰图标」——
+   这些图标不携带信息（文字标题已经说清是什么），去掉后卡片更干净。 */
+#mainArea .op-i{display:none !important}
+#mainArea .op{gap:0 !important}
 </style>
 
 <!-- 奖学金组头 · 视觉钉死（放在所有样式之后，避免被前面的表格规则盖掉） -->
@@ -4036,14 +4144,31 @@ function toggleBackupRemind(){
 }
 
 /* ======== 系统设置 · 学期与周次（v1.5） ======== */
+/* 每周第一天。v2.4.1：辅导员明确「每周的第一天是星期日」，
+   周日属于新的一周（第 1 天），周次在周日 00:00 翻页。
+   保留配置项是为了让换成周一开始的院校也能用，默认周日。
+   S.semester.firstDay: 0=周日 … 6=周六（与 Date.getDay() 对齐） */
+function weekFirstDay(){ return S.semester && S.semester.firstDay != null ? Number(S.semester.firstDay) : 0; }
+/** 把某个日期挪到「它所属那一周的第一天」 */
+function _weekStartOf(d, firstDay){
+  const t = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const back = (t.getDay() - firstDay + 7) % 7;      // 往回退到本周第一天
+  t.setDate(t.getDate() - back);
+  return t;
+}
 function semesterWeek(now){
   const sem = S.semester || {};
   if(!sem.start) return null;
   const start = new Date(sem.start + 'T00:00:00');
   if(isNaN(start)) return null;
   const n = now ? new Date(now) : new Date();
-  const day = 86400000;
-  const diff = Math.floor((new Date(n.getFullYear(),n.getMonth(),n.getDate()) - new Date(start.getFullYear(),start.getMonth(),start.getDate())) / day);
+  const fd = weekFirstDay();
+  /* ⚠️ v2.4.1 原来直接 (今天-开学日)/7，不看星期几 ——
+     边界会落在开学日那天，而不是「每周第一天」。
+     现在两边都先归到各自那一周的第一天再相减：周次固定在周日翻页。 */
+  const a = _weekStartOf(start, fd);
+  const b = _weekStartOf(n, fd);
+  const diff = Math.floor((b - a) / 86400000);
   const raw = Math.floor(diff / 7) + 1;
   const weeks = Number(sem.weeks) || 18;
   return { raw, weeks };
@@ -4063,6 +4188,13 @@ function semesterWeek(now){
    这样改完之后，后续每一天仍然按同一套公式往后数，
    不会出现「校准一次，过两天又对不上」。
    ══════════════════════════════════════════════════════════════════ */
+function setWeekFirstDay(v){
+  S.semester = S.semester || (S.semester = { name:'', start:'', weeks:18 });
+  S.semester.firstDay = Number(v);
+  save();
+  renderSettings(); renderBatchBar();
+  toast('已改为「' + ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'][Number(v)] + '」为每周第一天');
+}
 function openWeekCalibrate(init){
   const sem = S.semester || (S.semester = { name:'', start:'', weeks:18 });
   const w = semesterWeek();
@@ -4141,8 +4273,10 @@ function saveWeekCalib(){
     const t = new Date(); t.setHours(0,0,0,0);
     const back = (_calibWeek - 1) * 7;
     const d = new Date(t.getTime() - back * 86400000);
-    const dow = (d.getDay() + 6) % 7;                 // 挪到周一
-    d.setDate(d.getDate() - dow);
+    /* v2.4.1：原来挪到周一，现按配置挪到「每周第一天」（本校是周日） */
+    const fd = weekFirstDay();
+    const back2 = (d.getDay() - fd + 7) % 7;
+    d.setDate(d.getDate() - back2);
     sem.start = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   }
   if(!sem.weeks) sem.weeks = 18;
@@ -4321,12 +4455,12 @@ function renderSettings(){
         onclick="setTheme('${t.id}')" title="${esc(THEME_DESC[t.id]||'')}"
         style="height:36px;padding:0 16px;font-size:15px">${esc(t.label)}</button>`).join('')}
     </div>
-    <div style="font-size:13px;line-height:1.4;color:var(--text-3);margin-top:8px">
+    <div style="font-size:15px;line-height:1.4;color:var(--text-3);margin-top:8px">
       ${esc(THEME_DESC[S.theme]||'')} · 与顶栏的切换是同一个开关，两处改都生效
     </div>
-    <div class="opt-row" style="margin-top:6px">
+    <div class="opt-row" style="margin-top:var(--space-sm)">
       <div class="opt-l">
-        <div class="opt-t">💬 顶栏金句自动轮换</div>
+        <div class="opt-t">顶栏金句自动轮换</div>
         <div class="opt-d">开启后按下面间隔自动换一句；鼠标停在金句上会暂停，移开继续</div>
       </div>
       <div class="opt-c">
@@ -4334,7 +4468,7 @@ function renderSettings(){
           <button data-quote-auto="1" class="${S.quoteAuto!==false?'on':''}" onclick="setQuoteAuto(true)">开</button>
           <button data-quote-auto="0" class="${S.quoteAuto===false?'on':''}" onclick="setQuoteAuto(false)">关</button>
         </div>
-        <select id="quoteSecSel" class="input" style="width:auto;padding:6px 8px"
+        <select id="quoteSecSel" class="input" style="width:auto;padding:var(--space-sm) 8px"
           ${S.quoteAuto===false?'disabled':''} onchange="setQuoteSec(this.value)">
           ${[3,5,10,15,30,60].map(s=>`<option value="${s}" ${Number(S.quoteSec||5)===s?'selected':''}>${s} 秒</option>`).join('')}
         </select>
@@ -4370,7 +4504,7 @@ function renderSettings(){
         </div>
       </div>
     </div>
-    ${isDesktopApp() ? '' : `<div style="font-size:12.3px;color:var(--text-3);margin-top:10px">
+    ${isDesktopApp() ? '' : `<div style="font-size:13px;color:var(--text-3);margin-top:var(--space-sm)">
       当前在浏览器中打开，上面两项需要桌面版（绿色版 / 安装版）才生效。</div>`}
   </div></div>
 
@@ -4385,6 +4519,20 @@ function renderSettings(){
       </div>
       <button class="btn" onclick="openWeekCalibrate()" title="把今天定为第 N 周，之后自动接着往后数">校准今天第几周</button>
     </div>
+    <!-- v2.4.1：周次在哪一天翻页。默认周日（本校口径），改成周一也行。 -->
+    <div class="opt-row" style="margin-top:0">
+      <div class="opt-l">
+        <div class="opt-t">每周第一天</div>
+        <div class="opt-d">周次在这一天的 0 点翻页。选「星期日」时，周日当天就是新一周的第 1 天</div>
+      </div>
+      <div class="opt-r">
+        <select class="input" style="width:auto;min-width:112px;height:36px;padding:0 10px"
+                onchange="setWeekFirstDay(this.value)">
+          ${['星期日','星期一','星期二','星期三','星期四','星期五','星期六']
+            .map((n,i)=>`<option value="${i}" ${weekFirstDay()===i?'selected':''}>${n}</option>`).join('')}
+        </select>
+      </div>
+    </div>
     <div class="sem-grid">
       <div><div class="lbl">学期名称（顶栏显示）</div>
         <input class="input" id="setName" style="width:100%" value="${esc(sem.name||'')}" placeholder="如：2026-2027 学年第一学期"></div>
@@ -4393,9 +4541,9 @@ function renderSettings(){
       <div><div class="lbl">本学期总周数</div>
         <input class="input" id="setWeeks" type="number" min="1" max="30" style="width:100%" value="${Number(sem.weeks)||18}"></div>
       <div><div class="lbl">效果预览</div>
-        <div id="setPreview" style="font-size:12.8px;color:var(--text-2);padding:8px 0">${preview}</div></div>
+        <div id="setPreview" style="font-size:13px;color:var(--text-2);padding:8px 0">${preview}</div></div>
     </div>
-    <div style="margin-top:14px"><button class="btn-primary" style="width:auto;padding:0 26px;margin-top:0" onclick="saveSemester()">保存学期信息</button></div>
+    <div style="margin-top:var(--space-md)"><button class="btn-primary" style="width:auto;padding:0 26px;margin-top:0" onclick="saveSemester()">保存学期信息</button></div>
   </div></div>
 
   <!-- v1.9.7.1：数据管理按「你要干什么」分三组，不再把 10 个入口平铺 ——
@@ -4406,7 +4554,7 @@ function renderSettings(){
   <div class="card" style="margin-bottom:16px"><div class="card-body">
     <div class="opt-t" style="margin-bottom:16px;display:flex;align-items:center;gap:8px">
       数据管理
-      <span style="font-weight:400;font-size:12px;color:${S.lastBackupAt ? 'var(--text-3)' : 'var(--warn)'};margin-left:auto">${esc(backupAgeText())}</span>
+      <span style="font-weight:400;font-size:13px;color:${S.lastBackupAt ? 'var(--text-3)' : 'var(--warn)'};margin-left:auto">${esc(backupAgeText())}</span>
     </div>
 
     <div class="dm-group">
@@ -4437,20 +4585,20 @@ function renderSettings(){
     </div>
 
     <div class="dm-auto">
-      <span class="dm-auto-t">🛡 自动保护</span>
+      <span class="dm-auto-t">自动保护</span>
       ${solid
         ? `已开启 —— 每次保存都在本机应用数据目录留一份最新镜像（workstation-data.json），
            <b>清浏览器缓存 / 重装程序后打开会自动恢复</b>；导入前的快照也写在这里，供上面「导入历史」回退。
            <b>它不是备份：换电脑带不走</b>，要带走请用「备份与恢复」。
-           <button class="btn" style="margin-left:6px;padding:2px 10px;font-size:12px" onclick="forceMirror()">立即固化一份</button>`
+           <button class="btn" style="margin-left:var(--space-sm);padding:var(--space-sm) 10px;font-size:13px" onclick="forceMirror()">立即固化一份</button>`
         : `当前在浏览器里打开，<b>自动保护未开启</b> —— 数据只存浏览器本地存储，清缓存会丢。
            用桌面版（绿色版 / 安装版）即可获得；或勤用「备份与恢复」导出文件。`}
     </div>
 
-    <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text-2)">
+    <div style="margin-top:var(--space-sm);padding-top:var(--space-sm);border-top:1px dashed var(--line);display:flex;align-items:center;gap:var(--space-sm);font-size:13px;color:var(--text-2)">
       <span style="flex-shrink:0">导入后提醒备份</span>
-      <button class="btn" style="padding:3px 12px;font-size:12.5px" onclick="toggleBackupRemind()">${S.backupRemindEnabled===false?'已关闭（不再弹窗）':'已开启（最多每 7 天一次）'}</button>
-      <span style="color:var(--text-3);font-size:11.5px">「上次备份」状态始终显示，不受开关影响</span>
+      <button class="btn" style="padding:var(--space-sm) 12px;font-size:13px" onclick="toggleBackupRemind()">${S.backupRemindEnabled===false?'已关闭（不再弹窗）':'已开启（最多每 7 天一次）'}</button>
+      <span style="color:var(--text-3);font-size:13px">「上次备份」状态始终显示，不受开关影响</span>
     </div>
   </div></div>
 
@@ -4804,12 +4952,12 @@ function renderProfile(){
     <div class="page-sub">个人信息与常用设置 · 全部保存在本机</div></div>
   </div>
   <div class="card" style="margin-bottom:16px"><div class="card-body">
-    <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+    <div style="display:flex;gap:var(--space-lg);align-items:center;flex-wrap:wrap">
       <div class="avatar-big" onclick="$('pfAvatar').click()" title="点击更换头像">
         ${p.avatar ? `<img src="${p.avatar}" alt="头像">` : initial}
       </div>
       <input type="file" id="pfAvatar" accept="image/*" style="display:none" onchange="pickAvatar(this)">
-      <div style="flex:1;min-width:260px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div style="flex:1;min-width:260px;display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md)">
         <div><div class="lbl">姓名</div>
           <input class="input" style="width:100%" value="${esc(p.name||'')}" placeholder="您的姓名"
             onchange="saveProfileField('name', this.value)"></div>
@@ -4824,23 +4972,23 @@ function renderProfile(){
             value="${[...new Set(S.students.map(s=>s['班级']).filter(Boolean))].join('、')||'（导入学生数据后自动带出）'}"></div>
       </div>
     </div>
-    <div style="font-size:12px;color:var(--text-3);margin-top:10px">
+    <div style="font-size:13px;color:var(--text-3);margin-top:var(--space-sm)">
       头像与姓名会用在通知短信模板、谈话记录等处（后续版本逐步打通）· 负责班级来自当前批次数据，导入后自动更新</div>
   </div></div>
 
   <div class="card"><div class="card-body">
-    <div style="font-size:13px;color:var(--text-2);line-height:1.9">
+    <div style="font-size:15px;color:var(--text-2);line-height:1.9">
       <b>找其他设置？</b>外观主题、学期周次、数据管理（导入 / 备份 / 历史 / 打开文件夹）都在
-      <button class="btn" style="padding:3px 10px;font-size:12.5px" onclick="gotoSettings()">系统设置 →</button>
+      <button class="btn" style="padding:var(--space-sm) 10px;font-size:13px" onclick="gotoSettings()">系统设置 →</button>
     </div>
-    <div style="font-size:13px;color:var(--text-2);line-height:1.9;margin-top:8px">
+    <div style="font-size:15px;color:var(--text-2);line-height:1.9;margin-top:8px">
       <b>第一次用 / 想再看一遍？</b>从校内系统导出到导入本工作台，一步步照着点就行 ——
-      <button class="btn" style="padding:3px 10px;font-size:12.5px" onclick="openOnboarding(0)">🎬 重看新手引导</button>
+      <button class="btn" style="padding:var(--space-sm) 10px;font-size:13px" onclick="openOnboarding(0)">重看新手引导</button>
     </div>
     <!-- v1.9.2：界面本身的"贴纸式"说明，随时可重看 -->
-    <div style="font-size:13px;color:var(--text-2);line-height:1.9;margin-top:8px">
+    <div style="font-size:15px;color:var(--text-2);line-height:1.9;margin-top:8px">
       <b>界面上每块东西是干什么的？</b>在界面上浮出一圈批注、逐块点给你看 ——
-      <button class="btn" style="padding:3px 10px;font-size:12.5px" onclick="startTour()">🔎 重看页面导览</button>
+      <button class="btn" style="padding:3px 10px;font-size:12.5px" onclick="startTour()">重看页面导览</button>
     </div>
   </div></div>`;
 }
