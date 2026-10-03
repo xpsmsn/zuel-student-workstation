@@ -5105,6 +5105,39 @@ function renderDashGreeting(){
 
 /* 校内两个数据来源。登录地址是「统一身份认证」跳转地址，登录后按各自菜单导出。 */
 const ZUEL_SYS = {
+  /* ── 奖学金评选专用数据源（2026-10-03 辅导员提供）────────────────
+     与下面的学生基本信息表分开：这两份是**评选**用的，列里带志愿与各项加分，
+     导进学生名册会污染档案（评选系统走独立数据区，见 AWARD_KEEP_COLS）。 */
+  zxjx: {
+    name: '智慧学工',
+    what: '申报情况（志愿）',
+    url : 'https://ids.zuel.edu.cn/authserver/login?service=https%3A%2F%2Fistu.zuel.edu.cn%2Fxsfw%2Fsys%2Fxggzptapp%2F*default%2Findex.do%3Fmin%3D1#/gzzm',
+    menu: ['奖学金', '志愿申报情况'],
+    steps: [
+      '用<b>统一身份认证</b>登录智慧学工',
+      '进入 <b>奖学金 → 志愿申报情况</b>',
+      '点「<b>导出</b>」，选「<b>自定义导出</b>」',
+      '字段<b>全选</b>（重点要有「学号」和「志愿顺序」）',
+      '点「<b>导出</b>」并保存到电脑（.xlsx）'
+    ],
+    note: '「志愿顺序」一列是学生填报的奖项意向，格式可能是「5.××× 6.××× 文体佳绩×××」——' +
+          '编号只到前几项、后面直接连排，本工作台按<b>奖项名称</b>逐项识别，不按数字切分。'
+  },
+  zhcp: {
+    name: '智慧学工',
+    what: '综合测评分数',
+    url : 'https://ids.zuel.edu.cn/authserver/login?service=https%3A%2F%2Fistu.zuel.edu.cn%2Fxsfw%2Fsys%2Fxggzptapp%2F*default%2Findex.do%3Fmin%3D1#/gzzm',
+    menu: ['综合测评', '测评审核'],
+    steps: [
+      '用<b>统一身份认证</b>登录智慧学工',
+      '进入 <b>综合测评 → 测评审核</b>',
+      '点「<b>导出</b>」，选「<b>自定义导出</b>」',
+      '字段<b>全选</b>（重点要有「学号」「总成绩」「知识水平评价」「科研创新B1」~「社会实践B5」）',
+      '点「<b>导出</b>」并保存到电脑（.xlsx）'
+    ],
+    note: '这份就是评选表的主体：总成绩、知识水平评价（= 过去一年的加权平均成绩）、B1~B5 各项加分。' +
+          '导入时只会取评选要用的几列，其余列不进来。'
+  },
   xsgz: {
     name: '智慧学工',
     what: '学生基本信息表',
@@ -9553,7 +9586,9 @@ function awardRows(){
 
 /* ── 筛选与排序状态 ── */
 let _awFilter = '';        // '' = 全部；否则是奖项 key
-let _awSort = { key:'智力', dir:'desc' };
+/* 默认排序：**总成绩 从高到低**（辅导员 2026-10-03：「奖学金 默认以总成绩 从高到底排序」）
+   之前默认是「智力水平评价」——总成绩是综合测评的总分，评审时先看它。 */
+let _awSort = { key:'总成绩', dir:'desc' };
 let _awSel = new Set();    // 勾选的学号
 
 /* 核心规则（用户 2026-10-03）：
@@ -9820,6 +9855,39 @@ function setAwardSplit(key, val){
   save(); renderAward();
 }
 /** 打开「按专业细分」弹窗 */
+/* 评选数据从哪导（2026-10-03 辅导员提供）
+   路径：申报情况 → 智慧学工—奖学金—志愿申报情况—导出—自定义导出 全选导出
+        综合测评分数 → 智慧学工—综合测评—测评审核—导出—自定义导出 全选导出 */
+function openAwardSourceGuide(){
+  const card = (key) => {
+    const d = ZUEL_SYS[key];
+    return '<div class="card" style="margin-bottom:16px"><div class="card-body">'
+      + '<div style="font-size:15px;font-weight:600;margin-bottom:4px">'
+      + esc(d.what) + '</div>'
+      + '<div style="font-size:12.5px;color:var(--text-3);margin-bottom:12px">'
+      + esc(d.name) + ' → ' + d.menu.map(esc).join(' → ') + '</div>'
+      + '<ol style="margin:0 0 12px;padding-left:20px;font-size:13px;line-height:1.9;color:var(--text-2)">'
+        + d.steps.map(x => '<li>' + x + '</li>').join('')
+      + '</ol>'
+      + '<div class="hint" style="margin-bottom:12px">' + esc(d.note) + '</div>'
+      + '<button class="btn pri" onclick="openSysUrl(\'' + d.url + '\')">打开「' + esc(d.name) + '」→</button>'
+      + '</div></div>';
+  };
+  $('modalRoot').innerHTML =
+    '<div class="mask" onclick="if(event.target===this)closeModal()">'
+    + '<div class="modal wide" onclick="event.stopPropagation()">'
+    + '<div class="modal-head"><div class="modal-title">评选数据从哪导</div>'
+    + '<div class="modal-close" onclick="closeModal()">×</div></div>'
+    + '<div class="modal-body">'
+    + '<div class="hint" style="margin-bottom:16px">两份表都从<b>智慧学工</b>导，'
+      + '菜单不同、都要「自定义导出 → 全选」。导完直接拖进「导入评选数据」，'
+      + '系统按<b>学号</b>自动对上人，只取评选要用的几列。</div>'
+    + card('zhcp') + card('zxjx')
+    + '</div>'
+    + '<div class="modal-foot"><button class="btn pri" onclick="closeModal()">知道了</button></div>'
+    + '</div></div>';
+}
+
 function openAwardSplit(key){
   const stats = awardMajorStats();
   const total = awardQuota(key);
@@ -9950,6 +10018,7 @@ function renderAward(){
     </div>
     <div class="award-ops">
       <button class="btn pri" onclick="openImport('只取 姓名/学号/专业/总成绩/知识水平评价/B1~B5/志愿顺序，其余列不进任何数据')">导入评选数据</button>
+      <button class="btn" onclick="openAwardSourceGuide()" title="这两份表从智慧学工的哪里导">数据从哪导</button>
       ${Object.keys(S.awardStatus||{}).length?`<button class="btn" onclick="awardClearStatus()">清空拟定</button>`:''}
       ${all.length?`<button class="btn" onclick="awardExportCsv()">导出 CSV</button>`:''}
     </div>
@@ -9960,10 +10029,13 @@ function renderAward(){
       <div style="font-size:32px;margin-bottom:10px">🏅</div>
       <div style="font-weight:600;font-size:15px;margin-bottom:6px">还没有评选数据</div>
       <div style="font-size:13px;color:var(--text-3);line-height:1.8">
-        把「评选表」（知识水平评价、B1~B5）和「申报情况」（志愿顺序）导进来，<br>
-        都会按<b>学号</b>自动对上人。
+        要两份表：<b>综合测评分数</b>（总成绩、知识水平评价、B1~B5）和<b>申报情况</b>（志愿顺序），<br>
+        都从智慧学工「自定义导出 → 全选」，导完按<b>学号</b>自动对上人。
       </div>
-      <div style="margin-top:16px"><button class="btn pri" onclick="openImport('把评选表或申报情况导进来')">导入评选数据</button></div>
+      <div style="margin-top:16px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        <button class="btn pri" onclick="openImport('把评选表或申报情况导进来')">导入评选数据</button>
+        <button class="btn" onclick="openAwardSourceGuide()">这两份表从哪导？</button>
+      </div>
     </div></div>`;
     $('mainArea').innerHTML = h;
     return;
