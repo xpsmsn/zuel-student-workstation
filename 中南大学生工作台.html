@@ -11190,10 +11190,12 @@ function renderAward(){
       ${all.length?`<button class="btn" onclick="awardExportCsv()">导出 CSV</button>`:''}
       <!-- v2.5.5：评选数据是独立的，给它一个自己的清理入口。
            点开先看清会清掉什么（几条评选数据 / 拟了几个人 / 几个名额），
-           确认后 30 秒内可撤销。学生名册与成绩不动。 -->
-      ${(S.awardRows||[]).length || Object.keys(S.awardStatus||{}).length || Object.keys(S.awardQuota||{}).length
-        ? `<button class="btn" onclick="awardClearAll()"
-             title="只清空奖学金评选区的数据；学生名册、成绩、备注都不受影响">清理评选数据</button>` : ''}
+           确认后 30 秒内可撤销。学生名册与成绩不动。
+           v2.5.6：**不再按「评选区是否有内容」隐藏** —— 之前写成有数据才显示，
+           结果清空之后按钮自己消失了，想再清理/查看说明就没入口了。
+           现在常驻显示；评选区本来就是空的时候点了会提示一句。 -->
+      <button class="btn" onclick="awardClearAll()"
+        title="只清空奖学金评选区的数据；学生名册、成绩、备注都不受影响。30 秒内可撤销。">清理评选数据</button>
     </div>
   </div>`;
 
