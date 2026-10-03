@@ -4340,7 +4340,9 @@ function renderSettings(){
       <div class="ops-grid ops-grid-6">
         <button class="op" onclick="gotoGuide()"><span class="op-i">🧭</span><span class="op-t">导入指引</span><span class="op-d">不知道从哪导先看</span></button>
         <button class="op" onclick="openImport()"><span class="op-i">⬇</span><span class="op-t">导入学生</span><span class="op-d">Excel 名册一步到位</span></button>
-        <button class="op" onclick="openImport('成绩表也走这里：认得出的成绩列会自动存进成绩，不进档案')"><span class="op-i">📑</span><span class="op-t">导入成绩</span><span class="op-d">${hasGrade()?(S.grades.length+' 条'):'走「导入数据」即可'}</span></button>
+        <!-- v2.3.5：原来这里有第三张「导入成绩」卡片。它点进去也是 openImport
+             （成绩列自动分流），与旁边的「导入学生」是同一个入口。老师确认：删掉。
+             成绩从同一入口进即可，不再单开一个。 -->
       </div>
     </div>
 
@@ -5698,10 +5700,11 @@ function renderOnboarding(){
           学生表里有、成绩单里没有的，显示「<b>暂无成绩</b>」，不会被丢掉。</div></div>
       </div>
       <div class="wiz-do" style="margin-top:12px">
-        <button class="btn pri" onclick="closeModal();openGradeImport()">现在导入成绩单 →</button>
+        <button class="btn pri" onclick="closeModal();openImport('成绩表也走这个入口：认得出的成绩列会自动存进成绩，不进学生档案')">现在导入成绩单 →</button>
         <span class="wiz-do-t">${S.students.length ? `当前已导入 ${S.students.length} 人` : '还没导学生表的话，先回第 ③ 步'}</span>
       </div>
-      <div class="gwarn ok">成绩也可以以后再补：随时点右上角「<b>+ 导入成绩</b>」就行。</div>
+      <div class="gwarn ok">成绩也可以以后再补：随时点右上角「<b>+ 导入数据</b>」，
+        选中成绩单即可 —— 成绩列会自动分开存，不会混进学生档案。</div>
     </div>`;
   }else{
     body = `<div class="wiz-hero" style="padding-top:20px">
@@ -6286,7 +6289,7 @@ function openBatchManager(){
             </div>
             <div class="batch-acts">
               ${b.id===activeId?'':`<button class="btn" onclick="switchBatch('${b.id}');openBatchManager();">切换</button>`}
-              ${b.id===activeId?`<button class="btn" onclick="closeModal();openGradeImport()">导入成绩</button>`:''}
+              ${b.id===activeId?`<button class="btn" onclick="closeModal();openImport('成绩表也走这个入口：认得出的成绩列会自动存进成绩，不进学生档案')">导入成绩</button>`:''}
               <button class="btn" onclick="exportBatchCsv(findBatch('${b.id}'))">CSV</button>
               <button class="btn" onclick="exportBatchXlsx(findBatch('${b.id}'))">Excel</button>
               <button class="btn"${renaming?' disabled':''} onclick="renameBatch('${b.id}')">重命名</button>
@@ -6544,9 +6547,11 @@ function renderList(){
       <button class="tb-btn${colsCustomized()?' primary':''}" onclick="openColSettings()"
         title="自定义显示哪些列、以及列的前后顺序">列设置</button>
       <button class="tb-btn" onclick="openSaveFilter()">保存为常用筛选</button>
-      ${hasGrade()
-        ? `<button class="tb-btn" onclick="openGradeImport()" title="重新导入本批次的成绩表">更新成绩</button>`
-        : `<button class="tb-btn primary" onclick="openGradeImport()" title="导入系统导出的「成绩信息」表，按学号与这批学生绑定">+ 导入成绩</button>`}
+      <!-- v2.3.5：原来这里有「更新成绩 / + 导入成绩」两个按钮。
+           它们点进去走的是 openGradeImport，而那个函数自 v2.1.2 起
+           已被改成「统一走 openImport」的薄封装 —— 与右上角「+ 导入数据」
+           完全重复（成绩列按列自动分流）。老师 2026-10-03 确认：删掉。
+           成绩从右上角「+ 导入数据」进即可。 -->
     </div>
     <div class="card-body" style="padding-bottom:14px">
       <div class="filterbar" data-tour="filter" style="margin-bottom:14px">
@@ -9449,10 +9454,15 @@ function doImport(){
       if(!id){ badRows.push(excelRowNo(idx)); return; }
       if(recMap.has(id)){
         // ── CSV 内部学号已见过：合并字段（空值不覆盖已有）
+        // ⚠️ v2.3.5：这条路径原先**没有**跳过成绩列与评选列，
+        //    同一份 CSV 里出现重复学号时，成绩会顺带写进学生档案。
+        //    （另一条「第一次见学号」的路径有判断，就漏了这一条。）
         const old = recMap.get(id);
         Object.entries(r).forEach(([k,v])=>{
           if(k === '备注（保密）') return;        // 铁律①：备注永不覆盖
           if(v == null || v === '') return;      // 铁律②：空值不覆盖
+          if(gsplit.grade.indexOf(k) >= 0) return;  // 成绩列不进档案
+          if(isAwardCol(k)) return;                 // 评选列不进档案
           old[k] = v;
         });
         internalMerged++;
@@ -9611,8 +9621,15 @@ function doImportMerge(rows, cols, mode, remarkMap, backupName, clearedCount, pr
       if(isInternalDup) internalMerged++;            // v1.9.7：与"已有 prevList"无关，专门统计 CSV 内部重复
     }else{
       // ── 新增：只写入本行真正有值的列 ──
+      // ⚠️ v2.3.5：这条路径原先**没有**按列分流，成绩列会被写进学生档案。
+      //    （旁边「已存在」分支有判断；空库导入走的正是这里。）
       const rec = {};
-      Object.entries(r).forEach(([k,v])=>{ if(v != null && v !== '') rec[k] = v; });
+      Object.entries(r).forEach(([k,v])=>{
+        if(v == null || v === '') return;
+        if(gsplit.grade.indexOf(k) >= 0) return;   // 成绩列 → 成绩层，不进档案
+        if(isAwardCol(k)) return;                 // 评选列 → 评选表，不进档案
+        rec[k] = v;
+      });
       if(applyRosterRule(rec, sheetKind)) rosterSynced++;   // v1.9.2：名册上的人 → 直接记为入党积极分子
       rec['备注（保密）'] = r['备注（保密）'] || null;
       map.set(id, rec);
@@ -9701,13 +9718,6 @@ function parseGradeSheet(arr){
     rows.push(o);
   }
   return { ok:true, headerIdx, header, rows, dropped };
-}
-
-function openGradeImport(hint){
-  /* v2.1.2：成绩不再有独立入口，统一走 openImport —— 它按列分流，
-     「加权平均成绩」这类列会自动进成绩层。这里的旧函数名保留成薄封装，
-     只为兼容引导页/历史链接里已有的调用点。 */
-  openImport(hint || '成绩表也走这个入口：认得出的成绩列会自动存进成绩，不进学生档案');
 }
 
 function gradePickHtml(cur, has){
@@ -10776,8 +10786,8 @@ function exportData(){
 /* ---------- v1.9.6：导出 Excel（维护用） ----------
    为什么要有它：CSV 在 Excel 里要对付编码/引号，长学号还会变科学计数；
    而且改完再存容易把"文本型数字"改坏。导出成 .xlsx（两个工作表）：
-     · 「学生信息」→ 「导入学生数据」直接吃回去
-     · 「成绩」    → 「导入成绩」直接吃回去
+     · 「学生信息」→ 「导入数据」直接吃回去
+     · 「成绩」    → 「导入数据」也直接吃回去（成绩列会自动分流到成绩层）
    形成 导出 → 在 Excel 里大范围改 → 导回 的闭环。学号一律按文本写，不会变 2.02E+11。 */
 function fieldOrderOf(list){
   /* 列顺序：主键与常用列在前 → 已知字段按 FIELD_GROUPS 顺序 → 其余字段按出现顺序。
@@ -10994,7 +11004,7 @@ function decorateDemo(list){
 
 /* ---------- 演示成绩（仅内置样例） ----------
    用样例里已有的「加权平均成绩」推导出一份成绩层数据，让首次安装就能看到
-   「学生画像 × 成绩」的绑定效果。真实数据一律由「导入成绩」决定，这里不参与。 */
+   「学生画像 × 成绩」的绑定效果。真实成绩一律由「+ 导入数据」导入的成绩表决定，这里不参与。 */
 function demoGrades(students){
   const rows = students.filter(s=>{
     const v = Number(s['加权平均成绩']);
