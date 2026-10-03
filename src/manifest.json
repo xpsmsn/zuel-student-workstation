@@ -1,0 +1,780 @@
+{
+  "version": 2,
+  "layers": {
+    "L0 kernel": {
+      "rank": 0,
+      "desc": "内核：注册表 / 事件 / 页面表 / 生命周期 / 纯工具。不依赖任何人"
+    },
+    "L1 core": {
+      "rank": 1,
+      "desc": "状态、持久化、主题、通用零件、预置内容"
+    },
+    "L2 domain": {
+      "rank": 2,
+      "desc": "纯业务规则：零 DOM，**可在 node 里直接单测**"
+    },
+    "L3 shell": {
+      "rank": 3,
+      "desc": "外壳：路由、页面注册表、侧栏。**可以**调用页面（须显式声明在 routeDeps）"
+    },
+    "L5 feature": {
+      "rank": 5,
+      "desc": "页面与功能"
+    }
+  },
+  "modules": [
+    {
+      "id": "data.quotes",
+      "file": "data/quotes.js",
+      "layer": "L1 core",
+      "deps": []
+    },
+    {
+      "id": "kernel.00-kernel",
+      "file": "kernel/00-kernel.js",
+      "layer": "L0 kernel",
+      "deps": []
+    },
+    {
+      "id": "domain.import-rules",
+      "file": "domain/import-rules.js",
+      "layer": "L2 domain",
+      "deps": [
+        "kernel.00-kernel"
+      ]
+    },
+    {
+      "id": "domain.dorm",
+      "file": "domain/dorm.js",
+      "layer": "L2 domain",
+      "deps": [
+        "kernel.00-kernel"
+      ]
+    },
+    {
+      "id": "domain.field-schema",
+      "file": "domain/field-schema.js",
+      "layer": "L2 domain",
+      "deps": [
+        "core.state"
+      ]
+    },
+    {
+      "id": "data.app-meta",
+      "file": "data/app-meta.js",
+      "layer": "L1 core",
+      "deps": []
+    },
+    {
+      "id": "data.seed",
+      "file": "data/seed.js",
+      "layer": "L1 core",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "kernel.00-kernel"
+      ],
+      "orderDeps": [
+        "core.state",
+        "kernel.00-kernel"
+      ]
+    },
+    {
+      "id": "core.state",
+      "file": "core/state.js",
+      "layer": "L1 core",
+      "deps": [
+        "kernel.00-kernel"
+      ]
+    },
+    {
+      "id": "core.persist",
+      "file": "core/persist.js",
+      "layer": "L1 core",
+      "deps": [
+        "core.state",
+        "core.ui-kit",
+        "kernel.00-kernel"
+      ]
+    },
+    {
+      "id": "core.theme",
+      "file": "core/theme.js",
+      "layer": "L1 core",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "kernel.00-kernel"
+      ]
+    },
+    {
+      "id": "core.ui-kit",
+      "file": "core/ui-kit.js",
+      "layer": "L1 core",
+      "deps": [
+        "kernel.00-kernel"
+      ]
+    },
+    {
+      "id": "features.backup",
+      "file": "features/backup.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "data.app-meta",
+        "features.delete",
+        "features.import-history",
+        "features.modals",
+        "features.runtime-prefs",
+        "kernel.00-kernel"
+      ]
+    },
+    {
+      "id": "features.library",
+      "file": "features/library.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "data.seed",
+        "features.modals",
+        "features.runtime-prefs",
+        "kernel.00-kernel",
+        "shell.app-shell",
+        "shell.router",
+        "views.list",
+        "views.student-detail"
+      ]
+    },
+    {
+      "id": "features.settings",
+      "file": "features/settings.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.theme",
+        "core.ui-kit",
+        "features.backup",
+        "features.batch-manager",
+        "features.export",
+        "features.import-history",
+        "features.modals",
+        "features.runtime-prefs",
+        "kernel.00-kernel",
+        "shell.app-shell",
+        "shell.router",
+        "views.list"
+      ]
+    },
+    {
+      "id": "features.runtime-prefs",
+      "file": "features/runtime-prefs.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.theme",
+        "core.ui-kit",
+        "data.app-meta",
+        "features.backup",
+        "features.batch-manager",
+        "features.export",
+        "features.grade-import",
+        "features.import-history",
+        "features.import-wizard",
+        "features.library",
+        "features.quote-rotation",
+        "features.settings",
+        "features.tags",
+        "kernel.00-kernel",
+        "views.guide",
+        "views.student-detail"
+      ]
+    },
+    {
+      "id": "features.import-history",
+      "file": "features/import-history.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "features.backup",
+        "features.export",
+        "features.runtime-prefs",
+        "kernel.00-kernel",
+        "shell.app-shell",
+        "shell.router",
+        "views.list"
+      ]
+    },
+    {
+      "id": "views.calendar",
+      "file": "views/calendar.js",
+      "layer": "L5 feature",
+      "deps": [
+        "data.seed",
+        "features.library",
+        "kernel.00-kernel"
+      ]
+    },
+    {
+      "id": "features.award",
+      "file": "features/award.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "data.presets",
+        "features.modals",
+        "kernel.00-kernel",
+        "shell.app-shell",
+        "shell.router",
+        "views.list"
+      ]
+    },
+    {
+      "id": "data.presets",
+      "file": "data/presets.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "data.seed",
+        "features.award",
+        "features.modals",
+        "kernel.00-kernel"
+      ]
+    },
+    {
+      "id": "views.profile",
+      "file": "views/profile.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "features.lock",
+        "features.password",
+        "features.settings",
+        "features.tour",
+        "kernel.00-kernel",
+        "views.onboarding"
+      ]
+    },
+    {
+      "id": "features.quote-rotation",
+      "file": "features/quote-rotation.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.state",
+        "data.quotes",
+        "kernel.00-kernel"
+      ]
+    },
+    {
+      "id": "views.guide",
+      "file": "views/guide.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.state",
+        "features.tour",
+        "kernel.00-kernel",
+        "shell.app-shell",
+        "shell.router",
+        "views.list",
+        "views.onboarding"
+      ]
+    },
+    {
+      "id": "views.onboarding",
+      "file": "views/onboarding.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "features.modals",
+        "features.tour",
+        "kernel.00-kernel"
+      ]
+    },
+    {
+      "id": "features.tour",
+      "file": "features/tour.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "features.grade-import",
+        "features.import-wizard",
+        "features.modals",
+        "features.runtime-prefs",
+        "kernel.00-kernel",
+        "shell.router",
+        "views.guide",
+        "views.list",
+        "views.onboarding"
+      ]
+    },
+    {
+      "id": "features.lock",
+      "file": "features/lock.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.state",
+        "core.theme",
+        "core.ui-kit",
+        "features.quote-rotation",
+        "features.runtime-prefs",
+        "features.settings",
+        "kernel.00-kernel",
+        "shell.app-shell",
+        "shell.router",
+        "views.list",
+        "views.onboarding"
+      ]
+    },
+    {
+      "id": "views.list",
+      "file": "views/list.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "features.batch-manager",
+        "features.tags",
+        "kernel.00-kernel",
+        "shell.app-shell",
+        "views.guide",
+        "views.student-detail"
+      ]
+    },
+    {
+      "id": "features.batch-manager",
+      "file": "features/batch-manager.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "domain.field-schema",
+        "features.backup",
+        "features.delete",
+        "features.export",
+        "features.filter",
+        "features.grade-import",
+        "features.import-wizard",
+        "features.modals",
+        "features.tags",
+        "kernel.00-kernel",
+        "shell.app-shell",
+        "shell.router",
+        "views.dashboard",
+        "views.list"
+      ]
+    },
+    {
+      "id": "features.list-toolbar",
+      "file": "features/list-toolbar.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "domain.field-schema",
+        "features.batch-manager",
+        "features.custom-filter",
+        "features.delete",
+        "features.filter",
+        "features.grade-import",
+        "features.modals",
+        "features.tags",
+        "kernel.00-kernel",
+        "shell.app-shell",
+        "shell.router",
+        "views.dorm",
+        "views.student-detail"
+      ]
+    },
+    {
+      "id": "views.dashboard",
+      "file": "views/dashboard.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.state",
+        "domain.dorm",
+        "domain.field-schema",
+        "domain.import-rules",
+        "features.batch-manager",
+        "features.filter",
+        "features.grade-import",
+        "features.library",
+        "features.quote-rotation",
+        "features.tags",
+        "kernel.00-kernel",
+        "views.dash-filter",
+        "views.dorm",
+        "views.student-detail"
+      ]
+    },
+    {
+      "id": "views.dash-filter",
+      "file": "views/dash-filter.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.state",
+        "features.filter",
+        "features.search",
+        "features.tags",
+        "kernel.00-kernel"
+      ]
+    },
+    {
+      "id": "features.search",
+      "file": "features/search.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.state",
+        "core.ui-kit",
+        "features.filter",
+        "kernel.00-kernel",
+        "shell.router",
+        "views.dashboard",
+        "views.list"
+      ]
+    },
+    {
+      "id": "views.dorm",
+      "file": "views/dorm.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "domain.dorm",
+        "domain.field-schema",
+        "features.batch-manager",
+        "features.custom-filter",
+        "features.delete",
+        "features.filter",
+        "features.list-toolbar",
+        "features.modals",
+        "features.runtime-prefs",
+        "features.tags",
+        "kernel.00-kernel",
+        "shell.app-shell",
+        "shell.router",
+        "views.dashboard",
+        "views.list",
+        "views.student-detail"
+      ]
+    },
+    {
+      "id": "features.filter",
+      "file": "features/filter.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.state",
+        "core.ui-kit",
+        "features.batch-manager",
+        "features.list-toolbar",
+        "kernel.00-kernel",
+        "shell.router",
+        "views.dashboard",
+        "views.dorm",
+        "views.list",
+        "views.student-detail"
+      ]
+    },
+    {
+      "id": "views.student-detail",
+      "file": "views/student-detail.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "domain.field-schema",
+        "features.delete",
+        "features.list-toolbar",
+        "features.modals",
+        "features.runtime-prefs",
+        "features.tags",
+        "kernel.00-kernel",
+        "shell.app-shell",
+        "shell.router",
+        "views.list"
+      ]
+    },
+    {
+      "id": "features.import-wizard",
+      "file": "features/import-wizard.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.state",
+        "domain.field-schema",
+        "domain.roster",
+        "features.import",
+        "features.modals",
+        "features.multisheet",
+        "kernel.00-kernel",
+        "shell.app-shell",
+        "shell.router",
+        "views.list"
+      ]
+    },
+    {
+      "id": "domain.table-detect",
+      "file": "domain/table-detect.js",
+      "layer": "L2 domain",
+      "deps": [
+        "domain.field-schema"
+      ]
+    },
+    {
+      "id": "domain.roster",
+      "file": "domain/roster.js",
+      "layer": "L2 domain",
+      "deps": [
+        "domain.field-schema"
+      ]
+    },
+    {
+      "id": "features.multisheet",
+      "file": "features/multisheet.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.ui-kit",
+        "domain.roster",
+        "domain.table-detect",
+        "features.import",
+        "features.import-wizard",
+        "kernel.00-kernel"
+      ]
+    },
+    {
+      "id": "features.import",
+      "file": "features/import.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "domain.import-rules",
+        "domain.roster",
+        "features.export",
+        "features.import-history",
+        "features.import-wizard",
+        "features.settings",
+        "kernel.00-kernel"
+      ]
+    },
+    {
+      "id": "features.grade-import",
+      "file": "features/grade-import.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "features.modals",
+        "features.multisheet",
+        "features.settings",
+        "kernel.00-kernel",
+        "shell.app-shell",
+        "shell.router",
+        "views.list"
+      ]
+    },
+    {
+      "id": "features.password",
+      "file": "features/password.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "features.lock",
+        "features.modals",
+        "kernel.00-kernel",
+        "shell.app-shell",
+        "views.profile"
+      ]
+    },
+    {
+      "id": "features.export",
+      "file": "features/export.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "domain.field-schema",
+        "features.batch-manager",
+        "features.import-history",
+        "features.runtime-prefs",
+        "kernel.00-kernel"
+      ]
+    },
+    {
+      "id": "features.custom-filter",
+      "file": "features/custom-filter.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "domain.field-schema",
+        "features.filter",
+        "features.modals",
+        "kernel.00-kernel",
+        "shell.router",
+        "views.list"
+      ]
+    },
+    {
+      "id": "features.modals",
+      "file": "features/modals.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.state",
+        "features.import-wizard",
+        "kernel.00-kernel",
+        "shell.app-shell",
+        "shell.router",
+        "views.list",
+        "views.student-detail"
+      ],
+      "orderDeps": []
+    },
+    {
+      "id": "data.demo",
+      "file": "data/demo.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.theme",
+        "core.ui-kit",
+        "data.seed",
+        "features.lock",
+        "features.search",
+        "kernel.00-kernel",
+        "shell.app-shell"
+      ],
+      "entry": true
+    },
+    {
+      "id": "features.delete",
+      "file": "features/delete.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "features.export",
+        "features.import-history",
+        "features.modals",
+        "features.tags",
+        "kernel.00-kernel",
+        "shell.app-shell",
+        "shell.router",
+        "views.list"
+      ]
+    },
+    {
+      "id": "shell.app-shell",
+      "file": "shell/app-shell.js",
+      "layer": "L3 shell",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "kernel.00-kernel",
+        "shell.router"
+      ],
+      "routeDeps": [
+        "features.batch-manager",
+        "features.import-wizard",
+        "views.list",
+        "views.student-detail"
+      ]
+    },
+    {
+      "id": "views.topbar",
+      "file": "views/topbar.js",
+      "layer": "L5 feature",
+      "deps": [
+        "features.quote-rotation",
+        "kernel.00-kernel"
+      ]
+    },
+    {
+      "id": "shell.router",
+      "file": "shell/router.js",
+      "layer": "L3 shell",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "data.seed",
+        "kernel.00-kernel",
+        "shell.app-shell"
+      ],
+      "routeDeps": [
+        "data.demo",
+        "features.import-wizard",
+        "views.guide",
+        "views.list"
+      ]
+    },
+    {
+      "id": "shell.page-registry",
+      "file": "shell/page-registry.js",
+      "layer": "L3 shell",
+      "deps": [
+        "core.state",
+        "kernel.00-kernel"
+      ],
+      "routeDeps": [
+        "features.award",
+        "features.batch-manager",
+        "features.import-history",
+        "features.library",
+        "features.list-toolbar",
+        "features.runtime-prefs",
+        "features.settings",
+        "views.calendar",
+        "views.dashboard",
+        "views.dorm",
+        "views.guide",
+        "views.profile"
+      ]
+    },
+    {
+      "id": "features.tags",
+      "file": "features/tags.js",
+      "layer": "L5 feature",
+      "deps": [
+        "core.persist",
+        "core.state",
+        "core.ui-kit",
+        "domain.field-schema",
+        "features.modals",
+        "kernel.00-kernel",
+        "shell.router",
+        "views.student-detail"
+      ]
+    }
+  ]
+}
