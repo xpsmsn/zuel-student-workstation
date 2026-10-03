@@ -2140,6 +2140,68 @@ tbody tr:hover{background-image:none}
 .aw-prog,.aw-chip,.aw-split-btn{transition:background .12s linear,border-color .12s linear}
 .aw-prog:hover,.aw-chip:hover,.aw-split-btn:hover{transform:none; filter:none}
 
+/* ══════════════════════════════════════════════════════════════════
+   组头兜底（必须放在 .award-table td 之后）
+   ──────────────────────────────────────────────────────────────────
+   上面那条 `.award-table td{padding:8px 16px; font-size:15px}` 选择器
+   比 `.aw-group-row td` 更晚出现，会把组头的内边距和字号盖掉 ——
+   组头就退化成一个「矮一点但字一样大」的学生行，正是老师说「像学生列」的原因。
+   这里用同等特异性、写在最后，把组头样式彻底钉死。 */
+.award-table tr.aw-group-row td{
+  background:var(--bg-thead);
+  padding:0 var(--space-md);
+  height:40px;
+  font-size:13px; line-height:1.4; font-weight:400;
+  color:var(--text-secondary);
+}
+.award-table tr.aw-group-row td.aw-group-name{
+  box-shadow:inset 3px 0 0 var(--accent);
+  text-align:left; font-size:13px;
+}
+.award-table tr.aw-group-row .aw-gcheck b,
+.award-table tr.aw-group-row .aw-group-num b{font-size:13px; font-weight:400}
+.award-table tr.aw-group-row .aw-gcheck b{font-weight:600; color:var(--text-primary)}
+.award-table tr.aw-group-row.checked td{background:var(--bg-hover)}
+.award-table tr.aw-group-row:hover td{background:var(--bg-hover)}
+
+/* ── 系统设置页（v2.4.0）────────────────────────────────────────
+   按设计规范重排：字号只用 15/13、间距只用 8px 栅格、圆角 6/12、
+   hover 只变背景、卡片无阴影。 */
+
+/* 主题：与顶栏一致的一行分段控件（原来是三张竖排大卡，占掉大半屏） */
+.st-seg{
+  display:inline-flex; gap:0;
+  border:1px solid var(--border); border-radius:var(--radius-btn);
+  background:var(--bg-card); overflow:hidden;
+}
+.st-seg button{
+  border:0; background:transparent; cursor:pointer;
+  color:var(--text-secondary); font-family:inherit;
+  border-right:1px solid var(--border);
+  transition:background .12s linear, color .12s linear;
+}
+.st-seg button:last-child{border-right:0}
+.st-seg button:hover{background:var(--bg-hover); color:var(--text-primary)}
+.st-seg button.on{background:var(--accent); color:#fff}
+.st-seg button.on:hover{background:var(--accent); color:#fff}
+
+/* 周次：当前第几周 + 校准按钮，一行放得下 */
+.st-week{
+  display:flex; align-items:center; gap:var(--space-md); flex-wrap:wrap;
+  padding:var(--space-md); margin-bottom:var(--space-md);
+  border:1px solid var(--border); border-radius:var(--radius-card);
+  background:var(--bg-card);
+}
+.st-week-l{flex:1; min-width:0}
+.st-week-n{
+  font-size:24px; font-weight:600; line-height:1.3;   /* 规范：Page 大标题档 */
+  color:var(--text-primary);
+}
+.st-week-d{
+  font-size:13px; line-height:1.4;                    /* 规范：辅助小字档 */
+  color:var(--text-secondary); margin-top:var(--space-sm);
+}
+.st-week .btn{height:36px; padding:0 16px; border-radius:var(--radius-btn); font-size:15px; flex:0 0 auto}
 </style>
 
 <!-- 奖学金组头 · 视觉钉死（放在所有样式之后，避免被前面的表格规则盖掉） -->
@@ -4251,13 +4313,16 @@ function renderSettings(){
   </div>
 
   <div class="card" style="margin-bottom:16px"><div class="card-body">
-    <div style="font-weight:660;font-size:14.5px;margin-bottom:12px">🎨 外观与主题</div>
-    <div class="theme-pick">
-      ${THEMES.map(t=>`<button class="theme-card ${S.theme===t.id?'on':''}" onclick="setTheme('${t.id}')">
-        <span class="tc-ico">${t.icon}</span>
-        <span class="tc-name">${t.label}模式</span>
-        <span class="tc-desc">${THEME_DESC[t.id]}</span>
-      </button>`).join('')}
+    <div class="opt-t" style="margin-bottom:8px">外观</div>
+    <!-- v2.4.0：原来是三张竖排大卡（每张带图标+名称+说明），占掉大半屏。
+         与顶栏一致压成一行分段控件；说明文字收成 title 悬停提示。 -->
+    <div class="seg st-seg" role="group" aria-label="外观模式">
+      ${THEMES.map(t=>`<button class="${S.theme===t.id?'on':''}" data-theme-btn="${t.id}"
+        onclick="setTheme('${t.id}')" title="${esc(THEME_DESC[t.id]||'')}"
+        style="height:36px;padding:0 16px;font-size:15px">${esc(t.label)}</button>`).join('')}
+    </div>
+    <div style="font-size:13px;line-height:1.4;color:var(--text-3);margin-top:8px">
+      ${esc(THEME_DESC[S.theme]||'')} · 与顶栏的切换是同一个开关，两处改都生效
     </div>
     <div class="opt-row" style="margin-top:6px">
       <div class="opt-l">
@@ -4279,7 +4344,7 @@ function renderSettings(){
 
   <!-- v1.8：托盘常驻 + 开机启动 -->
   <div class="card" style="margin-bottom:16px"><div class="card-body">
-    <div style="font-weight:660;font-size:14.5px;margin-bottom:8px">🖥 常驻与开机启动</div>
+    <div class="opt-t" style="margin-bottom:8px">常驻与开机启动</div>
     <div class="opt-row">
       <div class="opt-l">
         <div class="opt-t">最小化到系统托盘</div>
@@ -4310,7 +4375,16 @@ function renderSettings(){
   </div></div>
 
   <div class="card" style="margin-bottom:16px"><div class="card-body">
-    <div style="font-weight:660;font-size:14.5px;margin-bottom:12px">📅 学期与周次</div>
+    <div class="opt-t" style="margin-bottom:8px">学期与周次</div>
+    <!-- v2.4.0：辅导员要求「设置里也能看到并调整周数」。
+         这里既显示当前是第几周，也能直接打开校准弹窗（与顶栏同一个）。 -->
+    <div class="st-week">
+      <div class="st-week-l">
+        <div class="st-week-n">${w ? (w.raw < 1 ? '未开学' : (w.raw > w.weeks ? '假期中' : '第 ' + w.raw + ' 周')) : '未设置'}</div>
+        <div class="st-week-d">共 ${w ? w.weeks : sem.weeks || 18} 周 · ${esc(preview.replace(/<[^>]+>/g, ''))}</div>
+      </div>
+      <button class="btn" onclick="openWeekCalibrate()" title="把今天定为第 N 周，之后自动接着往后数">校准今天第几周</button>
+    </div>
     <div class="sem-grid">
       <div><div class="lbl">学期名称（顶栏显示）</div>
         <input class="input" id="setName" style="width:100%" value="${esc(sem.name||'')}" placeholder="如：2026-2027 学年第一学期"></div>
@@ -4330,8 +4404,8 @@ function renderSettings(){
        「数据固化」原来单独占一张卡片，和「导入历史」并排看着像两套重复机制，
        现在降级成一行状态说明，并写明"这不是备份、带不走"。 -->
   <div class="card" style="margin-bottom:16px"><div class="card-body">
-    <div style="font-weight:660;font-size:14.5px;margin-bottom:12px;display:flex;align-items:center;gap:8px">
-      📦 数据管理
+    <div class="opt-t" style="margin-bottom:16px;display:flex;align-items:center;gap:8px">
+      数据管理
       <span style="font-weight:400;font-size:12px;color:${S.lastBackupAt ? 'var(--text-3)' : 'var(--warn)'};margin-left:auto">${esc(backupAgeText())}</span>
     </div>
 
@@ -4381,7 +4455,7 @@ function renderSettings(){
   </div></div>
 
   <div class="card"><div class="card-body">
-    <div style="font-weight:660;font-size:14.5px;margin-bottom:10px">ℹ️ 关于</div>
+    <div class="opt-t" style="margin-bottom:8px">关于</div>
     <div class="about-box">
       <div class="about-row"><span class="ak">软件</span><span class="av"><b>中南大学生工作台</b> · 本地单机运行，全程离线</span></div>
       <div class="about-row"><span class="ak">存储</span><span class="av">${S.batches.length} 个批次 · 全部数据仅存于本机${solid ? '（含磁盘镜像固化）' : ''}</span></div>
@@ -7513,7 +7587,20 @@ function dormParts(s){
   }
   return { key: _normRoomKey(a), bed: bedCol };                        // ② 旧表：楼-房
 }
-function dormKey(s){ return dormParts(s).key; }
+/* v2.4.0：判断「有没有宿舍信息」。系统导出表里没有宿舍的人，
+   「宿舍」列可能填「-」「无」「/」甚至空白 —— 这些都算**没有宿舍**，不是一间房。
+   以前 dormKey 把 "-" 原样返回，于是那几个人被塞进一间名叫「-」的假房间，
+   房间里有男有女 → 性别判定报「男女混住」。这是我判断逻辑的错，不是文案问题。 */
+function dormAssigned(s){
+  const raw = _s(s['宿舍楼']) + _s(s['房间号']) + _s(s['宿舍']);
+  if(!_s(raw)) return false;
+  if(!/\d/.test(raw)) return false;                       // 没有房号 → 无法定位房间
+  return true;
+}
+function dormKey(s){
+  if(!dormAssigned(s)) return '';
+  return dormParts(s).key;
+}
 function bedNo(s){ return dormParts(s).bed; }
 function dormBuilding(key){
   const i = String(key).indexOf('-');
@@ -7531,6 +7618,7 @@ function dormRooms(list){
   const m = new Map();
   (list || S.students).forEach(s=>{
     const k = dormKey(s);
+    if(!k) return;              // v2.4.0：没有宿舍的人不进房间表（原先会生成一间假房「-」）
     if(!m.has(k)) m.set(k, { key:k, building:dormBuilding(k), room:dormRoom(k), members:[] });
     m.get(k).members.push(s);
   });
@@ -7556,11 +7644,14 @@ function dormRooms(list){
 }
 
 function dormStats(rooms){
-  const assigned = rooms.filter(r=>r.key !== '');
-  const un = rooms.find(r=>r.key === '') || null;
+  const assigned = rooms.filter(r=>r.key);
+  /* v2.4.0：原来「未分配」是找 key==='' 的房间，而无宿舍的人算出的是 '-'，
+     压根匹配不上 → 既没进未分配、又混进了假房间。改为直接按人算。 */
+  const noDorm = (S.students || []).filter(s => !dormAssigned(s));
   return {
     assigned,
-    unassigned: un,
+    unassigned: noDorm.length ? { members: noDorm } : null,
+    noDormCount: noDorm.length,
     people: assigned.reduce((a,r)=>a + r.members.length, 0),
     free: assigned.reduce((a,r)=>a + r.free, 0),
     full: assigned.filter(r=>r.free === 0 && r.over === 0).length,
