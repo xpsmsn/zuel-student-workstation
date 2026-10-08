@@ -138,10 +138,10 @@ def build_names(ver):
     tag = f"v{ver}"
     cn_names, en_names = {}, {}
     for cn, en, ext, _pat in KINDS:
-        cn_names[(cn, ext)] = f"中南大学生工作台-{tag}-{cn}.{ext}"
+        cn_names[(cn, ext)] = f"ZUEL 辅导员工作台-{tag}-{cn}.{ext}"
         en_names[(en, ext)] = f"ZUEL-StudentWorkstation-{tag}-{en}.{ext}"
     for cn, en, ext in NAMING_ONLY:
-        cn_names[(cn, ext)] = f"中南大学生工作台-{tag}-{cn}.{ext}"
+        cn_names[(cn, ext)] = f"ZUEL 辅导员工作台-{tag}-{cn}.{ext}"
         en_names[(en, ext)] = f"ZUEL-StudentWorkstation-{tag}-{en}.{ext}"
     return cn_names, en_names
 
@@ -157,7 +157,7 @@ def rewrite(text, cn_names, en_names):
         return en_names[(kind, ext)]
 
     new = re.sub(
-        r"中南大学生工作台(?:-v[\d.]+)?-(绿色版|安装程序|单位部署)\.(exe|msi)", cn_repl, text
+        r"(?:ZUEL 辅导员工作台|中南大学生工作台)(?:-v[\d.]+)?-(绿色版|安装程序|单位部署)\.(exe|msi)", cn_repl, text
     )
     # 英文名有两种写法，都要认（曾经只认后者，导致 README 里的文件名一直没被同步）：
     #   现行  ZUEL-StudentWorkstation-v1.9.2-Portable.exe   ← 版本在用途前面
@@ -168,7 +168,7 @@ def rewrite(text, cn_names, en_names):
     ):
         new = re.sub(pat, en_repl, new)
     # macOS 的 dmg：用途名与扩展名都跟上面不同，得单独认（原先完全漏掉，长期没被同步）
-    new = re.sub(r"中南大学生工作台(?:-v[\d.]+)?-macOS\.dmg",
+    new = re.sub(r"(?:ZUEL 辅导员工作台|中南大学生工作台)(?:-v[\d.]+)?-macOS\.dmg",
                  lambda m: cn_names[("macOS", "dmg")], new)
     new = re.sub(r"ZUEL-StudentWorkstation-(?:v[\d.]+-)?macOS\.dmg",
                  lambda m: en_names[("macOS", "dmg")], new)
@@ -201,10 +201,13 @@ def selftest(ver):
     tag = f"v{ver}"
     cases = [
         # 中文名：带版本 / 不带版本
-        (f"中南大学生工作台-{tag}-绿色版.exe", f"中南大学生工作台-{tag}-绿色版.exe"),
-        ("中南大学生工作台-绿色版.exe", f"中南大学生工作台-{tag}-绿色版.exe"),
-        ("中南大学生工作台-v1.0.0-安装程序.exe", f"中南大学生工作台-{tag}-安装程序.exe"),
-        ("中南大学生工作台-单位部署.msi", f"中南大学生工作台-{tag}-单位部署.msi"),
+        (f"ZUEL 辅导员工作台-{tag}-绿色版.exe", f"ZUEL 辅导员工作台-{tag}-绿色版.exe"),
+        ("ZUEL 辅导员工作台-绿色版.exe", f"ZUEL 辅导员工作台-{tag}-绿色版.exe"),
+        ("ZUEL 辅导员工作台-v1.0.0-安装程序.exe", f"ZUEL 辅导员工作台-{tag}-安装程序.exe"),
+        ("ZUEL 辅导员工作台-单位部署.msi", f"ZUEL 辅导员工作台-{tag}-单位部署.msi"),
+        # 中文名：早期写法（脚本原本漏认——v2.3.1 之前产品名是「中南大学生工作台」）
+        (f"中南大学生工作台-{tag}-绿色版.exe", f"ZUEL 辅导员工作台-{tag}-绿色版.exe"),
+        ("中南大学生工作台-单位部署.msi", f"ZUEL 辅导员工作台-{tag}-单位部署.msi"),
         # 英文名：现行写法（版本在用途前）
         (f"ZUEL-StudentWorkstation-{tag}-Portable.exe", f"ZUEL-StudentWorkstation-{tag}-Portable.exe"),
         ("ZUEL-StudentWorkstation-v1.9.1-Portable.exe", f"ZUEL-StudentWorkstation-{tag}-Portable.exe"),
@@ -215,9 +218,11 @@ def selftest(ver):
         ("ZUEL-StudentWorkstation-Portable.exe", f"ZUEL-StudentWorkstation-{tag}-Portable.exe"),
         ("ZUEL-StudentWorkstation-Deploy.msi", f"ZUEL-StudentWorkstation-{tag}-Deploy.msi"),
         # macOS dmg（脚本原先完全不认 .dmg，文档里的 dmg 名长期停在旧版本）
-        (f"中南大学生工作台-{tag}-macOS.dmg", f"中南大学生工作台-{tag}-macOS.dmg"),
-        ("中南大学生工作台-v1.9.5-macOS.dmg", f"中南大学生工作台-{tag}-macOS.dmg"),
-        ("ZUEL-StudentWorkstation-v1.9.5-macOS.dmg", f"ZUEL-StudentWorkstation-{tag}-macOS.dmg"),
+        (f"ZUEL 辅导员工作台-{tag}-macOS.dmg", f"ZUEL 辅导员工作台-{tag}-macOS.dmg"),
+        ("ZUEL 辅导员工作台-v1.9.5-macOS.dmg", f"ZUEL 辅导员工作台-{tag}-macOS.dmg"),
+        # macOS dmg 早期命名（同样要兼容）
+        (f"中南大学生工作台-{tag}-macOS.dmg", f"ZUEL 辅导员工作台-{tag}-macOS.dmg"),
+        ("中南大学生工作台-v1.9.5-macOS.dmg", f"ZUEL 辅导员工作台-{tag}-macOS.dmg"),
         ("ZUEL-StudentWorkstation-macOS.dmg", f"ZUEL-StudentWorkstation-{tag}-macOS.dmg"),
         # 不该被动的：产品名本身、其它文件
         ("中南大学生工作台.html", "中南大学生工作台.html"),
