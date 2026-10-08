@@ -41,7 +41,7 @@ try:
 except Exception:
     pass
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CONF = os.path.join(ROOT, "app", "src-tauri", "tauri.conf.json")
 RELEASE_DIR = os.path.join(ROOT, "app", "src-tauri", "target", "release")
 OUT_DIR = os.path.join(ROOT, "发布")

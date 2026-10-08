@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "tauri": "tauri",
-    "sync": "node ../.build/build-desktop.js",
-    "build": "node ../.build/sync-version.js && node ../.build/build-desktop.js && tauri build",
-    "version:sync": "node ../.build/sync-version.js"
+    "sync": "node ../.build/sync/build-desktop.js",
+    "build": "node ../.build/sync/sync-version.js && node ../.build/sync/build-desktop.js && tauri build",
+    "version:sync": "node ../.build/sync/sync-version.js"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2"

@@ -19,7 +19,7 @@ import urllib.error
 import urllib.request
 
 REPO = "xpsmsn/zuel-student-workstation"
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 DRY = "--dry" in sys.argv
 

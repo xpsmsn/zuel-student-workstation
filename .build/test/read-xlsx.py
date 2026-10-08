@@ -40,7 +40,7 @@ except Exception:
 
 import openpyxl
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PROTOTYPE = os.path.join(ROOT, "中南大学生工作台.html")
 
 # 表头行判定：与原型 locateHeaderRow 同口径（前 20 行，先找「学号+姓名」，再找「学号」）

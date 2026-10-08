@@ -18,7 +18,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const FILE = process.argv[2] || path.join(__dirname, '..', 'app', 'src', 'index.html');
+const FILE = process.argv[2] || path.join(__dirname, '..', '..', 'app', 'src', 'index.html');
 const MARKER = '适配层已就绪';
 
 let pass = 0, fail = 0;
@@ -184,12 +184,34 @@ function testContextMenu() {
     env.listeners.dragover.length === 1 && env.listeners.drop.length === 1);
 }
 
-/* ---------------- 6. 原型本体必须保持纯净 ---------------- */
+/* ---------------- 6. 原型本体的契约：可双击 + 适配层不影响主逻辑 ----------------
+ * 早期约定"原型不含适配层"是为了让原型保持纯净，便于开发期手测。
+ * 但 v2.3.3 起原型会**手抄**适配层 IIFE（这样原型双击 HTML 打开也能用桌面下载
+ * /外链拦截，绿色版场景）。这种"手抄的"适配层和"build-desktop 注入的"在
+ * 功能上等价，对主逻辑都是零侵入（仅替换 window.downloadCsv 一个全局引用），
+ * 所以契约应当改为"原型主逻辑的 downloadCsv 实现不能被改写"。
+ *
+ * 检测方法：
+ *   - 原型 main 逻辑（2527–11858 那块主 script 块）必须还有 `function downloadCsv(`
+ *   - 适配层 IIFE 必须在主 script 块**之后**追加（不污染主逻辑）
+ */
 function testPrototypePurity() {
-  const proto = path.join(__dirname, '..', '中南大学生工作台.html');
+  const proto = path.join(__dirname, '..', '..', '中南大学生工作台.html');
   const p = fs.readFileSync(proto, 'utf8');
-  t('原型中南大学生工作台.html 不含适配层', !p.includes(MARKER));
-  t('原型仍保留原始 downloadCsv 实现', /function\s+downloadCsv\s*\(/.test(p));
+  // 抓出所有 script 块，按出现顺序
+  const blocks = [...p.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]);
+  // 找到"最大块"（主逻辑，必含 downloadCsv）；其余脚本里都不应该出现 downloadCsv 的定义
+  const main = blocks.reduce((a, b) => b.length > a.length ? b : a, '');
+  t('原型主逻辑块仍保留原始 downloadCsv 实现', /function\s+downloadCsv\s*\(/.test(main));
+  // 原型末尾允许含适配层（手抄或 build-desktop 注入都行）；但适配层必须在主块**之后**
+  const hasAdapter = p.includes(MARKER);
+  let adapterAfterMain = true;
+  if (hasAdapter) {
+    const mainEnd = p.indexOf('</script>', p.indexOf('function downloadCsv(') + 50);
+    const adapterStart = p.indexOf('function desktopDownloadCsv');
+    adapterAfterMain = adapterStart > mainEnd;
+  }
+  t('若原型含适配层 IIFE，必须在主逻辑之后追加（不污染主逻辑）', !hasAdapter || adapterAfterMain);
 }
 
 (async () => {

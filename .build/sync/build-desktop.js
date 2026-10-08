@@ -7,7 +7,7 @@
  * 两边只差**一处**：桌面版在 </body> 前多注入一段「桌面适配层」脚本。
  * 原型文件本身保持不变，双击仍可用浏览器直接打开（数据一样存在浏览器里）。
  *
- * 用法：node .build/build-desktop.js [--selftest]
+ * 用法：node .build/sync/build-desktop.js [--selftest]
  *
  *   --selftest  额外注入一段开机自检脚本：应用一启动就把「外链白名单 / 导出落地」两条
  *               链路各打一遍，结果显示在窗口左上角的黑底绿字浮层里，并把文件写进「下载」。
@@ -32,13 +32,17 @@ try {
 
 const SELFTEST = process.argv.includes('--selftest');
 
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = path.resolve(__dirname, '..', '..');
 const SRC = path.join(ROOT, '中南大学生工作台.html');
 const OUT_DIR = path.join(ROOT, 'app', 'src');
 const OUT = path.join(OUT_DIR, 'index.html');
 
-/** 适配层的"指纹"，用于防止重复注入、并校验注入是否真的发生了 */
-const MARKER = '适配层已就绪';
+/** 适配层的"指纹"，用于：
+ *   1) 检测原型是否已含 SHIM（手抄过）——是则跳过注入，仅同步
+ *   2) 校验注入后是否真的发生了
+ *  注意：原型末尾 IIFE 的 console.log('适配层已就绪') 不算 SHIM 独有——
+ *  只有"function desktopDownloadCsv"这种 SHIM 里的具体函数名才唯一。 */
+const MARKER = 'function desktopDownloadCsv';
 
 /* ------------------------------------------------------------------ *
  * 开机自检（仅 --selftest 时注入）
@@ -230,7 +234,12 @@ const html = fs.readFileSync(SRC, 'utf8');
 
 // 结构守卫：注入点与要被替换的导出入口都必须在
 if (!/function\s+downloadCsv\s*\(/.test(html)) fail('原型里找不到 downloadCsv()，导出入口变了（请同步更新适配层）');
-if (html.includes(MARKER)) fail('原型里已经含适配层了，别重复注入');
+const HAS_SHIM_ALREADY = html.includes(MARKER);
+/* 如果原型已经包含 SHIM（历史上手动抄进去的），就不重复注入。
+   早期行为是 fail()，但那样原型与桌面版永远没法同步；改为"同步但不再注"。 */
+if (HAS_SHIM_ALREADY) {
+  console.log('[build-desktop] 原型已含适配层，跳过注入（仅同步）');
+}
 
 /* ⚠️ 不能用 `html.replace(/<\/body>/, ...)`：SheetJS 的 HTML 导出模板里也有一个字面量
  *    `"</body></html>"`（在文件中部），replace 会命中那一个，把适配层注进脚本内部、
@@ -245,10 +254,10 @@ if (idx < html.length - 200) {
 const eol = html.includes('\r\n') ? '\r\n' : '\n';
 const toEol = (s) => s.replace(/\n/g, eol);
 
-const inject = toEol(SHIM) + (SELFTEST ? toEol(SELFTEST_SNIPPET) : '');
+const inject = HAS_SHIM_ALREADY ? '' : toEol(SHIM) + (SELFTEST ? toEol(SELFTEST_SNIPPET) : '');
 const out = html.slice(0, idx) + inject + html.slice(idx);
 if (!/<\/body>\s*<\/html>\s*$/.test(out)) fail('注入后文件结尾结构不对，已中止');
-if (!out.includes(MARKER)) fail('注入后找不到适配层，已中止');
+if (!HAS_SHIM_ALREADY && !out.includes(MARKER)) fail('注入后找不到适配层，已中止');
 
 if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
 fs.writeFileSync(OUT, out, 'utf8');

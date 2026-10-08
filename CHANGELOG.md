@@ -16,6 +16,33 @@
 
 ---
 
+## [v2.3.2] — 2026-10-08
+
+**工程化整理补丁：`.build/` 按职能分目录，原型按模块边界加注释封皮。**
+
+不改任何产品功能，纯仓库工程化。这一版的目的：
+
+1. **`.build/` 4 子目录化（28 → sync/pack/test/archive + README）**
+   - `sync/`（2 个）`build-desktop.js` / `sync-version.js` —— 桌面版同步入口
+   - `pack/`（6 个）`pack-release.py` / `publish-release.py` / `make-release.py` / `make-icons.py` / `make-icns.py` / `md2html-manual.py` —— 出包与发布
+   - `test/`（15 个）所有 `test-*.js` / `verify-*.js` / `real-*.js` / `read-*.py` / `check-*.js` / `count-facts.js` / `embed-templates.py` —— 验收
+   - `archive/`（本地保留，不入库）历史残留（`award-fix.css` / `aw-now.png`）+ 旧版本工作进度备份
+   - 顶层 4 个 D 类资源（手册章节/全文/发布说明/站点表）+ 1 份 README（调用关系图 + 关键约定）
+2. **修脚本路径迁移的 3 处真实 bug**
+   - `sync-version.js` / `build-desktop.js`：`path.resolve(__dirname, '..')` → `'..', '..'`（之前只算一层，找不到根目录的 `app/package.json`）
+   - 4 个 `.py` 脚本：`os.path.dirname(...)` 也要从 ×2 改成 ×3
+   - `test-desktop.js` 2 处 `__dirname + '..'` → `'..', '..'`
+3. **修 `build-desktop` 的契约漏洞**：MARKER 从 `'适配层已就绪'` 改成 `'function desktopDownloadCsv'`（更精确：SHIM 独有，IIFE 末尾的 console.log 不含）
+4. **修 `test-desktop` 契约**：从「原型不含适配层」改成「若含，必须在主逻辑之后追加（不污染主逻辑）」+「主逻辑块仍保留原始 downloadCsv 实现」
+5. **单文件原型按模块边界加 6 个注释封皮**（不改代码、只加分隔注释）：
+   ② 启动 / Schema（v0.x） · ② 删除保护三件套（v0.4） · ② 导入流水线（v0.7） · ② 总览仪表盘（v0.5） · ② 宿舍看板（v0.5） · ② 宿舍查寝卫生打分表（v1.9）
+   桌面版 `app/src/index.html` 同步获得同样 6 个封皮。
+6. **路径引用全仓库同步**：`app/package.json` 3 个 npm script、`README.md` 7 处、`方案说明.md` 14 处、`视觉设计规范.md` 1 处、`中南大学生工作台.html` 注释 4 处。
+7. **新增 `.build/README.md`**：4 子目录结构表 + 5 段调用关系图 + 4 条关键约定（build-desktop 注入规则 / qr-check 绝对路径不要改 / test-v196 115 KB 保留原因 / archive 归档理由）。
+
+**验收**：check-syntax 7/7 全过 · test-desktop 28/28 全过 · build-desktop 同步成功（2441.7 KB → 2444.8 KB）· git diff 36 files / 246 +/ 707 -。
+
+---
 ## [v2.3.1] — 2026-10-04
 
 **产品名改为「ZUEL 辅导员工作台」；修「只用奖学金模块、不导名册时姓名与专业整列空白」。**
@@ -133,7 +160,7 @@
 
 - **新增「学工工作助理」**：辅导员专用的企业微信 BOT，**工作上的任何问题都可以问它**，
   答复口吻更专业、更讲依据。二维码从截图裁出、量化成 16 色 PNG 后**内联进程序**，
-  与另外两张码处理方式一致（改图后必须跑 `node .build/qr-check.js <png>` 验证还能扫）。
+  与另外两张码处理方式一致（改图后必须跑 `node .build/test/qr-check.js <png>` 验证还能扫）。
 - **页面改名**：板块与侧栏由「AI 辅导员」改为「AI 助理」——因为现在收的是三个入口，
   其中一个还是辅导员自己用的，原名会让人以为是给学生用的那个。
 - **三卡并列**：布局从两栏改三栏（宽屏 3 列、≤1180px 2 列、≤720px 1 列），三张二维码同款外框。
@@ -480,7 +507,7 @@ v1.9.3 加按钮时把主按钮类名写成了 `class="btn primary"`，而本项
 **变更：发布文件带版本号**
 
 文件名规则定为 `中南大学生工作台-v<版本>-<用途>.<扩展名>`，
-并新增 `.build/pack-release.py` 在出包后自动改名、清理旧命名文件、同步三处文档里的文件名。
+并新增 `.build/pack/pack-release.py` 在出包后自动改名、清理旧命名文件、同步三处文档里的文件名。
 （起因：文件名里不写版本，过两周就分不清手里这份是哪一版。）
 
 ---

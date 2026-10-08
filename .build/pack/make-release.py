@@ -51,7 +51,7 @@ Windows 10/11 64 位，需要 Microsoft Edge WebView2 运行时（Win11 与多�
 详细用法见仓库内的 `中南大学生工作台-用户使用手册.docx`。
 
 > 说明：仓库里不含安装包本体（二进制不入库），三个文件在本 Release 的 Assets 里。
-> clone 后要先跑 `node .build/build-desktop.js` 再 `tauri build`。
+> clone 后要先跑 `node .build/sync/build-desktop.js` 再 `tauri build`。
 '''
 
 rel = json.load(urllib.request.urlopen(

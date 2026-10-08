@@ -17,16 +17,30 @@ app/src/index.html
 .build/rust.tar.xz
 .build/rustup-init.exe
 
-# ---- .build：只保留脚本 / 素材源 / 手册章节，其余全是中间产物 ----
-.build/*
-!.build/*.js
-!.build/*.py
-!.build/*.ps1
-!.build/*.md
-!.build/sites.json
-!.build/cal-1.gif
-!.build/cal-2.gif
-!.build/logo-base64.txt
+# ---- .build：按职能分目录（sync / pack / test）+ archive 本地保留 ----
+# 4 个子目录：3 个入库（脚本），1 个本地保留（archive）
+.build/pack/                 # 出包 / 发布脚本 → 入库
+.build/sync/                 # 桌面版同步 / 版本号 → 入库
+.build/test/                 # 所有测试 → 入库
+.build/README.md             # 子目录结构 + 调用关系图 → 入库
+.build/manual-chapters.md    # 手册章节（构建原料）→ 入库
+.build/manual-full.md        # 手册全文 → 入库
+.build/release-notes.md      # 发布说明 → 入库
+.build/sites.json            # 多学校适配站点表 → 入库
+# archive/ 是历史残留 + 旧版本工作进度备份（合计 9.8 MB），
+# 仅本地保留，不入库——理由见 .build/README.md
+.build/archive/
+# 其余 .build/*（截图、GIF、构建日志、一次性脚本）依旧不进库：
+.build/*.png
+.build/*.gif
+.build/*.log
+.build/.last-*
+.build/shot-*.js
+.build/render-v*.js
+.build/verify-v*.js
+.build/manual-v[0-9]*.md
+.build/备用-*.exe
+.build/.acl-fix/
 
 # ---- 安装包：走 GitHub Release，不进仓库（二进制会让仓库迅速膨胀）----
 发布/*.exe
@@ -52,15 +66,32 @@ _AI学工汇报/
 # 反过来：baseline/ 也要入库 —— 它是 --verify 的比对基准
 .tmp/
 
-# ---- .build 下的过程产物（2026-10-03 清理）----
-# 截图 / GIF / 一次性脚本 / 构建日志 / 历史手册片段：都是当时干活留下的中间物，
-# 没人引用（grep 全仓库 0 命中）、也不需要留档。要看效果重新截一次即可。
-.build/*.png
-.build/*.gif
-.build/*.log
-.build/.last-*
-.build/shot-*.js
-.build/render-v*.js
-.build/verify-v*.js
-.build/manual-v[0-9]*.md
-.build/备用-*.exe
+# ---- .build 下的过程产物（2026-10-03 清理，已并入上面统一规则）----
+
+# JiuwenSwarm runtime file operation logs
+.agent_history/
+
+# ---- 重构工程 zuel-workstation-next（2026-10-05 入仓隔离）----
+# 工程本体由用户手动 git add；构建产物 + 第三方库不进入版本库
+# （src/ tests/ build/ harness/ docs/ package.json 等由开发者按需提交）
+D:\Develop\zuel-workstation-next\dist/
+D:\Develop\zuel-workstation-next\vendor/
+D:\Develop\zuel-workstation-next\bundle.err
+
+# ---- OfficeClaw / OfficeAce 工作区脚手架（仅出现在被它打开的 workspace）----
+agents/
+context/
+memory/
+messages/
+skills/
+todo/
+prompt_attachment/
+coding_memory/
+AGENT.md
+HEARTBEAT.md
+IDENTITY.md
+SOUL.md
+USER.md
+
+# ---- 重构的多 agent 协作工作区（设计文档 / 中间产物 / t1…t15 任务稿）----
+.team/

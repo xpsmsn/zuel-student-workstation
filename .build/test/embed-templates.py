@@ -14,14 +14,14 @@
   3) 脚本会把 中南大学生工作台.html 里
      /* @BUILTIN-TEMPLATES-START */ … /* @BUILTIN-TEMPLATES-END */
      之间的内容替换成新生成的 BUILTIN_TEMPLATES
-  4) 再跑 node .build/build-desktop.js 刷新桌面壳（出包前本来就要跑）
+  4) 再跑 node .build/sync/build-desktop.js 刷新桌面壳（出包前本来就要跑）
 """
 import base64
 import io
 import os
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TARGET = os.path.join(ROOT, '中南大学生工作台.html')
 BASE_DIR = os.path.join(os.path.expanduser('~'), 'Desktop', '常用模板')
 

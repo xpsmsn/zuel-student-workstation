@@ -95,12 +95,12 @@ git clone https://github.com/xpsmsn/zuel-student-workstation.git
 **第 3 步：验收**
 
 ```bash
-node .build/check-syntax.js 中南大学生工作台.html   # 语法有没有写坏
-node .build/test-library.js      中南大学生工作台.html   # 内容库 / 界面
-node .build/test-import.js       中南大学生工作台.html   # 导入合并
-node .build/test-v196.js         中南大学生工作台.html   # 近几版新功能
-node .build/test-delete-backup.js 中南大学生工作台.html  # 删除 / 备份
-node .build/test-desktop.js      app/src/index.html      # 桌面适配层
+node .build/test/check-syntax.js     中南大学生工作台.html   # 语法有没有写坏
+node .build/test/test-library.js     中南大学生工作台.html   # 内容库 / 界面
+node .build/test/test-import.js      中南大学生工作台.html   # 导入合并
+node .build/test/test-v196.js        中南大学生工作台.html   # 近几版新功能
+node .build/test/test-delete-backup.js 中南大学生工作台.html # 删除 / 备份
+node .build/test/test-desktop.js     app/src/index.html      # 桌面适配层
 ```
 
 全部通过再发出去。另外建议自己完整点一遍：导入两份表 → 看总览 → 看宿舍看板 → 导出一次查寝表。
@@ -115,7 +115,7 @@ node .build/test-desktop.js      app/src/index.html      # 桌面适配层
 ### 出包（可选，想发安装包才需要）
 
 ```bash
-node .build/build-desktop.js     # 生成 app/src/index.html（自动生成，别手改）
+node .build/sync/build-desktop.js   # 生成 app/src/index.html（自动生成，别手改）
 cd app && npx tauri build        # 出 .msi 与安装程序 .exe
 ```
 
