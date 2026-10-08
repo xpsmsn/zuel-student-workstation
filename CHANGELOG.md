@@ -9,10 +9,37 @@
 
 ---
 
-## 🙏 鸣谢
+## [v2.4.0] — 2026-10-08
 
-产品思路受 [辅导员 AI 工作台 · counselor-ai-workbench v1.1.0](https://github.com/L-uo/counselor-ai-workbench/releases/tag/v1.1.0) 启发，
-尤其是"免费使用 · 本地数据优先 · 无需注册账号"这三条立场。对方项目未开放源代码，本项目为**独立实现**、不含 AI 功能。
+**文档体系重写：从「个人作品介绍」改成「跨校可复用项目」。**
+
+这一版**没有产品功能变化**，但把"文档 + 协议 + 仓库说明"按一个新学校的老师从头接手需要的视角重写了一遍。
+
+### 1. 文档三件套
+
+| 文档 | 用途 | 受众 |
+|---|---|---|
+| [README.md](README.md) | 项目概览 + 下载 + 功能介绍 + 仓库结构 | 第一次看到项目的老师 / 同事 |
+| [QUICKSTART.md](QUICKSTART.md) | 3 分钟快速上手（装 → 导入 → 看总览 → 试评选 → 找数据） | 第一次用的老师 |
+| [DEVELOPING.md](DEVELOPING.md) | 跨校迁移 + 二次开发指南（含 WorkBuddy 等 AI 工具用法） | 想改成自己学校版本的老师 / 二次开发者 |
+
+旧的 `中南大学生工作台_方案说明.md`（1745 行 / 164 KB）、`.build/manual-full.md`、`.build/manual-chapters.md` 全部删除——前者是 v1.0 设计文档从未跟过 v2.x，后者是 v2.1.0 写的老手册，新人看不到、看不懂、看了也过期。
+
+### 2. 协议：MIT → Apache 2.0
+
+新增 [LICENSE](LICENSE) 文件，去掉原 README 里关于产权归属的隐含描述。
+Apache 2.0 比 MIT 多一层**专利授权**（patent grant）——对二次分发更友好，符合"希望被其他学校复用"的本意。
+
+### 3. 同步桌面版
+
+跑 `npm run build`：APP_VER `v2.4.0 · 2026-10-08`，桌面版同步到 `app/src/index.html`。
+出包：3 个 Windows 附件（安装程序 / 绿色版 / 单位部署），Mac 版由 GitHub Actions 构建。
+
+### 验收
+
+- 28 个真实数据回归测试全过（v2.3.2 整理版已固化）
+- 桌面版编译 2m 19s（缓存复用），bundle 出包 OK
+- GitHub Release 待 push（DSH 沙箱无 TTY，手动 `git push`）
 
 ---
 

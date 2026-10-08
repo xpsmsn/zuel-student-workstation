@@ -6,6 +6,9 @@
 
 **数据只存本机，全程不联网、不上传服务器。**
 
+第一次用？去读 [QUICKSTART.md](QUICKSTART.md) —— 3 分钟走完一遍。
+想把它改成你们学校的版本？去读 [DEVELOPING.md](DEVELOPING.md)。
+
 ---
 
 ## 📥 下载
@@ -16,10 +19,10 @@
 
 | 附件（下载得到的名字） | 改名成 | 适合谁 |
 |---|---|---|
-| `zuel-workstation-v2.3.0-setup.exe` | `ZUEL 辅导员工作台-v2.3.2-安装程序.exe` | **多数人选这个**：双击按向导装，装完桌面/开始菜单可启动，不需要管理员权限 |
-| `zuel-workstation-v2.3.0-portable.exe` | `ZUEL 辅导员工作台-v2.3.2-绿色版.exe` | 免安装：复制到任意文件夹双击即可 |
-| `zuel-workstation-v2.3.0-x64.msi` | `ZUEL 辅导员工作台-v2.3.2-单位部署.msi` | 学校信息办统一推送，通常需要管理员权限 |
-| `zuel-workstation-v2.3.0-macOS-universal.dmg` | `ZUEL 辅导员工作台-v2.3.2-macOS.dmg` | **Mac**：把程序拖进「应用程序」。Intel 与 Apple 芯片（M 系列）通用 |
+| `ZUEL-StudentWorkstation-v2.4.0-Setup.exe` | `ZUEL 辅导员工作台-v2.4.0-安装程序.exe` | **多数人选这个**：双击按向导装，装完桌面 / 开始菜单可启动，不需要管理员权限 |
+| `ZUEL-StudentWorkstation-v2.4.0-Portable.exe` | `ZUEL 辅导员工作台-v2.4.0-绿色版.exe` | 免安装：复制到任意文件夹双击即可 |
+| `ZUEL-StudentWorkstation-v2.4.0-Deploy.msi` | `ZUEL 辅导员工作台-v2.4.0-单位部署.msi` | 学校信息办统一推送，通常需要管理员权限 |
+| `ZUEL-StudentWorkstation-v2.4.0-macOS.dmg` | `ZUEL 辅导员工作台-v2.4.0-macOS.dmg` | **Mac**：把程序拖进「应用程序」。Intel 与 Apple 芯片（M 系列）通用 |
 | `install-notes.txt` | `安装说明.txt` | 打印版说明 |
 
 **运行环境**：Windows 10 / 11（64 位）；macOS 用 .dmg。程序自带界面运行环境，无需另外安装。
@@ -58,92 +61,7 @@
 
 ---
 
-## 🏫 其他学校：怎么把它改成"我们学校的工作台"
-
-### 为什么说这件事不难
-
-这个项目是**单文件**的：整个产品逻辑都在 `中南大学生工作台.html` 一个文件里，
-没有构建步骤、没有框架。改产品名、改系统地址、改表格列名，都是在这个文件里搜索替换。
-
-> 找词提示：产品里的校名简称是 **`中南大`**（正式校名为「中南财经政法大学」），
-> 搜 `中南大学` 会连带命中「中南大学生工作台」这个产品名 —— 那是产品名，不是校名，别误改。
-
-代码不是加密的，也不是"闭源黑盒"——你能直接看到每一行在做什么。
-
-### 三步走
-
-**第 1 步：拿到代码**
-
-```bash
-git clone https://github.com/xpsmsn/zuel-student-workstation.git
-```
-
-**第 2 步：改 4 个地方**
-
-| # | 改什么 | 在哪 | 说明 |
-| --- | --- | --- | --- |
-| 1 | 产品名 | `中南大学生工作台.html` 全文搜 **`ZUEL 辅导员工作台`**（界面与日志里就是它）；
-| 1a | 英文缩写 | 同上搜 `ZUEL`，换成你们学校的缩写（如 `SDNU 辅导员工作台`） | 跨校迁移时只改这 3~4 个字母 |`app/src-tauri/tauri.conf.json` 的 `productName` | 界面标题、窗口标题、默认文件名 |
-| 1b | 校名（可选） | 同上文件里搜 `中南财经政法大学`（正式校名）或 `ZUEL_SYS` 一带的说明文字 | 界面上出现的学校全称处；**本项目简称是「中南大」，不是「中南大学」** |
-| 2 | `identifier` | `app/src-tauri/tauri.conf.json` | **只在新项目开始时改一次**，见下方警告 |
-| 3 | 校务系统地址 | `中南大学生工作台.html` 搜 `ZUEL_SYS` | 智慧学工 / 教务系统的登录地址与菜单路径 |
-| 4 | 表格列名映射 | `中南大学生工作台.html` 搜「字段别名表」 | 你们学校的列名不一样时，在这里加一行别名就行 |
-
-也可以用 [WorkBuddy](https://www.workbuddy.cn) 打开这个文件夹，用对话的方式改
-（比如"把学校名字改成 XX 大学""我们学校的成绩表列名是 A、B、C"）。
-
-**第 3 步：验收**
-
-```bash
-node .build/test/check-syntax.js     中南大学生工作台.html   # 语法有没有写坏
-node .build/test/test-library.js     中南大学生工作台.html   # 内容库 / 界面
-node .build/test/test-import.js      中南大学生工作台.html   # 导入合并
-node .build/test/test-v196.js        中南大学生工作台.html   # 近几版新功能
-node .build/test/test-delete-backup.js 中南大学生工作台.html # 删除 / 备份
-node .build/test/test-desktop.js     app/src/index.html      # 桌面适配层
-```
-
-全部通过再发出去。另外建议自己完整点一遍：导入两份表 → 看总览 → 看宿舍看板 → 导出一次查寝表。
-
-### ⚠️ 两个地方千万别乱动
-
-| 东西 | 为什么 | 怎么做 |
-| --- | --- | --- |
-| `identifier`（`cn.edu.zuel.studentworkstation`） | 决定数据存在电脑的哪个文件夹。**已经给老师用上之后再改，所有人电脑上的数据会"找不到"，等同于丢失** | 新学校**一开始就换成自己的**，之后永远不再动 |
-| 存储键 `counselor_workstation_v2` | 同上，是数据在浏览器里的名字 | 别改 |
-
-### 出包（可选，想发安装包才需要）
-
-```bash
-node .build/sync/build-desktop.js   # 生成 app/src/index.html（自动生成，别手改）
-cd app && npx tauri build        # 出 .msi 与安装程序 .exe
-```
-
-产物在 `app/src-tauri/target/release/bundle/`，按「产品名-v版本-用途.扩展名」改名放进 `发布/`。
-macOS 版需要苹果机器或 GitHub Actions（仓库里已配好 `.github/workflows/build-macos.yml`，推 tag 即自动构建）。
-
----
-
-## 🎨 设计规范（改界面前必读）
-
-界面有**硬性规则**，不是建议：
-
-| 文档 | 用途 |
-|---|---|
-| [`docs/design/视觉设计规范.md`](docs/design/视觉设计规范.md) | 12 条铁律的整理版，含本项目落地位置与两处实际做法 |
-| [`docs/design/设计提示词-原文.md`](docs/design/设计提示词-原文.md) | 提示词原文，可直接复制调用 |
-
-一句话版本：**只改 CSS 不改逻辑与 DOM · 间距只用 8px 栅格 · 卡片无阴影 ·
-表格只留横线 · 圆角 6/12/0 · 字号只用 24/18/15/13 四档 · hover 只变背景**。
-
-> 两个容易踩的坑（已在规范里写明）：
-> ① 本项目暗色模式用 `html[data-theme="dark"]`，不是提示词里的 `:root.dark`；
-> ② 新样式要加在 `中南大学生工作台.html` 末尾的覆盖层里——文件里有 4 个 `<style>`，
->    前面的规则会按顺序吃掉你后加的规则。
-
----
-
-## 🛠 仓库结构
+## 🏗 仓库结构
 
 ```
 中南大学生工作台.html        ← 产品本体（单文件，改这个；界面显示为「ZUEL 辅导员工作台」）
@@ -151,10 +69,11 @@ app/                         ← 桌面版（Tauri 套壳）
   src/index.html               自动生成，不要手改
   src-tauri/tauri.conf.json    产品名、identifier、图标、打包配置
 docs/design/                 ← 视觉设计规范
-.build/                      ← 构建与测试脚本
+.build/                      ← 构建与测试脚本（[目录说明](.build/README.md)）
 发布/                         ← 打好包的安装程序
 CHANGELOG.md                 ← 更新日志
-中南大学生工作台_方案说明.md    ← 完整设计文档
+QUICKSTART.md                ← 第一次用？3 分钟走完
+DEVELOPING.md                ← 想改成你们学校的版本？看这里
 ```
 
 **技术上的一句话**：单文件 HTML + 原生 JS，数据存本地，
@@ -163,11 +82,6 @@ CHANGELOG.md                 ← 更新日志
 
 ---
 
-## 🙏 鸣谢
-
-产品思路受 [辅导员 AI 工作台 · counselor-ai-workbench v1.1.0](https://github.com/L-uo/counselor-ai-workbench/releases/tag/v1.1.0) 启发，
-尤其是"免费使用 · 本地数据优先 · 无需注册账号"这三条立场。对方项目未开放源代码，本项目为**独立实现**、不含 AI 功能。
-
 ## 📄 License
 
-见仓库内 LICENSE 文件。
+[Apache License 2.0](LICENSE) —— 你可以自由使用、修改、分发、商用，保留版权与许可证副本即可。

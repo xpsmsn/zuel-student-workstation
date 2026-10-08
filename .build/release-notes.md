@@ -13,10 +13,10 @@ GitHub 不支持中文文件名，附件用英文名，下载后按下表改名�
 
 | 附件（下载得到的名字） | 改名成 | 适合谁 |
 |---|---|---|
-| `zuel-workstation-v2.3.0-setup.exe` | ZUEL 辅导员工作台-v2.3.2-安装程序.exe | **多数人选这个**：双击按向导装，不需要管理员权限 |
-| `zuel-workstation-v2.3.0-portable.exe` | ZUEL 辅导员工作台-v2.3.2-绿色版.exe | 免安装：复制到任意文件夹双击 |
-| `zuel-workstation-v2.3.0-x64.msi` | ZUEL 辅导员工作台-v2.3.2-单位部署.msi | 学校信息办统一部署 |
-| `zuel-workstation-v2.3.0-macOS-universal.dmg` | ZUEL 辅导员工作台-v2.3.2-macOS.dmg | **Mac**：Intel 与 Apple 芯片通用 |
+| `zuel-workstation-v2.3.0-setup.exe` | ZUEL 辅导员工作台-v2.4.0-安装程序.exe | **多数人选这个**：双击按向导装，不需要管理员权限 |
+| `zuel-workstation-v2.3.0-portable.exe` | ZUEL 辅导员工作台-v2.4.0-绿色版.exe | 免安装：复制到任意文件夹双击 |
+| `zuel-workstation-v2.3.0-x64.msi` | ZUEL 辅导员工作台-v2.4.0-单位部署.msi | 学校信息办统一部署 |
+| `zuel-workstation-v2.3.0-macOS-universal.dmg` | ZUEL 辅导员工作台-v2.4.0-macOS.dmg | **Mac**：Intel 与 Apple 芯片通用 |
 | `install-notes.txt` | 安装说明.txt | 打印版说明 |
 
 > 运行环境：Windows 10 / 11（64 位）；macOS 用 .dmg。程序自带界面运行环境。
