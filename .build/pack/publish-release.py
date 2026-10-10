@@ -18,6 +18,14 @@ import time
 import urllib.error
 import urllib.request
 
+# Windows 上 Python stdout 默认 GBK，打印 ✅/❌ 会 UnicodeEncodeError 崩掉（pack-release.py 已加，
+# 这里漏了，导致上传第一件后 print("✅") 直接崩、其余三件没传）。显式设 UTF-8。
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
 REPO = "xpsmsn/zuel-student-workstation"
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
