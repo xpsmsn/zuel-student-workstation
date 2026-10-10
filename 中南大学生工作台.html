@@ -2520,6 +2520,17 @@ body.locked{overflow:hidden}
 .award-table tr.aw-picked.aw-done td{box-shadow:inset 3px 0 0 var(--accent)!important}
 
 .aw-bulk{position:sticky;top:8px;z-index:4;margin:0;padding:8px 16px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);box-shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.08)}
+/* v2.4.3：批量条里的「拟定为 [奖项下拉]」—— 让「选人 → 选奖项 → 拟定」在一处完成，
+   不必先点奖项卡片筛进来（旧流程顺序反了）。 */
+.aw-bulk-pick-wrap{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.aw-bulk-pick{
+  height:32px;max-width:260px;padding:0 8px;
+  border:1px solid var(--border);border-radius:6px;
+  background:var(--bg-card);color:var(--text-primary);
+  font-size:13px;font-family:inherit;cursor:pointer;
+}
+.aw-bulk-pick:hover{border-color:var(--accent)}
+.aw-bulk-pick:focus{outline:none;border-color:var(--accent)}
 
 html[data-theme="dark"] .aw-view-switch .aw-chip.on,
 html[data-theme="dark"] .aw-view-switch .aw-chip.picked.on{background:var(--bg-card)!important;color:var(--text-primary)!important}
@@ -2691,7 +2702,7 @@ const BUILTIN_TEMPLATES = [
 const STORE_KEY    = 'counselor_workstation_v2';
 const STORE_KEY_V1 = 'counselor_workstation_v1';
 /* 版本号：出现在「导入指引」页脚与设置里，方便辅导员反馈时报给你 */
-const APP_VER = 'v2.4.3 · 2026-10-10';
+const APP_VER = 'v2.4.4 · 2026-10-11';
 /* localStorage 通常上限 5MB，单批次（260 人 × 32 字段）约 250KB
    → 取 20 为保守上限，超限时提示用户先删历史批次 */
 const MAX_BATCHES = 20;
@@ -10909,20 +10920,57 @@ function awardFilter(k){ _awFilter = (_awFilter===k) ? '' : k; _awSel.clear(); r
    否则勾选后批量条永不出现。 */
 function awardBulkHtml(){
   if(!_awSel.size) return '';
+  const n = _awSel.size;
+  /* 选中的学生里**已有拟定**的有几个 —— 决定要不要给「清除拟定」这个出口。
+     以前不分情况都挂一个「取消拟定」，在「全部候选人」视图里读起来像是在
+     "取消刚才的操作"，而且此时多半根本没人有拟定，纯属干扰。 */
+  const pickedN = [..._awSel].filter(function(sid){ return !!(S.awardStatus || {})[sid]; }).length;
+  /* 正在看某个奖时，下拉直接默认到它（原来的「拟定「X」」一步不用多点） */
+  const cur = (_awFilter && _awFilter !== '__picked') ? _awFilter : '';
+  const opt = a => '<option value="' + esc(a.key) + '"' + (a.key === cur ? ' selected' : '') + '>'
+    + esc(a.key) + (a.single ? '（单项，可兼得）' : '') + '</option>';
   return '<div class="aw-bulk">'
-    + '<b>已选 ' + _awSel.size + ' 人</b>'
-    + (_awFilter
-        ? '<span class="aw-bulk-t">全部拟定为</span>'
-          + '<button class="btn pri" onclick="awardSetStatusBulk(\'' + esc(_awFilter) + '\')">拟定「' + esc(_awFilter) + '」</button>'
-        : '<span class="aw-bulk-t">先在上面选一个奖项，再点这里批量拟定</span>')
-    + '<button class="btn" onclick="awardSetStatusBulk(\'\')">取消拟定</button>'
-    + '<button class="btn" onclick="awardSelectAll(false)">取消选择</button>'
+    + '<b>已选 ' + n + ' 人</b>'
+    + '<span class="aw-bulk-pick-wrap">'
+      + '<span class="aw-bulk-t">拟定为</span>'
+      + '<select class="aw-bulk-pick" id="awBulkAward" aria-label="选择要拟定的奖项">'
+        + '<option value="">— 请选择奖项 —</option>'
+        + '<optgroup label="不兼得（一人只能一个）">' + AWARD_EXCLUSIVE.map(opt).join('') + '</optgroup>'
+        + '<optgroup label="单项奖（可兼得）">' + AWARD_SINGLE.map(opt).join('') + '</optgroup>'
+      + '</select>'
+    + '</span>'
+    + '<button class="btn pri" onclick="awardSetStatusBulkFromPicker()">拟定</button>'
+    + (pickedN
+        ? '<button class="btn" onclick="awardSetStatusBulk(\'\')" title="只把这 ' + pickedN
+          + ' 人的拟定清空，其他人的拟定不受影响">清除拟定（' + pickedN + ' 人）</button>'
+        : '')
+    + '<button class="btn ghost" onclick="awardSelectAll(false)">取消选择</button>'
     + '</div>';
+}
+/* v2.4.3：从批量条的下拉里取奖项再拟定 ——
+   这样在「全部候选人」视图也能直接「选人 → 选奖项 → 拟定」，
+   不必先点奖项卡片筛进来（老流程把顺序反过来了，容易让人卡住）。 */
+function awardSetStatusBulkFromPicker(){
+  const sel = $('awBulkAward');
+  const key = sel ? String(sel.value || '') : '';
+  if(!key){
+    toast('请先选择要拟定的奖项');
+    if(sel) sel.focus();
+    return;
+  }
+  awardSetStatusBulk(key);
 }
 /* v2.4.2：就地刷新选择相关 UI（批量条 + 表头全选 + 数据区人数提示），不重渲整页避免跳顶 */
 function refreshSelectionUI(){
   const slot = $('aw-bulk-slot');
-  if(slot) slot.innerHTML = awardBulkHtml();
+  if(slot){
+    /* 保留下拉里老师已经选好的奖项 —— 就地重绘批量条不能把手选值冲回默认 */
+    const prev = $('awBulkAward');
+    const keep = prev ? String(prev.value || '') : '';
+    slot.innerHTML = awardBulkHtml();
+    const next = $('awBulkAward');
+    if(next && keep && !next.value) next.value = keep;
+  }
   const head = $('mainArea').querySelector('.aw-switch-table-head input[type="checkbox"]');
   if(head){
     const rows = awardFiltered();
