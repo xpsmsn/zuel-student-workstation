@@ -2531,6 +2531,45 @@ body.locked{overflow:hidden}
 }
 .aw-bulk-pick:hover{border-color:var(--accent)}
 .aw-bulk-pick:focus{outline:none;border-color:var(--accent)}
+/* v2.4.5：「按专业细分」的行改成**两行式** —— 专业名独占一行、拿满整行宽度，
+   不再被名额输入框和「不参与分配」开关挤成省略号（用户 2026-10-11 反馈"名字挤在一坨看不见"）。
+   同时按设计规范收口：间距 8px、圆角 6px（控件档）、名称 15px（正文档）、计数/开关 13px（辅助档）、
+   输入框聚焦只变边框色不发光。 */
+.aw-split-grid{grid-template-columns:repeat(auto-fill,minmax(272px,1fr))!important;gap:8px!important}
+.aw-split-row{
+  display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:8px!important;
+  padding:8px 16px!important;border-radius:6px!important;
+}
+.aw-split-row .aw-split-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;min-width:0}
+.aw-split-row .aw-split-n{
+  flex:1 1 auto!important;min-width:0!important;
+  font-size:15px!important;line-height:1.5!important;font-weight:400!important;
+}
+.aw-split-row .aw-split-c{flex:0 0 auto!important;font-size:13px!important;line-height:1.4!important}
+.aw-split-row .aw-split-bot{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.aw-split-row .aw-split-bot input[type="number"]{
+  flex:0 0 72px!important;width:72px!important;height:28px!important;
+  padding:0 8px!important;text-align:center!important;
+  border:1px solid var(--border)!important;border-radius:6px!important;
+  background:var(--bg-page)!important;color:var(--text-primary)!important;
+  font-size:13px!important;font-family:inherit!important;font-variant-numeric:tabular-nums;
+}
+/* 规范⑧：输入框聚焦仅边框变色，取消外发光 */
+.aw-split-row .aw-split-bot input[type="number"]:focus{
+  outline:none!important;border-color:var(--accent)!important;box-shadow:none!important;
+}
+.aw-split-row .aw-split-bot input[type="number"]:disabled{opacity:.5;cursor:not-allowed}
+/* 「不参与分配」开关：靠右、辅助小字档 */
+.aw-split-row .aw-split-ex{
+  display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;margin-left:auto;
+  font-size:13px;line-height:1.4;color:var(--text-secondary);cursor:pointer;white-space:nowrap;
+}
+.aw-split-row .aw-split-ex input{
+  flex:0 0 auto;width:16px;height:16px;padding:0;border:0;background:transparent;
+  accent-color:var(--accent);cursor:pointer;
+}
+.aw-split-row.off{opacity:.55}
+.aw-split-row.off .aw-split-n{text-decoration:line-through}
 
 html[data-theme="dark"] .aw-view-switch .aw-chip.on,
 html[data-theme="dark"] .aw-view-switch .aw-chip.picked.on{background:var(--bg-card)!important;color:var(--text-primary)!important}
@@ -2702,7 +2741,7 @@ const BUILTIN_TEMPLATES = [
 const STORE_KEY    = 'counselor_workstation_v2';
 const STORE_KEY_V1 = 'counselor_workstation_v1';
 /* 版本号：出现在「导入指引」页脚与设置里，方便辅导员反馈时报给你 */
-const APP_VER = 'v2.4.4 · 2026-10-11';
+const APP_VER = 'v2.4.5 · 2026-10-11';
 /* localStorage 通常上限 5MB，单批次（260 人 × 32 字段）约 250KB
    → 取 20 为保守上限，超限时提示用户先删历史批次 */
 const MAX_BATCHES = 20;
@@ -3184,12 +3223,15 @@ function buildSavePayload(){
     awardSplit: S.awardSplit && typeof S.awardSplit === 'object' ? S.awardSplit : {},
     /* v2.3.3：已核对的专业细分 {奖项|专业: 时间戳} */
     awardSplitCheck: S.awardSplitCheck && typeof S.awardSplitCheck === 'object' ? S.awardSplitCheck : {},
+    /* v2.4.5：按专业细分里「取消某专业的分配权」—— { 奖项: [专业,…] }。
+       被取消分配权的专业不参与自动分配（按比例/平均分都不给它名额）。 */
+    awardSplitExclude: S.awardSplitExclude && typeof S.awardSplitExclude === 'object' ? S.awardSplitExclude : {},
     /* v2.3.4：锁屏密码（只存哈希，不存明文） */
     lockPw: S.lockPw || null,
     /* v2.4.2：剔除设置（用户 2026-10-10：「要自己筛选设置 什么要剔除 什么要保留」）
        —— 全局单套，勾上某条规则的人**所有奖都不能参评** */
     awardExclusion: S.awardExclusion && typeof S.awardExclusion === 'object' ? S.awardExclusion
-      : { noTotal:true, secondDegreeMajor:false, secondDegreeClass:false, manualSids:[] },
+      : { noTotal:true, manualSids:[] },
     /* v2.4.2：列设置 —— order 是当前显示顺序（缺列补默认 + 不在新 order 里的也补），
        hidden 是手动隐藏的 key 列表。存原始 key 而不是显示文本，搬迁/重命名不影响 */
     awardColumns: S.awardColumns && typeof S.awardColumns === 'object' ? S.awardColumns
@@ -10833,7 +10875,9 @@ function awardRows(){
       sid: sid,
       name: r['姓名'] || r['姓名1'] || '',
       major: r['专业'] || '',
-      总成绩: r['总成绩'] || '',
+      /* v2.4.5：保留数值 0（原来 `|| ''` 会把 0 变成空串，导致「总成绩为 0」认不出来）——
+         null / undefined / '' 仍归一成 ''。 */
+      总成绩: (r['总成绩'] === 0 || r['总成绩'] === '0') ? r['总成绩'] : (r['总成绩'] || ''),
       智力: r['知识水平评价'] || '',
       B1: r['科研创新B1'] || '', B2: r['专业技能B2'] || '',
       B3: r['文体特长B3'] || '', B4: r['社会工作B4'] || '',
@@ -10866,9 +10910,13 @@ let _awSel = new Set();    // 勾选的学号
 function passesExclusion(r, excl){
   excl = excl || (S.awardExclusion || {});
   const reasons = [];
-  if(excl.noTotal && (r.总成绩 === '' || r.总成绩 == null)) reasons.push('无总成绩');
-  if(excl.secondDegreeMajor && /二学位/.test(r.major)) reasons.push('二学位班级');
-  if(excl.secondDegreeClass && /第二学位/.test(r.major)) reasons.push('第二学位班级');
+  /* 唯一需要的自动规则：**总成绩为 0 或为空**。
+     辅导员 2026-10-11 拍板：「只有一个情况需要剔除，那就是总成绩为 0 或者为空」——
+     原来的「二学位班级 / 第二学位班级」两条是多余的，已去除（专业名不该拿来判能不能参评）。
+     数值 0 也算（导出表里写 0 = 没成绩，不是"考了 0 分"）。 */
+  if(excl.noTotal && (r.总成绩 === '' || r.总成绩 == null || Number(r.总成绩) === 0)){
+    reasons.push('总成绩为 0 或为空');
+  }
   if(Array.isArray(excl.manualSids) && excl.manualSids.indexOf(r.sid) >= 0) reasons.push('手动剔除');
   return reasons;
 }
@@ -10907,8 +10955,7 @@ function awardFiltered(){
   /* v2.4.2：剔除规则全局应用（除「已拟定」视图）。
      剔除的人不出现在任何奖的名单里——符合用户「什么都不能参评」。 */
   const excl = S.awardExclusion;
-  if(excl && (excl.noTotal || excl.secondDegreeMajor || excl.secondDegreeClass
-              || (Array.isArray(excl.manualSids) && excl.manualSids.length))){
+  if(excl && (excl.noTotal || (Array.isArray(excl.manualSids) && excl.manualSids.length))){
     rows = rows.filter(r => passesExclusion(r, excl).length === 0);
   }
   return rows;
@@ -11258,30 +11305,33 @@ function awardMajorStats(){
   arr.sort(function(a, b){ return b.人数 - a.人数 || a.专业.localeCompare(b.专业, 'zh'); });
   return arr;
 }
-/** 按某算法算建议分额；返回 {专业: 名额} */
-function awardSplitSuggest(total, stats, mode){
+/** 按某算法算建议分额；返回 {专业: 名额}
+    v2.4.5：excluded = 被「取消分配权」的专业 —— 它们不参与分配，
+    总名额只在剩下的专业之间分（不是简单地给它们 0）。 */
+function awardSplitSuggest(total, stats, mode, excluded){
+  const ex = excluded || [];
+  const pool = stats.filter(function(m){ return ex.indexOf(m.专业) < 0; });
   const out = {};
-  if(!total || !stats.length) return out;
+  if(!total || !pool.length) return out;
   if(mode === 'equal'){
-    const per = Math.floor(total / stats.length);
-    const rest = total - per * stats.length;
-    stats.forEach(function(m, i){
+    const per = Math.floor(total / pool.length);
+    const rest = total - per * pool.length;
+    pool.forEach(function(m, i){
       out[m.专业] = per + (i < rest ? 1 : 0);
     });
     return out;
   }
   // 默认按比例
-  const sum = stats.reduce(function(a, m){ return a + m.人数; }, 0);
+  const sum = pool.reduce(function(a, m){ return a + m.人数; }, 0);
   if(!sum) return out;
-  let used = 0, best = stats[0];
-  stats.forEach(function(m){
+  let used = 0;
+  pool.forEach(function(m){
     const v = Math.round(total * m.人数 / sum);
     out[m.专业] = v; used += v;
-    if(m.人数 > best.人数) best = m;
   });
   /* 补差额：优先补到人数最多的专业（那里最不容易引起争议） */
   let diff = total - used;
-  const order = stats.slice().sort(function(a, b){ return b.人数 - a.人数; });
+  const order = pool.slice().sort(function(a, b){ return b.人数 - a.人数; });
   let i = 0;
   while(diff > 0){ out[order[i % order.length].专业]++; diff--; i++; }
   while(diff < 0){
@@ -11292,6 +11342,18 @@ function awardSplitSuggest(total, stats, mode){
   return out;
 }
 function awardSplitOf(key){ return (S.awardSplit && S.awardSplit[key]) || null; }
+/* v2.4.5：「取消分配权」的专业名单（该奖下） */
+function awardSplitExcluded(key){
+  const m = (S.awardSplitExclude || {})[key];
+  return Array.isArray(m) ? m.slice() : [];
+}
+function setAwardSplitExcluded(key, arr){
+  S.awardSplitExclude = S.awardSplitExclude || {};
+  const clean = (arr || []).filter(Boolean);
+  if(clean.length) S.awardSplitExclude[key] = clean;
+  else delete S.awardSplitExclude[key];
+  save();
+}
 function setAwardSplit(key, val){
   S.awardSplit = S.awardSplit || {};
   if(val == null || val === '') delete S.awardSplit[key];
@@ -11357,11 +11419,7 @@ function openAwardSplit(key){
   const stats = awardMajorStats();
   const total = awardQuota(key);
   const cur = awardSplitOf(key) || {};
-  const sug = awardSplitSuggest(total, stats, 'ratio');
-  const sugEqual = awardSplitSuggest(total, stats, 'equal');
-  const q = String.fromCharCode(39);       // 单引号：拼 onclick 用，避免转义地狱
-  const sugTxt = Object.keys(sug).map(function(k){ return k + ' ' + sug[k]; }).join(' · ') || '（名额为 0，无法细分）';
-  const equalTxt = Object.keys(sugEqual).map(function(k){ return k + ' ' + sugEqual[k]; }).join(' · ') || '—';
+  const excluded = awardSplitExcluded(key);
 
   $('modalRoot').innerHTML =
     '<div class="mask" onclick="if(event.target===this)closeModal()">'
@@ -11371,19 +11429,31 @@ function openAwardSplit(key){
     + '<div class="modal-body">'
       + '<div class="hint">下面的人数来自<b>当前批次的全部学生</b>（按专业统计），'
         + '共 <b>' + stats.reduce(function(a, m){ return a + m.人数; }, 0) + '</b> 人。'
-        + '名额 = <b>' + (total || '未设') + '</b>。分给谁由你决定，下面的数字可以直接改。</div>'
+        + '名额 = <b>' + (total || '未设') + '</b>。分给谁由你决定，下面的数字可以直接改。'
+        + '<br>某个专业<b>不该参与分配</b>时，勾上它右边的「不参与分配」——'
+        + '自动分配会把名额只分给剩下的专业。</div>'
       + '<div class="aw-split-sum">该奖名额 <b>' + (total || 0) + '</b> 名 · 已分配 <b id="awSpUsed">0</b> 名'
         + '<span id="awSpTip" class="aw-split-tip"></span></div>'
-      + '<div class="aw-split-sug">按比例建议：' + esc(sugTxt)
-        + '<br>平均分建议：' + esc(equalTxt) + '</div>'
+      + '<div class="aw-split-sug" id="awSpSug"></div>'
       + '<div class="aw-split-grid">'
         + stats.map(function(m){
           const v = cur[m.专业];
-          return '<label class="aw-split-row"><span class="aw-split-n">' + esc(m.专业) + '</span>'
-            + '<span class="aw-split-c">' + m.人数 + ' 人</span>'
-            + '<input type="number" min="0" step="1" value="' + (v == null ? '' : v) + '" placeholder="—'
-            + '" data-k="' + esc(key) + '" data-m="' + esc(m.专业) + '"'
-            + ' oninput="awardSplitInput(this)"></label>';
+          const ex = excluded.indexOf(m.专业) >= 0;
+          return '<div class="aw-split-row' + (ex ? ' off' : '') + '">'
+            + '<div class="aw-split-top">'
+              + '<span class="aw-split-n" title="' + esc(m.专业) + '">' + esc(m.专业) + '</span>'
+              + '<span class="aw-split-c">' + m.人数 + ' 人</span>'
+            + '</div>'
+            + '<div class="aw-split-bot">'
+              + '<input type="number" min="0" step="1" value="' + (ex || v == null ? '' : v) + '" placeholder="—"'
+              + ' data-k="' + esc(key) + '" data-m="' + esc(m.专业) + '"'
+              + ' aria-label="' + esc(m.专业) + ' 的名额"'
+              + ' oninput="awardSplitInput(this)"' + (ex ? ' disabled' : '') + '>'
+              + '<label class="aw-split-ex" title="勾上 = 该专业不参与名额分配">'
+                + '<input type="checkbox" data-ex="' + esc(m.专业) + '"' + (ex ? ' checked' : '')
+                + ' onchange="awardSplitToggleExclude(this)">不参与分配</label>'
+            + '</div>'
+          + '</div>';
         }).join('')
       + '</div>'
       + '<div class="aw-split-act" data-split-key="' + esc(key) + '">'
@@ -11395,11 +11465,10 @@ function openAwardSplit(key){
     + '<div class="modal-foot"><button class="btn" onclick="closeModal()">取消</button>'
     + '<button class="btn pri" data-split-save="1">保存</button></div>'
     + '</div></div>';
-  /* 建议值存全局 + 事件委托。
+  renderSplitSuggestText(key);
+  /* 事件委托。
      ⚠️ 早先把对象写进 onclick="f('x',{...})"，对象里的双引号会提前截断
      HTML 属性 —— 按钮渲染正常，点了报「Unexpected end of input」。 */
-  AWARD_SPLIT_SUGGEST.ratio[key] = sug;
-  AWARD_SPLIT_SUGGEST.equal[key] = sugEqual;
   const act = document.querySelector('.aw-split-act');
   if(act) act.onclick = function(e){
     const t = e.target.closest('button');
@@ -11415,14 +11484,52 @@ function openAwardSplit(key){
   };
   updateSplitUsed();
 }
-/* 建议分额暂存（供按钮取用），点「保存」才落盘 */
-const AWARD_SPLIT_SUGGEST = { ratio:{}, equal:{} };
-/** 把建议分额填进输入框（不落盘，点「保存」才算） */
+/* v2.4.5：弹窗里当前「不参与分配」的专业集合 —— 以 DOM 为准，勾选即刻生效 */
+function splitModalExcluded(){
+  const out = [];
+  document.querySelectorAll('.aw-split-ex input[data-ex]').forEach(function(cb){
+    if(cb.checked) out.push(cb.getAttribute('data-ex'));
+  });
+  return out;
+}
+/* 刷新弹窗里「按比例建议 / 平均分建议」两行文字（跟着排除勾选实时变） */
+function renderSplitSuggestText(key){
+  const el = document.getElementById('awSpSug');
+  if(!el) return;
+  const stats = awardMajorStats();
+  const total = awardQuota(key);
+  const excluded = splitModalExcluded();
+  const fmt = function(obj){
+    const ks = Object.keys(obj);
+    if(!ks.length) return '（可分配的专业为空）';
+    return ks.map(function(k){ return k + ' ' + obj[k]; }).join(' · ');
+  };
+  el.innerHTML = '按比例建议：' + esc(fmt(awardSplitSuggest(total, stats, 'ratio', excluded)))
+    + '<br>平均分建议：' + esc(fmt(awardSplitSuggest(total, stats, 'equal', excluded)));
+}
+/* 勾 / 取消某个专业的分配权 */
+function awardSplitToggleExclude(cb){
+  const row = cb.closest('.aw-split-row');
+  const num = row ? row.querySelector('input[type="number"]') : null;
+  if(row) row.classList.toggle('off', cb.checked);
+  if(num){
+    num.disabled = cb.checked;
+    if(cb.checked) num.value = '';        // 不参与分配 → 名额清空
+  }
+  const key = num ? num.getAttribute('data-k') : '';
+  if(key) renderSplitSuggestText(key);
+  updateSplitUsed();
+}
+/** 把建议分额填进输入框（不落盘，点「保存」才算）—— 已排除的专业保持空 */
 function awardFillSplit(mode, key){
-  const obj = (AWARD_SPLIT_SUGGEST[mode] || {})[key];
-  if(!obj) return;
-  document.querySelectorAll('.aw-split-row input').forEach(function(inp){
-    const v = obj[inp.getAttribute('data-m')];
+  const stats = awardMajorStats();
+  const total = awardQuota(key);
+  const excluded = splitModalExcluded();
+  const obj = awardSplitSuggest(total, stats, mode, excluded);
+  document.querySelectorAll('.aw-split-row input[type="number"]').forEach(function(inp){
+    const m = inp.getAttribute('data-m');
+    if(excluded.indexOf(m) >= 0){ inp.value = ''; return; }
+    const v = obj[m];
     inp.value = (v == null ? '' : v);
   });
   updateSplitUsed();
@@ -11433,13 +11540,13 @@ function awardSplitInput(){ updateSplitUsed(); }
    老师最容易出的错就是各专业加起来超过总名额，所以这个提示要实时。 */
 function updateSplitUsed(){
   let used = 0;
-  document.querySelectorAll('.aw-split-row input').forEach(function(i){
+  document.querySelectorAll('.aw-split-row input[type="number"]').forEach(function(i){
     used += Number(i.value) || 0;
   });
   const el = document.getElementById('awSpUsed');
   if(el) el.textContent = used;
   const tip = document.getElementById('awSpTip');
-  const first = document.querySelector('.aw-split-row input');
+  const first = document.querySelector('.aw-split-row input[type="number"]');
   if(!tip || !first) return;
   const t = awardQuota(first.getAttribute('data-k')) || 0;
   if(t && used !== t){
@@ -11452,14 +11559,22 @@ function updateSplitUsed(){
 }
 function saveAwardSplit(key){
   const obj = {};
-  document.querySelectorAll('.aw-split-row input').forEach(function(inp){
+  document.querySelectorAll('.aw-split-row input[type="number"]').forEach(function(inp){
     const m = inp.getAttribute('data-m');
     const v = inp.value.trim();
     if(v !== '') obj[m] = Math.max(0, Number(v) || 0);
   });
-  setAwardSplit(key, Object.keys(obj).length ? obj : null);
+  /* v2.4.5：把「不参与分配」的专业一起落盘 —— 只勾了排除、没填任何数字也算配置过 */
+  const excluded = splitModalExcluded();
+  setAwardSplitExcluded(key, excluded);
+  const has = Object.keys(obj).length || excluded.length;
+  setAwardSplit(key, has ? obj : null);
   closeModal();
-  toast(Object.keys(obj).length ? '已保存「' + key + '」的专业分额' : '已清空「' + key + '」的专业分额');
+  if(excluded.length){
+    toast('已保存「' + key + '」的专业分额；' + excluded.length + ' 个专业不参与分配');
+  }else{
+    toast(Object.keys(obj).length ? '已保存「' + key + '」的专业分额' : '已清空「' + key + '」的专业分额');
+  }
 }
 
 
@@ -11485,12 +11600,15 @@ function awardMajorStat(key, major, rows){
     分配: Number(split[major]) || 0,
     已定: inMajor.filter(function(r){ return awardOf(r.sid) === key; }).length,
     候选: inMajor.length,
+    /* v2.4.5：该专业是否被「取消分配权」 */
+    排除: awardSplitExcluded(key).indexOf(major) >= 0,
   };
 }
 /** 有没有该奖的细分数据（没有就不分组） */
 function awardSplitActive(key){
   const sp = awardSplitOf(key);
-  return !!(sp && Object.keys(sp).length);
+  /* v2.4.5：只勾了「不参与分配」也算配置过细分（否则分组头不出现，看不到排除结果） */
+  return !!((sp && Object.keys(sp).length) || awardSplitExcluded(key).length);
 }
 /** 按专业分组：顺序 = 老师填细分的顺序，其余专业按人数从多到少 */
 function awardGroupByMajor(key, rows){
@@ -11509,6 +11627,12 @@ function awardGroupByMajor(key, rows){
 }
 /** 这个专业有没有需要提醒的问题 */
 function awardGroupWarn(g){
+  /* v2.4.5：被「取消分配权」的专业 —— 没名额是**故意的**，不能报成「该专业没分到名额」 */
+  if(g.排除){
+    return g.已定 > 0
+      ? { 级:'bad', 文:'已取消分配权，但已定 ' + g.已定 + ' 名' }
+      : { 级:'none', 文:'不参与分配' };
+  }
   if(g.已定 > g.分配) return { 级:'over', 文:'超额 ' + (g.已定 - g.分配) + ' 名' };
   if(g.分配 === 0 && g.已定 > 0) return { 级:'bad', 文:'该专业没分到名额' };
   /* ⚠️ 「分配 0 / 已定 0」不是「满额」—— 那是「没名额、也还没人定」，
@@ -11684,8 +11808,7 @@ function renderAward(){
   /* v2.4.2：右上角两个设置入口（剔除规则 + 列设置） */
   const exclOn = (function(e){
     if(!e) return false;
-    return !!(e.noTotal || e.secondDegreeMajor || e.secondDegreeClass
-              || (Array.isArray(e.manualSids) && e.manualSids.length));
+    return !!(e.noTotal || (Array.isArray(e.manualSids) && e.manualSids.length));
   })(S.awardExclusion);
   h += '<section class="aw-workbar" aria-label="评选视图与设置">'
     + '<div class="aw-workbar-main">'
@@ -11813,7 +11936,7 @@ function renderAward(){
 /* v2.4.2：剔除规则弹层
    「什么奖都不能参评」—— 全局单套配置，勾上就再也不出现在任何奖的名单里。 */
 function openAwardExclusion(){
-  S.awardExclusion = S.awardExclusion || { noTotal:true, secondDegreeMajor:false, secondDegreeClass:false, manualSids:[] };
+  S.awardExclusion = S.awardExclusion || { noTotal:true, manualSids:[] };
   const e = S.awardExclusion;
   const mk = (k, label, hint) => '<label class="aw-excl-row"><input type="checkbox" data-excl="' + k + '"' + (e[k] ? ' checked' : '') + '>'
     + '<span class="aw-excl-label">' + label + '</span>'
@@ -11825,10 +11948,8 @@ function openAwardExclusion(){
     + '<div class="modal-head"><div class="modal-title">剔除规则</div>'
     + '<div class="modal-close" onclick="closeModal()">×</div></div>'
     + '<div class="modal-body">'
-    + '<div class="hint" style="margin-bottom:12px">勾上的规则会让符合的学生<b>所有奖都不能参评</b>（除了「已拟定」视图，那里看的是已定的人）。</div>'
-    + mk('noTotal',           '无总成绩的学生',   '总成绩为空（导出表里没这一项）的人')
-    + mk('secondDegreeMajor', '二学位班级的学生', '专业名含「二学位」')
-    + mk('secondDegreeClass', '第二学位班级的学生','专业名含「第二学位」')
+    + '<div class="hint" style="margin-bottom:12px">被剔除的学生<b>所有奖都不能参评</b>（「已拟定」视图不受影响，那里看的是已定的人）。</div>'
+    + mk('noTotal', '总成绩为 0 或为空的学生', '导出表里这一项缺了、或写成 0 —— 没成绩就没法参与排序')
     + '<label class="aw-excl-row aw-excl-manual"><input type="checkbox" data-excl="manual"' + ((Array.isArray(e.manualSids) && e.manualSids.length) ? ' checked' : '') + '>'
     + '<span class="aw-excl-label">手动剔除名单</span>'
     + '<span class="aw-excl-hint">勾上后，下方输入学号就能单个剔除（逗号或空格分隔）</span></label>'
@@ -11864,7 +11985,7 @@ function openAwardExclusion(){
   };
 }
 function readExclusionForm(){
-  const out = { noTotal:false, secondDegreeMajor:false, secondDegreeClass:false, manualSids:[] };
+  const out = { noTotal:false, manualSids:[] };
   document.querySelectorAll('[data-excl]').forEach(function(el){
     const k = el.getAttribute('data-excl');
     if(el.checked){

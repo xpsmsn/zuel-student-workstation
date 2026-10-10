@@ -39,14 +39,24 @@ const gates = [
   [/S\.awardColumns\b/, '全局状态 S.awardColumns 存在'],
   /* data-excl 是字符串拼接 (k + '"')，grep 不到字面量；改成检查 4 个 key 都出现 */
   [/noTotal/, '剔除规则: noTotal 关键字'],
-  [/secondDegreeMajor/, '剔除规则: secondDegreeMajor 关键字'],
-  [/secondDegreeClass/, '剔除规则: secondDegreeClass 关键字'],
   [/manualSids/, '剔除规则: manualSids 关键字'],
+  [/总成绩为 0 或为空/, '剔除规则: 文案「总成绩为 0 或为空」'],
+  [/Number\(r\.总成绩\) === 0/, '剔除规则: 数值 0 也判为剔除'],
+  /* v2.4.5：按专业细分里「取消某专业的分配权」 */
+  [/S\.awardSplitExclude\b/, '状态: S.awardSplitExclude 存在'],
+  [/function\s+awardSplitExcluded\s*\(/, '存在 awardSplitExcluded()'],
+  [/function\s+splitModalExcluded\s*\(/, '存在 splitModalExcluded()'],
+  [/function\s+awardSplitToggleExclude\s*\(/, '存在 awardSplitToggleExclude()'],
+  [/不参与分配/, '细分弹窗含「不参与分配」开关'],
+  [/function\s+awardSplitSuggest\s*\(\s*total\s*,\s*stats\s*,\s*mode\s*,\s*excluded\s*\)/, 'awardSplitSuggest 接受 excluded 参数'],
 ];
 for(const [re, name] of gates){
   if(re.test(html)) pass(name);
   else fail(name);
 }
+/* v2.4.5：二学位 / 第二学位 两条规则已移除 —— 防止被"复活" */
+if(!/secondDegree/.test(html)) pass('已移除 secondDegree* 规则（v2.4.5 精简）');
+else fail('secondDegree* 规则仍存在（v2.4.5 应已移除）');
 
 /* ── 2. 沙盒骨架 ── */
 function el(){
@@ -179,15 +189,17 @@ const { passesExclusion, activeAwardCols, awardFiltered, AWARD_COLS } = exp;
 
 /* ── 4. 构造测试数据 ──
    5 人 —— 字段用 awardRows() 读的 raw 形态（学号/姓名/专业/总成绩/知识水平评价/科研创新B1.../志愿顺序）
-   - 演示 01：正常学生（有总成绩 + 非二学位）→ 应被保留
-   - 演示 02：总成绩 = null                        → 命中 noTotal
-   - 演示 03：专业 = "二学位法学"                  → 命中 secondDegreeMajor
-   - 演示 04：专业 = "第二学位经济学"              → 命中 secondDegreeClass
-   - 演示 05：正常                                → 应被保留 */
+   v2.4.5：剔除规则精简成两条（总成绩为 0 或为空 / 手动名单），「二学位 / 第二学位」两条已移除，
+   所以**专业名不再影响剔除判定**。
+   - 演示 01：总成绩 88   → 保留
+   - 演示 02：总成绩 null → 命中「总成绩为 0 或为空」
+   - 演示 03：总成绩 0    → 也要命中（数值 0 = 没成绩）
+   - 演示 04：总成绩 90，专业含「第二学位」→ **不再**被剔除（规则已删）
+   - 演示 05：总成绩 76   → 保留 */
 const sampleAwardRows = [
   { '学号': 202425400001, '姓名': '演示 01', '姓名1': '演示 01', '专业': '金融学', '总成绩': 88, '知识水平评价': 90, '科研创新B1': 85, '专业技能B2': 88, '文体特长B3': 70, '社会工作B4': 80, '社会实践B5': 75, '志愿顺序': '1.国家奖学金' },
   { '学号': 202425400002, '姓名': '演示 02', '姓名1': '演示 02', '专业': '金融学', '总成绩': null, '知识水平评价': 80, '科研创新B1': 75, '专业技能B2': 80, '文体特长B3': 60, '社会工作B4': 70, '社会实践B5': 65, '志愿顺序': '1.国家奖学金' },
-  { '学号': 202425400003, '姓名': '演示 03', '姓名1': '演示 03', '专业': '二学位法学', '总成绩': 80, '知识水平评价': 85, '科研创新B1': 70, '专业技能B2': 80, '文体特长B3': 65, '社会工作B4': 75, '社会实践B5': 70, '志愿顺序': '1.国家奖学金' },
+  { '学号': 202425400003, '姓名': '演示 03', '姓名1': '演示 03', '专业': '金融学', '总成绩': 0, '知识水平评价': 85, '科研创新B1': 70, '专业技能B2': 80, '文体特长B3': 65, '社会工作B4': 75, '社会实践B5': 70, '志愿顺序': '1.国家奖学金' },
   { '学号': 202425400004, '姓名': '演示 04', '姓名1': '演示 04', '专业': '第二学位经济学', '总成绩': 90, '知识水平评价': 92, '科研创新B1': 85, '专业技能B2': 88, '文体特长B3': 75, '社会工作B4': 80, '社会实践B5': 78, '志愿顺序': '1.国家奖学金' },
   { '学号': 202425400005, '姓名': '演示 05', '姓名1': '演示 05', '专业': '金融学', '总成绩': 76, '知识水平评价': 78, '科研创新B1': 70, '专业技能B2': 75, '文体特长B3': 65, '社会工作B4': 70, '社会实践B5': 68, '志愿顺序': '1.国家奖学金' },
 ];
@@ -196,14 +208,14 @@ const sampleAwardRows = [
 const sampleRows = [
   { sid:'202425400001', name:'演示 01', major:'金融学', 总成绩:88, 智力:90, B1:85, B2:88, B3:70, B4:80, B5:75, wishes:['国家奖学金'], award:'' },
   { sid:'202425400002', name:'演示 02', major:'金融学', 总成绩:'', 智力:80, B1:75, B2:80, B3:60, B4:70, B5:65, wishes:['国家奖学金'], award:'' },
-  { sid:'202425400003', name:'演示 03', major:'二学位法学', 总成绩:80, 智力:85, B1:70, B2:80, B3:65, B4:75, B5:70, wishes:['国家奖学金'], award:'' },
+  { sid:'202425400003', name:'演示 03', major:'金融学', 总成绩:0, 智力:85, B1:70, B2:80, B3:65, B4:75, B5:70, wishes:['国家奖学金'], award:'' },
   { sid:'202425400004', name:'演示 04', major:'第二学位经济学', 总成绩:90, 智力:92, B1:85, B2:88, B3:75, B4:80, B5:78, wishes:['国家奖学金'], award:'' },
   { sid:'202425400005', name:'演示 05', major:'金融学', 总成绩:76, 智力:78, B1:70, B2:75, B3:65, B4:70, B5:68, wishes:['国家奖学金'], award:'' },
 ];
 
 function resetState(excl, cols){
   sandbox.S = {
-    awardExclusion: excl || { noTotal:true, secondDegreeMajor:false, secondDegreeClass:false, manualSids:[] },
+    awardExclusion: excl || { noTotal:true, manualSids:[] },
     awardColumns: cols || { order: AWARD_COLS.map(c=>c.key), hidden:[] },
     awardRows: sampleAwardRows,
     awardList: [{ key:'国家奖学金', name:'国家奖学金', exclusive:true, single:false }],
@@ -218,55 +230,50 @@ function resetState(excl, cols){
 
 /* ── 5. 行为断言 ── */
 
-/* (A) passesExclusion — 4 个规则 */
-const defaultExcl = { noTotal:true, secondDegreeMajor:false, secondDegreeClass:false, manualSids:[] };
+/* (A) passesExclusion —— v2.4.5 只有两条规则：总成绩为 0 或为空 / 手动名单 */
+const defaultExcl = { noTotal:true, manualSids:[] };
 
 const a1 = passesExclusion(sampleRows[0], defaultExcl);
 if(Array.isArray(a1) && a1.length === 0) pass('passesExclusion: 正常学生返回 []');
 else fail('passesExclusion: 正常学生期望 []，得 ' + JSON.stringify(a1));
 
 const a2 = passesExclusion(sampleRows[1], defaultExcl);
-if(a2.includes('无总成绩')) pass('passesExclusion: 无总成绩 → ["无总成绩"]');
-else fail('passesExclusion: 无总成绩期望 ["无总成绩"]，得 ' + JSON.stringify(a2));
+if(a2.includes('总成绩为 0 或为空')) pass('passesExclusion: 总成绩 null → 含"总成绩为 0 或为空"');
+else fail('passesExclusion: 总成绩 null 期望命中，得 ' + JSON.stringify(a2));
 
-const a3 = passesExclusion(sampleRows[2], { ...defaultExcl, secondDegreeMajor:true });
-if(a3.includes('二学位班级')) pass('passesExclusion: 二学位专业 → 含"二学位班级"');
-else fail('passesExclusion: 二学位专业期望含"二学位班级"，得 ' + JSON.stringify(a3));
+const a3 = passesExclusion(sampleRows[2], defaultExcl);
+if(a3.includes('总成绩为 0 或为空')) pass('passesExclusion: 总成绩 0（数值）→ 也命中');
+else fail('passesExclusion: 总成绩 0 期望命中，得 ' + JSON.stringify(a3));
 
-const a4 = passesExclusion(sampleRows[3], { ...defaultExcl, secondDegreeClass:true });
-if(a4.includes('第二学位班级')) pass('passesExclusion: 第二学位专业 → 含"第二学位班级"');
-else fail('passesExclusion: 第二学位专业期望含"第二学位班级"，得 ' + JSON.stringify(a4));
+/* 「二学位 / 第二学位」规则已删 —— 专业名含这些字样的学生不再被剔 */
+const a4 = passesExclusion(sampleRows[3], defaultExcl);
+if(a4.length === 0) pass('passesExclusion: 专业含"第二学位"不再被剔（规则已删）');
+else fail('passesExclusion: 专业含"第二学位"期望不被剔，得 ' + JSON.stringify(a4));
 
-const a5 = passesExclusion(sampleRows[0], { noTotal:false, secondDegreeMajor:false, secondDegreeClass:false, manualSids:['202425400001'] });
+const a5 = passesExclusion(sampleRows[0], { noTotal:false, manualSids:['202425400001'] });
 if(a5.includes('手动剔除')) pass('passesExclusion: manualSids 命中 → 含"手动剔除"');
 else fail('passesExclusion: manualSids 命中期望含"手动剔除"，得 ' + JSON.stringify(a5));
 
 /* (B) awardFiltered 全局剔除生效 —— 不传参，内部从 S.awardRows 读 */
-resetState(defaultExcl);
+resetState(defaultExcl);              /* noTotal 开 */
 let vis = awardFiltered();
 let visNames = vis.map(r => r.name);
-if(visNames.length === 4 && !visNames.includes('演示 02'))
-  pass('awardFiltered: 开 noTotal → 5 人 → 4 人，演示 02 被剔');
-else fail('awardFiltered: 开 noTotal 期望 4 人（不含 02），实际 ' + visNames.length + ' 人 [' + visNames.join(',') + ']');
+if(visNames.length === 3 && !visNames.includes('演示 02') && !visNames.includes('演示 03')
+   && visNames.includes('演示 04'))
+  pass('awardFiltered: noTotal 开 → 5 → 3（剔 02=null 与 03=0；04 的"第二学位"不再被剔）');
+else fail('awardFiltered: noTotal 开期望 3 人（01/04/05），实际 ' + visNames.length + ' 人 [' + visNames.join(',') + ']');
 
-resetState({ noTotal:true, secondDegreeMajor:true, secondDegreeClass:true, manualSids:[] });
+resetState({ noTotal:false, manualSids:[] });
 vis = awardFiltered(sampleRows);
-visNames = vis.map(r => r.name);
-if(visNames.length === 2 && visNames.includes('演示 01') && visNames.includes('演示 05'))
-  pass('awardFiltered: 三规则全开 → 5 → 2（演示 01 + 演示 05）');
-else fail('awardFiltered: 三规则全开期望 2 人（01+05），实际 ' + visNames.length + ' 人 [' + visNames.join(',') + ']');
+if(vis.length === 5) pass('awardFiltered: 规则全关 → 5 人全过');
+else fail('awardFiltered: 规则全关期望 5，实际 ' + vis.length);
 
-resetState({ noTotal:false, secondDegreeMajor:false, secondDegreeClass:false, manualSids:['202425400001','202425400003'] });
+resetState({ noTotal:false, manualSids:['202425400001','202425400003'] });
 vis = awardFiltered(sampleRows);
 visNames = vis.map(r => r.name);
 if(visNames.length === 3 && !visNames.includes('演示 01') && !visNames.includes('演示 03'))
   pass('awardFiltered: 手动剔除 01+03 → 5 → 3');
 else fail('awardFiltered: 手动剔除期望 3 人（不含 01/03），实际 ' + visNames.length + ' 人 [' + visNames.join(',') + ']');
-
-resetState({ noTotal:false, secondDegreeMajor:false, secondDegreeClass:false, manualSids:[] });
-vis = awardFiltered(sampleRows);
-if(vis.length === 5) pass('awardFiltered: 规则全关 → 5 人全过');
-else fail('awardFiltered: 规则全关期望 5，实际 ' + vis.length);
 
 /* (C) activeAwardCols 列设置 */
 resetState(undefined, { order: AWARD_COLS.map(c=>c.key), hidden:[] });
@@ -295,17 +302,18 @@ if(cols.length === 2 && cols[0].key === 'name' && cols[1].key === '总成绩')
 else fail('activeAwardCols: 隐藏 10 列期望仅 name+总成绩，实际 [' + cols.map(c=>c.key).join(',') + ']');
 
 /* (D) localStorage 往返 —— 核心：序列化+反序列化后行为应与配置一致。
-   配置 {noTotal:true, secondDegreeMajor:true} → 02(noTotal) + 03+04(二学位)都被剔 → 剩 2 人 */
-resetState({ noTotal:true, secondDegreeMajor:true, manualSids:['x1','x2'] });
+   配置 {noTotal:true} → 02(null) + 03(0) 被剔 → 剩 01/04/05 */
+resetState({ noTotal:true, manualSids:['x1','x2'] });
 const expectedFirst = awardFiltered().map(r => r.name);
 const serialA = JSON.stringify(sandbox.S.awardExclusion);
-resetState({ noTotal:false, secondDegreeMajor:false, manualSids:[] });
+resetState({ noTotal:false, manualSids:[] });
 sandbox.S.awardExclusion = JSON.parse(serialA);
 vis = awardFiltered();
 visNames = vis.map(r => r.name);
 const sameFirstRun = expectedFirst.length === visNames.length && expectedFirst.every((n, i) => visNames[i] === n);
-if(sameFirstRun && visNames.length === 2 && visNames.includes('演示 01') && visNames.includes('演示 05'))
-  pass('localStorage 往返: JSON.parse(awardExclusion) 后行为与首轮一致（剩演示 01+05）');
+if(sameFirstRun && visNames.length === 3 && visNames.includes('演示 01')
+   && visNames.includes('演示 04') && visNames.includes('演示 05'))
+  pass('localStorage 往返: JSON.parse(awardExclusion) 后行为与首轮一致（剩演示 01/04/05）');
 else fail('localStorage 往返: 首轮 [' + expectedFirst.join(',') + ']，第二轮 [' + visNames.join(',') + ']');
 
 /* ── 6. 收尾 ── */
