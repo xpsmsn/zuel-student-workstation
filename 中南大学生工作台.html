@@ -615,6 +615,55 @@ html[data-theme="dark"] img.brand-logo{filter:brightness(1.5) saturate(1.05)}
 .aw-prog-v b{font-size:15px;font-weight:680;color:var(--text-primary)}
 .aw-prog-v i{font-style:normal;color:var(--text-3)}
 
+/* v2.4.2：顶部切换条右侧「精简 / 剔除规则 / 列设置」按钮 ——
+   按规范第 9 条「文字按钮」样式：透明底 + 次级灰字 + 圆角 6px，
+   hover 仅背景色加深（不染色块，符合第 8 条）。
+   文字 + emoji 标记代替 icon（规范第 11 条禁用过多装饰图标）。
+   「规则在生效」用 4×4 warn 色小圆点（克制，符合第 7 条）。 */
+.aw-switch-spacer{flex:1}
+.aw-set{
+  display:inline-flex;align-items:center;gap:6px;
+  height:32px;padding:0 12px;
+  border:1px solid transparent;border-radius:6px;
+  background:transparent;color:var(--text-secondary);
+  font-size:13px;font-family:inherit;cursor:pointer;
+  transition:background .12s,color .12s;
+}
+.aw-set:hover{background:var(--bg-hover);color:var(--text-primary)}
+/* 「规则在生效」小圆点：左侧 4×4 warn 色实心圆 */
+.aw-set-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--warn-text);flex:none;
+}
+
+/* v2.4.2：精简显示开关 —— 默认隐藏上半部分的次要信息（进度卡 / 总人数汇总），
+   只留核心「全部/已拟定 chip + 设置入口 + 表格」。点 ⌄ 展开看进度卡。
+   走 .aw-page.aw-compact 类控制（renderAward 在容器上加/去类）。 */
+.aw-compact .aw-progress,
+.aw-compact .aw-summary{display:none}
+
+/* 剔除规则弹层 */
+.aw-excl-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer}
+.aw-excl-row:hover{background:var(--bg-hover)}
+.aw-excl-row .aw-excl-label{font-size:14px;color:var(--text-primary);font-weight:600}
+.aw-excl-row .aw-excl-hint{font-size:12px;color:var(--text-2)}
+.aw-excl-manual{flex-wrap:wrap}
+.aw-excl-input{width:100%;min-height:64px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font:inherit;font-size:13px;resize:vertical;box-sizing:border-box}
+.aw-excl-cur{margin-top:10px;padding:8px 12px;background:var(--bg-hover);border-radius:6px;color:var(--text-2);font-size:12.5px}
+
+/* 列设置弹层 */
+.aw-col-list{display:flex;flex-direction:column;gap:6px;max-height:60vh;overflow:auto;padding:4px}
+.aw-col-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);transition:background .12s,border-color .12s}
+.aw-col-item.off{opacity:.5}
+.aw-col-item.dragging{opacity:.4;border-style:dashed}
+.aw-col-item.drag-over{border-color:var(--accent);background:var(--bg-hover)}
+.aw-col-handle{cursor:grab;color:var(--text-3);font-size:16px;user-select:none;padding:0 4px}
+.aw-col-handle:active{cursor:grabbing}
+.aw-col-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;flex:1}
+.aw-col-toggle input{width:16px;height:16px;cursor:pointer}
+.aw-col-toggle span{font-size:13.5px;color:var(--text-primary)}
+.aw-col-key{font-size:11.5px;color:var(--text-3);font-family:ui-monospace,Consolas,monospace}
+
 /* ── 筛选条可读性（用户：字都灰的，可读性差）────────────────
    规则：文字用 text-primary（最深），标签用 text-2，
    只有「选中」和「已满额」才用彩色 —— 色彩表达状态，不是装饰。 */
@@ -2394,6 +2443,106 @@ textarea.input{height:auto !important; padding:8px 10px !important; line-height:
 /* 上锁时把下面的内容彻底压住（避免滚动穿透） */
 body.locked{overflow:hidden}
 </style>
+
+<style id="award-workbench-v2">
+/* 奖学金评选工作台 v2.4.2：最终覆盖层。
+   功能函数与 data/onclick 入口保持不变；这里只统一页面层级与控件语言。 */
+.aw-page{display:flex;flex-direction:column;gap:16px;padding:24px;min-width:0;color:var(--text-primary)}
+.award-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin:0;padding:0 0 24px;border-bottom:1px solid var(--border)}
+.award-heading{min-width:240px;max-width:640px}
+.award-eyebrow{margin-bottom:8px;color:var(--text-secondary);font-size:13px;font-weight:400;line-height:1.4}
+.award-title{font-size:24px!important;font-weight:600!important;line-height:1.3!important;letter-spacing:0!important}
+.award-sub{margin-top:8px!important;color:var(--text-secondary)!important;font-size:13px!important;line-height:1.4!important}
+.award-ops{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.award-ops .btn,.aw-workbar-actions .btn{height:36px!important;padding:0 16px!important;border-radius:6px!important;font-size:13px!important;font-weight:400!important;white-space:nowrap}
+.award-ops .btn.pri{font-weight:600!important}
+.aw-danger-action{color:var(--danger-text)!important}
+.aw-progress-toggle{color:var(--text-secondary)!important}
+.award-ops .aw-danger-action{color:var(--danger-text)!important}
+.award-ops .aw-danger-action:hover{background:var(--danger-bg)!important}
+
+.aw-workbar{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:56px;padding:8px 0;border-bottom:1px solid var(--border)}
+.aw-workbar-main,.aw-workbar-actions,.aw-view-switch,.aw-context,.aw-data-status{display:flex;align-items:center;gap:8px;min-width:0}
+.aw-workbar-main{flex:1;flex-wrap:wrap}
+.aw-workbar-actions{justify-content:flex-end;flex-wrap:wrap}
+.aw-view-switch{padding:4px;background:var(--bg-hover);border-radius:6px}
+.aw-view-switch .aw-chip{height:32px;padding:0 12px;border:0!important;background:transparent;color:var(--text-secondary);font-size:13px;font-weight:400;box-shadow:none}
+.aw-view-switch .aw-chip:hover{background:var(--bg-card)!important;border:0!important}
+.aw-view-switch .aw-chip.on,.aw-view-switch .aw-chip.picked.on{background:var(--bg-card)!important;color:var(--text-primary)!important;box-shadow:inset 0 0 0 1px var(--border)!important}
+.aw-view-switch .aw-chip-n,.aw-view-switch .aw-chip.on .aw-chip-n{padding:0;background:transparent!important;color:var(--text-secondary)!important;font-size:13px}
+.aw-context{color:var(--text-secondary);font-size:13px;line-height:1.4;white-space:nowrap}
+.aw-context strong{color:var(--text-primary);font-size:13px;font-weight:600}
+.aw-context-k{padding-left:8px;border-left:1px solid var(--border)}
+.aw-inline-action{padding:8px;border:0;border-radius:6px;background:transparent;color:var(--accent);font:inherit;cursor:pointer}
+.aw-inline-action:hover{background:var(--bg-hover)}
+.aw-workbar-actions .aw-rule-active{border-color:var(--warn-text)!important;color:var(--text-primary)!important}
+.aw-action-state{margin-left:8px;padding:3px 8px;border-radius:6px;background:var(--warn-bg);color:var(--warn-text);font-size:13px}
+
+.aw-progress-section{padding:12px 0 16px;border-bottom:1px solid var(--border)}
+.aw-compact .aw-progress-section,.aw-compact .aw-summary{display:none}
+.aw-section-head,.aw-data-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.aw-section-head{align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.aw-section-title{font-size:18px;font-weight:600;line-height:1.35;color:var(--text-primary)}
+.aw-section-sub{margin-top:8px;color:var(--text-secondary);font-size:13px;font-weight:400;line-height:1.4}
+.aw-section-head .aw-section-sub{margin-top:0}
+.aw-section-meta,.aw-status-count{color:var(--text-secondary);font-size:13px;line-height:1.4;white-space:nowrap}
+.aw-section-meta{margin-left:auto}
+.aw-progress{margin:0!important;padding:0!important;background:transparent!important;border:0!important;border-radius:0!important}
+.aw-progress+.aw-progress{margin-top:16px!important;padding-top:16px!important;border-top:1px solid var(--border)!important}
+.aw-prog-row{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))!important;gap:8px!important}
+.aw-prog-t{grid-column:1/-1!important;display:block!important;padding:0 2px!important;margin-bottom:8px!important;color:var(--text-secondary)!important;font-size:13px!important;font-weight:600!important;line-height:1.4!important}
+.aw-prog{min-height:0!important;padding:14px 16px!important;border:1px solid var(--border)!important;border-radius:6px!important;background:var(--bg-card)!important;box-shadow:none!important}
+.aw-prog:hover{background:var(--bg-hover)!important}
+.aw-prog.on{border-color:var(--accent)!important;background:var(--bg-hover)!important}
+.aw-prog-n{font-size:13px!important;font-weight:600!important;letter-spacing:0!important;line-height:1.4!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;flex:1 1 auto!important;min-width:0!important}
+.aw-prog-v{flex:0 0 auto!important;white-space:nowrap!important}
+.aw-prog-h{flex-direction:row!important;align-items:baseline!important;justify-content:space-between!important;gap:8px!important;margin-bottom:10px!important}
+.aw-prog-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;flex-wrap:wrap}
+.aw-prog-f{margin-top:0!important}
+.aw-prog-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.aw-prog-foot .aw-split-btn{margin-top:0!important;height:26px;font-size:12px}
+.aw-clear-award{height:26px;padding:0 10px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--danger-text);font-size:12px;font-family:inherit;cursor:pointer;white-space:nowrap;transition:background .12s,border-color .12s}
+.aw-clear-award:hover{background:var(--danger-bg);border-color:var(--danger-text)}
+
+.aw-data-section{min-width:0;margin:0;border:1px solid var(--border);border-radius:12px;background:var(--bg-card);overflow:hidden;box-shadow:none}
+.aw-data-head{padding:16px;border-bottom:1px solid var(--border);background:var(--bg-card)}
+.aw-data-status{justify-content:flex-end;flex-wrap:wrap}
+.aw-status-tag{padding:3px 8px;border-radius:6px;background:var(--warn-bg);color:var(--warn-text);font-size:13px;line-height:1.4}
+.aw-table-scroll{overflow:auto;max-height:calc(100vh - 320px);scrollbar-gutter:stable}
+.award-table{margin:0!important;border:0!important;border-radius:0!important}
+.award-table thead{position:sticky;top:0;z-index:3}
+.award-table th{height:40px!important;padding:0 16px!important;background:var(--bg-thead)!important;color:var(--text-secondary)!important;font-size:13px!important;font-weight:600!important;border-bottom:1px solid var(--border)!important}
+.award-table td{height:48px!important;padding:8px 16px!important;font-size:15px!important;font-weight:400!important;border-bottom:1px solid var(--border)!important}
+.award-table tbody tr:last-child td{border-bottom:0!important}
+.award-table tbody tr:hover td{background:var(--bg-hover)!important}
+.award-table tr.aw-picked td{background:var(--accent-soft)!important}
+.award-table tr.aw-done td{background:var(--success-bg)!important}
+.award-table tr.aw-picked.aw-done td{box-shadow:inset 3px 0 0 var(--accent)!important}
+
+.aw-bulk{position:sticky;top:8px;z-index:4;margin:0;padding:8px 16px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);box-shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.08)}
+
+html[data-theme="dark"] .aw-view-switch .aw-chip.on,
+html[data-theme="dark"] .aw-view-switch .aw-chip.picked.on{background:var(--bg-card)!important;color:var(--text-primary)!important}
+
+@media(max-width:960px){
+  .aw-page{padding:16px}
+  .award-head{flex-direction:column;gap:16px;padding-bottom:16px}
+  .award-ops{justify-content:flex-start}
+  .aw-workbar{align-items:flex-start;flex-direction:column}
+  .aw-workbar-actions{justify-content:flex-start}
+  .aw-prog-row{grid-template-columns:1fr 1fr!important}
+  .aw-prog-t{grid-column:1/-1;min-height:32px}
+  .aw-table-scroll{max-height:calc(100vh - 280px)}
+}
+@media(max-width:640px){
+  .aw-page{padding:16px 8px}
+  .award-ops .btn,.aw-workbar-actions .btn{flex:1 1 auto}
+  .aw-context{white-space:normal;flex-wrap:wrap}
+  .aw-prog-row{grid-template-columns:1fr!important}
+  .aw-section-head,.aw-data-head{flex-direction:column}
+  .aw-data-status{justify-content:flex-start}
+}
+</style>
 </head>
 <body>
 
@@ -2542,7 +2691,7 @@ const BUILTIN_TEMPLATES = [
 const STORE_KEY    = 'counselor_workstation_v2';
 const STORE_KEY_V1 = 'counselor_workstation_v1';
 /* 版本号：出现在「导入指引」页脚与设置里，方便辅导员反馈时报给你 */
-const APP_VER = 'v2.4.1 · 2026-10-09';
+const APP_VER = 'v2.4.3 · 2026-10-10';
 /* localStorage 通常上限 5MB，单批次（260 人 × 32 字段）约 250KB
    → 取 20 为保守上限，超限时提示用户先删历史批次 */
 const MAX_BATCHES = 20;
@@ -3026,6 +3175,19 @@ function buildSavePayload(){
     awardSplitCheck: S.awardSplitCheck && typeof S.awardSplitCheck === 'object' ? S.awardSplitCheck : {},
     /* v2.3.4：锁屏密码（只存哈希，不存明文） */
     lockPw: S.lockPw || null,
+    /* v2.4.2：剔除设置（用户 2026-10-10：「要自己筛选设置 什么要剔除 什么要保留」）
+       —— 全局单套，勾上某条规则的人**所有奖都不能参评** */
+    awardExclusion: S.awardExclusion && typeof S.awardExclusion === 'object' ? S.awardExclusion
+      : { noTotal:true, secondDegreeMajor:false, secondDegreeClass:false, manualSids:[] },
+    /* v2.4.2：列设置 —— order 是当前显示顺序（缺列补默认 + 不在新 order 里的也补），
+       hidden 是手动隐藏的 key 列表。存原始 key 而不是显示文本，搬迁/重命名不影响 */
+    awardColumns: S.awardColumns && typeof S.awardColumns === 'object' ? S.awardColumns
+      : { order:['name','sid','major','总成绩','智力','B1','B2','B3','B4','B5','status','志愿'],
+          hidden:[] },
+    /* v2.4.2：精简显示（默认 true —— 上半部分收起进度卡，只留 chip + 设置入口 + 表格） */
+    awardCompact: S.awardCompact === false ? false : true,
+    /* v2.4.3：进度区默认展开（用户 2026-10-10：卡片横向重设计后，进度区是主操作区，默认可见） */
+    awardProgOpen: S.awardProgOpen === false ? false : true,
     /* v2.1.1：奖学金评选数据 —— 独立于批次（一年一次的重活，不混进日常名册） */
     awards: S.awards && typeof S.awards === 'object' ? S.awards : null
   };
@@ -10685,7 +10847,20 @@ let _awSel = new Set();    // 勾选的学号
    所以在看某个**不兼得**奖项时：已经拟定了别的（不兼得）奖的人不再出现 ——
    他已经有了归属，重复看没有意义。
    单项奖可兼得：已拟定不兼得奖的人**仍然出现**在单项名单里（这是对的）。
-   自己这一档已拟定的人也不显示（已经定了，在「已拟定」里看）。 */
+   自己这一档已拟定的人也不显示（已经定了，在「已拟定」里看）。
+
+   v2.4.2 加剔除规则（用户 2026-10-10：「要自己筛选设置 什么要剔除 什么要保留」）：
+   勾上某条规则的人**所有奖都不能参评**——全局单套配置。
+   「__picked 已拟定」视图不受剔除影响（已经定了的人要能看到）。 */
+function passesExclusion(r, excl){
+  excl = excl || (S.awardExclusion || {});
+  const reasons = [];
+  if(excl.noTotal && (r.总成绩 === '' || r.总成绩 == null)) reasons.push('无总成绩');
+  if(excl.secondDegreeMajor && /二学位/.test(r.major)) reasons.push('二学位班级');
+  if(excl.secondDegreeClass && /第二学位/.test(r.major)) reasons.push('第二学位班级');
+  if(Array.isArray(excl.manualSids) && excl.manualSids.indexOf(r.sid) >= 0) reasons.push('手动剔除');
+  return reasons;
+}
 function awardFiltered(){
   let rows = awardRows();
   if(_awFilter === '__picked'){
@@ -10718,18 +10893,68 @@ function awardFiltered(){
     if(na !== null && nb !== null) return (na - nb) * dir;
     return String(va||'').localeCompare(String(vb||''), 'zh') * dir;
   });
+  /* v2.4.2：剔除规则全局应用（除「已拟定」视图）。
+     剔除的人不出现在任何奖的名单里——符合用户「什么都不能参评」。 */
+  const excl = S.awardExclusion;
+  if(excl && (excl.noTotal || excl.secondDegreeMajor || excl.secondDegreeClass
+              || (Array.isArray(excl.manualSids) && excl.manualSids.length))){
+    rows = rows.filter(r => passesExclusion(r, excl).length === 0);
+  }
   return rows;
 }
 function awardSortBy(k){ _awSort = (_awSort.key===k) ? {key:k, dir:_awSort.dir==='desc'?'asc':'desc'} : {key:k, dir:'desc'}; renderAward(); }
 function awardFilter(k){ _awFilter = (_awFilter===k) ? '' : k; _awSel.clear(); renderAward(); }
+/* v2.4.2：批量拟定条 HTML —— 抽出来供 renderAward 首渲 + refreshSelectionUI 就地刷新复用。
+   不再只在 renderAward 里按 _awSel.size 条件渲染：awardToggleSel 走轻量更新（不重渲），
+   否则勾选后批量条永不出现。 */
+function awardBulkHtml(){
+  if(!_awSel.size) return '';
+  return '<div class="aw-bulk">'
+    + '<b>已选 ' + _awSel.size + ' 人</b>'
+    + (_awFilter
+        ? '<span class="aw-bulk-t">全部拟定为</span>'
+          + '<button class="btn pri" onclick="awardSetStatusBulk(\'' + esc(_awFilter) + '\')">拟定「' + esc(_awFilter) + '」</button>'
+        : '<span class="aw-bulk-t">先在上面选一个奖项，再点这里批量拟定</span>')
+    + '<button class="btn" onclick="awardSetStatusBulk(\'\')">取消拟定</button>'
+    + '<button class="btn" onclick="awardSelectAll(false)">取消选择</button>'
+    + '</div>';
+}
+/* v2.4.2：就地刷新选择相关 UI（批量条 + 表头全选 + 数据区人数提示），不重渲整页避免跳顶 */
+function refreshSelectionUI(){
+  const slot = $('aw-bulk-slot');
+  if(slot) slot.innerHTML = awardBulkHtml();
+  const head = $('mainArea').querySelector('.aw-switch-table-head input[type="checkbox"]');
+  if(head){
+    const rows = awardFiltered();
+    head.checked = rows.length > 0 && rows.every(r => _awSel.has(r.sid));
+  }
+  const hint = $('aw-sel-hint');
+  if(hint){
+    hint.textContent = _awSel.size ? ('，已选择 ' + _awSel.size + ' 人') : '；勾选学生后可批量拟定';
+  }
+}
 function awardToggleSel(sid, on){
   if(on) _awSel.add(sid); else _awSel.delete(sid);
-  renderAward();
+  /* 勾选/取消勾选只更新当前行的 class，不重渲染整个表格 ——
+     否则 $('mainArea').innerHTML = h 会让页面跳到首行（v2.3.0 拦截器
+     只会恢复 #mainArea 主滚动条，表格内的内嵌 max-height 滚动容器会归零）。
+     批量条/表头/人数提示交给 refreshSelectionUI 就地刷新。 */
+  const tr = $('mainArea').querySelector('tr[data-aw-sid="' + (window.CSS && CSS.escape ? CSS.escape(sid) : sid.replace(/"/g,'\\"')) + '"]');
+  if(tr) tr.classList.toggle('aw-picked', on);
+  refreshSelectionUI();
 }
 function awardSelectAll(on){
   const rows = awardFiltered();
   if(on) rows.forEach(r=>_awSel.add(r.sid)); else _awSel.clear();
-  renderAward();
+  /* 就地更新所有可见行的勾选态 + 高亮，不重渲整页（避免跳顶） */
+  $('mainArea').querySelectorAll('tbody tr[data-aw-sid]').forEach(function(tr){
+    const cb = tr.querySelector('input[type="checkbox"]');
+    const sid = tr.getAttribute('data-aw-sid');
+    const checked = on && _awSel.has(sid);
+    tr.classList.toggle('aw-picked', checked);
+    if(cb) cb.checked = checked;
+  });
+  refreshSelectionUI();
 }
 /* 把选中的人**批量拟定给某个奖**。
    传 award 为空 = 取消拟定（放回所有名单）。 */
@@ -10752,6 +10977,23 @@ function awardClearStatus(){
   askConfirm({ title:'清空全部拟定', danger:true, okText:'清空',
     html:'确定清空所有学生的拟定结果？评选数据本身不受影响。',
     onOk(){ S.awardStatus = {}; save(); renderAward(); } });
+}
+/* v2.4.2：单独清除某个奖项的全部拟定（高频场景：某个奖定了又反悔）。
+   只删「拟定结果」里属于该奖的人；评选数据、其他奖的拟定、名额都不动。 */
+function awardClearByAward(key){
+  const sids = Object.keys(S.awardStatus || {}).filter(function(sid){ return S.awardStatus[sid] === key; });
+  const n = sids.length;
+  if(!n){ toast('「' + key + '」目前没有拟定的人'); return; }
+  askConfirm({
+    title:'清除「' + key + '」的拟定', danger:true, okText:'清除 ' + n + ' 人',
+    html:'确定取消 <b>' + n + '</b> 人对「' + esc(key) + '」的拟定？<br>'
+      + '评选数据和其他奖项的拟定不受影响，这些人会重新出现在各奖项名单里。',
+    onOk(){
+      sids.forEach(function(sid){ delete S.awardStatus[sid]; });
+      save(); renderAward();
+      toast('已清除「' + key + '」的拟定（' + n + ' 人）');
+    }
+  });
 }
 
 /* v2.5.5 清空整个评选区。
@@ -10822,6 +11064,42 @@ function awardProgress(key){
 /* ── 单元格渲染辅助 ──
    为什么要拆出来：一行里同时套三层模板字符串（外层表格 → map → 内层单元格）
    可读性极差，而且很容易因为一个反引号就截断整段。拆开后每格只做一件事。 */
+
+/* v2.4.2：列定义。
+   key   = awardRows() 返回对象的属性名（也作 th 排序 key）
+   label = 表头显示文本
+   cls   = 表头类（数字列右对齐）
+   showRow(r, key) = 输出该列单元格 HTML
+   order = 默认显示顺序（用户首跑时 S.awardColumns.order 不存在就用这个） */
+const AWARD_COLS = [
+  { key:'name',     label:'姓名',     cls:'',          show:(r)=>esc(r.name) },
+  { key:'sid',      label:'学号',     cls:'',          show:(r)=>esc(r.sid) },
+  { key:'major',    label:'专业',     cls:'',          show:(r)=>esc(r.major) },
+  { key:'总成绩',   label:'总成绩',   cls:'aw-num-h',  show:(r)=>r.总成绩 === '' ? '<span class="aw-none">—</span>' : esc(String(r.总成绩)) },
+  { key:'智力',     label:'智力水平评价', cls:'aw-num-h', show:(r)=>r.智力 === '' ? '<span class="aw-none">—</span>' : esc(String(r.智力)) },
+  { key:'B1',       label:'B1 科研创新',  cls:'aw-num-h', show:(r)=>r.B1 === '' ? '' : '<span class="aw-b">' + esc(String(r.B1)) + '</span>' },
+  { key:'B2',       label:'B2 专业技能',  cls:'aw-num-h', show:(r)=>r.B2 === '' ? '' : '<span class="aw-b">' + esc(String(r.B2)) + '</span>' },
+  { key:'B3',       label:'B3 文体特长',  cls:'aw-num-h', show:(r)=>r.B3 === '' ? '' : '<span class="aw-b">' + esc(String(r.B3)) + '</span>' },
+  { key:'B4',       label:'B4 社会工作',  cls:'aw-num-h', show:(r)=>r.B4 === '' ? '' : '<span class="aw-b">' + esc(String(r.B4)) + '</span>' },
+  { key:'B5',       label:'B5 社会实践',  cls:'aw-num-h', show:(r)=>r.B5 === '' ? '' : '<span class="aw-b">' + esc(String(r.B5)) + '</span>' },
+  { key:'status',   label:'拟定',         cls:'aw-status',show:(r)=>statusCell(r) },
+  { key:'志愿',     label:'志愿',         cls:'aw-wish',  show:(r)=>wishTags(r) },
+];
+/* 取最终列顺序：用户 S.awardColumns.order 优先，缺列用默认补、移除默认里的（不再补回） */
+function activeAwardCols(){
+  const cfg = S.awardColumns || {};
+  const order = Array.isArray(cfg.order) && cfg.order.length ? cfg.order : AWARD_COLS.map(c=>c.key);
+  const hidden = new Set(Array.isArray(cfg.hidden) ? cfg.hidden : []);
+  /* 过滤掉：用户没隐藏的、且在 order 里有定义的。
+     ⚠️ 用户手动加进 order 的陌生 key 会被忽略（不要让 schema 字段失控）。 */
+  const map = new Map(AWARD_COLS.map(c=>[c.key, c]));
+  const cols = order.filter(k => map.has(k) && !hidden.has(k)).map(k => map.get(k));
+  /* 如果用户 order 缺了默认列（如某次打开老存档），补到末尾——但**已经被用户隐藏的列不补** */
+  for(const c of AWARD_COLS){
+    if(cols.indexOf(c) < 0 && !hidden.has(c.key)) cols.push(c);
+  }
+  return cols;
+}
 function bCells(r){
   return ['B1','B2','B3','B4','B5'].map(function(k){
     const v = r[k];
@@ -11007,19 +11285,15 @@ function openAwardSourceGuide(){
 }
 
 /* 表体渲染（v2.3.3 重构：从 rows.map 抽出来，便于插入分组行）
-   —— 分组只在「正在看某个奖项 + 该奖做过专业细分」时启用。 */
+   —— 分组只在「正在看某个奖项 + 该奖做过专业细分」时启用。
+   v2.4.2：列顺序与显隐由 S.awardColumns 决定（activeAwardCols 输出） */
 function awardBodyRow(r){
-  return '<tr class="' + (_awSel.has(r.sid) ? 'aw-picked ' : '') + (r.award ? 'aw-done' : '') + '">'
+  const cols = activeAwardCols();
+  const cellHtml = cols.map(c => '<td' + (c.cls ? ' class="' + c.cls + '"' : '') + '>' + c.show(r) + '</td>').join('');
+  return '<tr class="' + (_awSel.has(r.sid) ? 'aw-picked ' : '') + (r.award ? 'aw-done' : '') + '" data-aw-sid="' + esc(r.sid) + '">'
     + '<td><input type="checkbox" ' + (_awSel.has(r.sid) ? 'checked' : '')
     + ' onchange="awardToggleSel(\'' + esc(r.sid) + '\',this.checked)"></td>'
-    + '<td class="aw-name">' + esc(r.name) + '</td>'
-    + '<td class="aw-sid">' + esc(r.sid) + '</td>'
-    + '<td>' + esc(r.major) + '</td>'
-    + '<td class="aw-num">' + (r.总成绩 === '' ? '<span class="aw-none">—</span>' : esc(String(r.总成绩))) + '</td>'
-    + '<td class="aw-num">' + (r.智力 === '' ? '<span class="aw-none">—</span>' : esc(String(r.智力))) + '</td>'
-    + bCells(r)
-    + '<td class="aw-status">' + statusCell(r) + '</td>'
-    + '<td class="aw-wish">' + wishTags(r) + '</td>'
+    + cellHtml
     + '</tr>';
 }
 function awardBodyRows(rows){
@@ -11208,6 +11482,11 @@ function awardCheckedStat(key, groups){
   const n = groups.filter(function(g){ return awardChecked(key, g.专业); }).length;
   return { 已核对:n, 共:groups.length };
 }
+/* v2.4.2：精简显示开关 —— 默认收起上半部分进度卡（S.awardCompact 默认 true）。 */
+function toggleAwardCompact(){
+  S.awardProgOpen = (S.awardProgOpen === false);  /* undefined → true; true → false */
+  save(); renderAward();
+}
 /** 组头的一整行 HTML */
 function awardGroupRow(key, g, i){
   const w = awardGroupWarn(g);
@@ -11240,14 +11519,15 @@ function renderAward(){
   const pickedN = all.filter(r => r.award).length;
 
 
-  let h = `<div class="award-head">
-    <div>
+  let h = `<div class="aw-page${S.awardProgOpen === false ? ' aw-compact' : ''}"><header class="award-head">
+    <div class="award-heading">
+      <div class="award-eyebrow">奖学金评选工作台</div>
       <div class="award-title">奖学金评选</div>
-      <div class="award-sub">独立数据 · 只存评选要用的几项 · 先看不兼得的（从高到低），再看单项</div>
+      <div class="award-sub">评选数据独立保存；先处理不兼得奖项，再核对单项奖。</div>
     </div>
-    <div class="award-ops">
+    <div class="award-ops" aria-label="评选数据操作">
       <button class="btn pri" onclick="openImport('只取 姓名/学号/专业/总成绩/知识水平评价/B1~B5/志愿顺序，其余列不进任何数据')">导入评选数据</button>
-      <button class="btn" onclick="openAwardSourceGuide()" title="这两份表从智慧学工的哪里导">数据从哪导</button>
+      <button class="btn" onclick="openAwardSourceGuide()" title="这两份表从智慧学工的哪里导">数据来源</button>
       ${Object.keys(S.awardStatus||{}).length?`<button class="btn" onclick="awardClearStatus()">清空拟定</button>`:''}
       ${all.length?`<button class="btn" onclick="awardExportCsv()">导出 CSV</button>`:''}
       <!-- v2.5.5：评选数据是独立的，给它一个自己的清理入口。
@@ -11256,10 +11536,10 @@ function renderAward(){
            v2.5.6：**不再按「评选区是否有内容」隐藏** —— 之前写成有数据才显示，
            结果清空之后按钮自己消失了，想再清理/查看说明就没入口了。
            现在常驻显示；评选区本来就是空的时候点了会提示一句。 -->
-      <button class="btn" onclick="awardClearAll()"
-        title="只清空奖学金评选区的数据；学生名册、成绩、备注都不受影响。30 秒内可撤销。">清理评选数据</button>
+      <button class="btn aw-danger-action" onclick="awardClearAll()"
+        title="只清空奖学金评选区的数据；学生名册、成绩、备注都不受影响。30 秒内可撤销。">清理数据</button>
     </div>
-  </div>`;
+  </header>`;
 
   if(!all.length){
     h += `<div class="card"><div class="card-body" style="text-align:center;padding:48px 20px">
@@ -11311,6 +11591,9 @@ function renderAward(){
     if(!pr.报名) return '';
     const pct = pr.名额 ? Math.min(100, Math.round(pr.已推荐 / pr.名额 * 100)) : 0;
     const over = pr.名额 && pr.已推荐 > pr.名额;
+    /* 「清除拟定」按钮的数量按 S.awardStatus 里真实属于该奖的人数算，
+       而不是 pr.已推荐（后者按「既报名又拟定为该奖」统计，极端情况下会漏算）。 */
+    const clearN = Object.keys(S.awardStatus || {}).filter(function(sid){ return S.awardStatus[sid] === a.key; }).length;
     return '<div class="aw-prog' + (_awFilter === a.key ? ' on' : '') + '">'
       + '<div class="aw-prog-h" onclick="awardFilter(\'' + a.key + '\')">'
         + '<span class="aw-prog-n">' + esc(a.key) + '</span>'
@@ -11321,9 +11604,15 @@ function renderAward(){
           + ' onchange="setAwardQuota(\'' + a.key + '\',this.value)"></span>'
       + '</div>'
       + '<div class="aw-bar" onclick="awardFilter(\'' + a.key + '\')"><i style="width:' + pct + '%" class="' + (over ? 'over' : '') + '"></i></div>'
-      + '<div class="aw-prog-f" onclick="awardFilter(\'' + a.key + '\')">报名 ' + pr.报名 + ' 人'
-        + (over ? ' · 已超额' : '') + '</div>'
-      + splitChip(a.key)
+      + '<div class="aw-prog-foot">'
+        + '<span class="aw-prog-f" onclick="awardFilter(\'' + a.key + '\')">报名 ' + pr.报名 + ' 人'
+          + (over ? ' · 已超额' : '') + '</span>'
+        + '<span class="aw-prog-actions">'
+          + splitChip(a.key)
+          + (clearN ? '<button class="aw-clear-award" data-clear-award="' + esc(a.key) + '"'
+              + ' title="清除「' + esc(a.key) + '」的全部拟定">清除拟定 ' + clearN + '</button>' : '')
+        + '</span>'
+      + '</div>'
       + '</div>';
   };
 
@@ -11344,20 +11633,53 @@ function renderAward(){
 
   /* 顶部只留两个入口：全部 / 已拟定（其余靠点卡片切） */
   const pickedN2 = all.filter(r => r.award).length;
-  h += '<div class="aw-switch">'
-    + '<button class="aw-chip' + (_awFilter === '' ? ' on' : '') + '" onclick="awardFilter(\'' + '\')">'
-      + '全部<span class="aw-chip-n">' + all.length + '</span></button>'
-    + (pickedN2 ? '<button class="aw-chip picked' + (_awFilter === '__picked' ? ' on' : '')
-        + '" onclick="awardFilter(\'' + '__picked' + '\')" title="已拟定给某个奖的学生">'
-        + '已拟定<span class="aw-chip-n">' + pickedN2 + '</span></button>' : '')
-    + (_awFilter ? '<span class="aw-switch-tip">正在看：<b>' + esc(_awFilter === '__picked' ? '已拟定' : _awFilter) + '</b> · '
-        + awardFiltered().length + ' 人</span><button class="u-btn u-btn-sm u-btn-ghost" onclick="awardFilter(\'' + '\')">看全部</button>' : '')
-    + '</div>';
+  /* v2.4.2：右上角两个设置入口（剔除规则 + 列设置） */
+  const exclOn = (function(e){
+    if(!e) return false;
+    return !!(e.noTotal || e.secondDegreeMajor || e.secondDegreeClass
+              || (Array.isArray(e.manualSids) && e.manualSids.length));
+  })(S.awardExclusion);
+  h += '<section class="aw-workbar" aria-label="评选视图与设置">'
+    + '<div class="aw-workbar-main">'
+      + '<div class="aw-view-switch" role="group" aria-label="候选人视图">'
+        + '<button class="aw-chip' + (_awFilter === '' ? ' on' : '') + '" onclick="awardFilter(\'' + '\')">'
+          + '全部候选人<span class="aw-chip-n">' + all.length + '</span></button>'
+        + (pickedN2 ? '<button class="aw-chip picked' + (_awFilter === '__picked' ? ' on' : '')
+            + '" onclick="awardFilter(\'' + '__picked' + '\')" title="已拟定给某个奖的学生">'
+            + '已拟定<span class="aw-chip-n">' + pickedN2 + '</span></button>' : '')
+      + '</div>'
+      + '<div class="aw-context">'
+        + '<span class="aw-context-k">当前视图</span>'
+        + '<strong>' + esc(_awFilter === '__picked' ? '已拟定' : (_awFilter || '全部候选人')) + '</strong>'
+        + '<span>' + awardFiltered().length + ' 人</span>'
+        + (_awFilter ? '<button class="aw-inline-action" onclick="awardFilter(\'' + '\')">返回全部</button>' : '')
+      + '</div>'
+    + '</div>'
+    + '<div class="aw-workbar-actions">'
+      + '<button class="btn aw-progress-toggle" id="aw-toggle-compact" onclick="toggleAwardCompact()" '
+        + 'aria-expanded="' + (S.awardProgOpen !== false ? 'true' : 'false') + '" '
+        + 'title="展开或收起评选进度">'
+        + (S.awardProgOpen !== false ? '收起评选进度' : '展开评选进度') + '</button>'
+      + '<button class="btn' + (exclOn ? ' aw-rule-active' : '') + '" data-aw-set="exclusion" '
+        + 'title="设置哪些学生直接剔除、不能参评任何奖">'
+        + '剔除规则' + (exclOn ? '<span class="aw-action-state">已启用</span>' : '') + '</button>'
+      + '<button class="btn" data-aw-set="columns" title="选择要显示的列、调整列顺序">列设置</button>'
+    + '</div>'
+    + '</section>';
 
-  if(progExclusive) h += '<div class="aw-progress"><div class="aw-prog-row">'
-    + '<div class="aw-prog-t">不兼得 · 挨个评选</div>' + progExclusive + '</div></div>';
-  if(progSingle) h += '<div class="aw-progress"><div class="aw-prog-row">'
-    + '<div class="aw-prog-t">单项奖 · 可兼得</div>' + progSingle + '</div></div>';
+  if(progExclusive || progSingle){
+    h += '<section class="aw-progress-section" aria-label="评选进度">'
+      + '<div class="aw-section-head">'
+        + '<div class="aw-section-title">评选进度</div>'
+        + '<span class="aw-section-sub">点击卡片筛选，名额可直接改</span>'
+        + '<span class="aw-section-meta">已拟定 ' + 已定 + ' / ' + all.length + ' 人</span>'
+      + '</div>';
+    if(progExclusive) h += '<div class="aw-progress"><div class="aw-prog-row">'
+      + '<div class="aw-prog-t">不兼得奖项</div>' + progExclusive + '</div></div>';
+    if(progSingle) h += '<div class="aw-progress"><div class="aw-prog-row">'
+      + '<div class="aw-prog-t">单项奖</div>' + progSingle + '</div></div>';
+    h += '</section>';
+  }
 
   /* 批量操作条：勾选后出现
      分组核对提示：正在看某个奖 + 有细分时，在批量条上方显示核对进度与问题 */
@@ -11379,48 +11701,38 @@ function renderAward(){
     }
   }
 
-  if(_awSel.size){
-    /* 拟定到「当前正在看的那个奖」—— 选人 → 点一下完事，不用逐行打标签。
-       正在看「全部」时不显示这个按钮：先选奖项，再选人。 */
-    h += '<div class="aw-bulk">'
-      + '<b>已选 ' + _awSel.size + ' 人</b>'
-      + (_awFilter
-          ? '<span class="aw-bulk-t">全部拟定为</span>'
-            + '<button class="btn pri" onclick="awardSetStatusBulk(\'' + esc(_awFilter) + '\')">拟定「'
-            + esc(_awFilter) + '」</button>'
-          : '<span class="aw-bulk-t">先在上面选一个奖项，再点这里批量拟定</span>')
-      + '<button class="btn" onclick="awardSetStatusBulk(\'\')">取消拟定</button>'
-      + '<button class="u-btn u-btn-sm u-btn-ghost" onclick="awardSelectAll(false)">取消选择</button>'
-      + '</div>';
-  }
+  /* 批量操作条槽位：始终渲染占位，勾选后由 refreshSelectionUI 就地填入，
+     避免「勾选后拟定按钮不出现」的 bug（此前只在 _awSel.size 真时才渲染，
+     而 awardToggleSel 走轻量更新不重渲，导致批量条永不出现）。 */
+  h += '<div id="aw-bulk-slot">' + awardBulkHtml() + '</div>';
 
   const th = (label, k, cls) =>
     `<th class="${cls||''}" onclick="awardSortBy('${k}')">${label}${_awSort.key===k?(_awSort.dir==='desc'?' ↓':' ↑'):''}</th>`;
 
-  h += `<div class="card" style="margin-bottom:0"><div class="card-body" style="padding:0">
-    <div style="overflow:auto;max-height:calc(100vh - 340px)">
+  const tableViewName = _awFilter === '__picked' ? '已拟定名单' : (_awFilter || '全部候选人');
+  h += `<section class="aw-data-section" aria-label="候选人数据">
+    <div class="aw-data-head">
+      <div>
+        <div class="aw-section-title">${esc(tableViewName)}</div>
+        <div class="aw-section-sub">当前显示 ${rows.length} 人<span id="aw-sel-hint">${_awSel.size ? `，已选择 ${_awSel.size} 人` : '；勾选学生后可批量拟定'}</span></div>
+      </div>
+      <div class="aw-data-status">
+        ${exclOn ? '<span class="aw-status-tag">剔除规则已启用</span>' : ''}
+        <span class="aw-status-count">${activeAwardCols().length} 列</span>
+      </div>
+    </div>
+    <div class="aw-table-scroll">
     <table class="award-table">
       <thead><tr>
-        <th style="width:34px"><input type="checkbox" onclick="awardSelectAll(this.checked)" ${rows.length&&rows.every(r=>_awSel.has(r.sid))?'checked':''}></th>
-        ${th('姓名','name')}
-        ${th('学号','sid')}
-        ${th('专业','major')}
-        ${th('总成绩','总成绩','aw-num-h')}
-        ${th('智力水平评价','智力','aw-num-h')}
-        ${th('B1 科研创新','B1','aw-num-h')}
-        ${th('B2 专业技能','B2','aw-num-h')}
-        ${th('B3 文体特长','B3','aw-num-h')}
-        ${th('B4 社会工作','B4','aw-num-h')}
-        ${th('B5 社会实践','B5','aw-num-h')}
-        <th class="aw-status" style="text-align:center">拟定</th>
-        ${th('志愿','志愿')}
+        <th style="width:34px" class="aw-switch-table-head"><input type="checkbox" aria-label="选择当前视图全部学生" onclick="awardSelectAll(this.checked)" ${rows.length&&rows.every(r=>_awSel.has(r.sid))?'checked':''}></th>
+        ${activeAwardCols().map(c => th(c.label, c.key, c.cls)).join('')}
       </tr></thead>
       <tbody>${awardBodyRows(rows)}</tbody>
     </table>
     </div>
-  </div></div>`;
+  </section>`;
 
-  $('mainArea').innerHTML = h;
+  $('mainArea').innerHTML = h + '</div>';
 
   /* 进度卡里的「按专业细分」按钮：事件委托。
      不用内联 onclick —— 奖项名里一旦出现双引号就会截断 HTML 属性，
@@ -11429,12 +11741,190 @@ function renderAward(){
   if(progWrap && progWrap.parentNode){
     const box = progWrap.parentNode;
     box.addEventListener('click', function(e){
-      const t = e.target.closest('[data-split-open]');
+      const t = e.target.closest('[data-split-open],[data-clear-award]');
       if(!t || !box.contains(t)) return;
       e.stopPropagation();
-      openAwardSplit(t.getAttribute('data-split-open'));
+      if(t.hasAttribute('data-split-open')) openAwardSplit(t.getAttribute('data-split-open'));
+      else if(t.hasAttribute('data-clear-award')) awardClearByAward(t.getAttribute('data-clear-award'));
     });
   }
+
+  /* v2.4.2：顶部「剔除规则 / 列设置」入口 —— 走事件委托避开内联 onclick */
+  const setBar = $('mainArea').querySelector('.aw-workbar');
+  if(setBar){
+    setBar.addEventListener('click', function(e){
+      const t = e.target.closest('[data-aw-set]');
+      if(!t || !setBar.contains(t)) return;
+      const which = t.getAttribute('data-aw-set');
+      if(which === 'exclusion') openAwardExclusion();
+      else if(which === 'columns') openAwardColumns();
+    });
+  }
+}
+
+/* v2.4.2：剔除规则弹层
+   「什么奖都不能参评」—— 全局单套配置，勾上就再也不出现在任何奖的名单里。 */
+function openAwardExclusion(){
+  S.awardExclusion = S.awardExclusion || { noTotal:true, secondDegreeMajor:false, secondDegreeClass:false, manualSids:[] };
+  const e = S.awardExclusion;
+  const mk = (k, label, hint) => '<label class="aw-excl-row"><input type="checkbox" data-excl="' + k + '"' + (e[k] ? ' checked' : '') + '>'
+    + '<span class="aw-excl-label">' + label + '</span>'
+    + (hint ? '<span class="aw-excl-hint">' + hint + '</span>' : '')
+    + '</label>';
+  $('modalRoot').innerHTML =
+    '<div class="mask" onclick="if(event.target===this)closeModal()">'
+    + '<div class="modal" onclick="event.stopPropagation()">'
+    + '<div class="modal-head"><div class="modal-title">剔除规则</div>'
+    + '<div class="modal-close" onclick="closeModal()">×</div></div>'
+    + '<div class="modal-body">'
+    + '<div class="hint" style="margin-bottom:12px">勾上的规则会让符合的学生<b>所有奖都不能参评</b>（除了「已拟定」视图，那里看的是已定的人）。</div>'
+    + mk('noTotal',           '无总成绩的学生',   '总成绩为空（导出表里没这一项）的人')
+    + mk('secondDegreeMajor', '二学位班级的学生', '专业名含「二学位」')
+    + mk('secondDegreeClass', '第二学位班级的学生','专业名含「第二学位」')
+    + '<label class="aw-excl-row aw-excl-manual"><input type="checkbox" data-excl="manual"' + ((Array.isArray(e.manualSids) && e.manualSids.length) ? ' checked' : '') + '>'
+    + '<span class="aw-excl-label">手动剔除名单</span>'
+    + '<span class="aw-excl-hint">勾上后，下方输入学号就能单个剔除（逗号或空格分隔）</span></label>'
+    + '<textarea id="awExclManual" class="aw-excl-input" rows="3" placeholder="202425400001, 202425400007"'
+    + ' onclick="event.stopPropagation()">'
+    + (Array.isArray(e.manualSids) ? e.manualSids.join(', ') : '')
+    + '</textarea>'
+    + '<div class="aw-excl-cur" id="awExclCur"></div>'
+    + '</div>'
+    + '<div class="modal-foot">'
+    + '<button class="btn" onclick="closeModal()">取消</button>'
+    + '<button class="btn pri" data-excl-save="1">保存</button>'
+    + '</div>'
+    + '</div></div>';
+  /* 实时显示「当前会被剔除多少人」—— 给老师一个直观反馈 */
+  const upd = () => {
+    const tmp = readExclusionForm();
+    const all = awardRows();
+    const n = all.filter(r => passesExclusion(r, tmp).length).length;
+    const el = document.getElementById('awExclCur');
+    if(el) el.textContent = '当前会剔除 ' + n + ' / ' + all.length + ' 人';
+  };
+  setTimeout(upd, 0);
+  document.querySelectorAll('[data-excl], #awExclManual').forEach(el=>{
+    el.addEventListener('input', upd);
+    el.addEventListener('change', upd);
+  });
+  const saveBtn = document.querySelector('[data-excl-save]');
+  if(saveBtn) saveBtn.onclick = function(){
+    S.awardExclusion = readExclusionForm();
+    save(); renderAward(); closeModal();
+    toast('已保存剔除规则');
+  };
+}
+function readExclusionForm(){
+  const out = { noTotal:false, secondDegreeMajor:false, secondDegreeClass:false, manualSids:[] };
+  document.querySelectorAll('[data-excl]').forEach(function(el){
+    const k = el.getAttribute('data-excl');
+    if(el.checked){
+      if(k === 'manual'){
+        const txt = (document.getElementById('awExclManual').value || '');
+        out.manualSids = txt.split(/[\s,，;；]+/).map(s=>s.trim()).filter(Boolean);
+      } else {
+        out[k] = true;
+      }
+    }
+  });
+  return out;
+}
+
+/* v2.4.2：列设置弹层 —— 12 个列开关 + HTML5 drag/drop 排序 */
+function openAwardColumns(){
+  S.awardColumns = S.awardColumns || { order:[], hidden:[] };
+  const cfg = S.awardColumns;
+  const hidden = new Set(Array.isArray(cfg.hidden) ? cfg.hidden : []);
+  /* 当前顺序（用户 order 优先，缺的从默认补） */
+  const map = new Map(AWARD_COLS.map(c=>[c.key, c]));
+  let order = Array.isArray(cfg.order) && cfg.order.length ? cfg.order.slice() : AWARD_COLS.map(c=>c.key);
+  for(const c of AWARD_COLS){
+    if(order.indexOf(c.key) < 0) order.push(c.key);
+  }
+  const items = order.filter(k => map.has(k)).map(k => {
+    const c = map.get(k);
+    return '<div class="aw-col-item' + (hidden.has(k) ? ' off' : '') + '" draggable="true" data-col-k="' + esc(c.key) + '">'
+      + '<span class="aw-col-handle" title="拖动排序">⋮⋮</span>'
+      + '<label class="aw-col-toggle"><input type="checkbox" data-col-on' + (hidden.has(k) ? '' : ' checked') + '>'
+      + '<span>' + esc(c.label) + '</span></label>'
+      + '<span class="aw-col-key">' + esc(c.key) + '</span>'
+      + '</div>';
+  }).join('');
+  $('modalRoot').innerHTML =
+    '<div class="mask" onclick="if(event.target===this)closeModal()">'
+    + '<div class="modal" onclick="event.stopPropagation()">'
+    + '<div class="modal-head"><div class="modal-title">列设置</div>'
+    + '<div class="modal-close" onclick="closeModal()">×</div></div>'
+    + '<div class="modal-body">'
+    + '<div class="hint" style="margin-bottom:12px">拖动 <b>⋮⋮</b> 调顺序；取消勾选 = 隐藏该列；保存后立刻生效。</div>'
+    + '<div class="aw-col-list" id="awColList">' + items + '</div>'
+    + '</div>'
+    + '<div class="modal-foot">'
+    + '<button class="btn" onclick="resetAwardColumns()">恢复默认顺序</button>'
+    + '<button class="btn" onclick="closeModal()">取消</button>'
+    + '<button class="btn pri" data-col-save="1">保存</button>'
+    + '</div>'
+    + '</div></div>';
+  bindColDnD();
+  const saveBtn = document.querySelector('[data-col-save]');
+  if(saveBtn) saveBtn.onclick = function(){
+    const list = document.getElementById('awColList');
+    if(!list) return;
+    const newOrder = [];
+    const newHidden = [];
+    list.querySelectorAll('.aw-col-item').forEach(function(el){
+      const k = el.getAttribute('data-col-k');
+      newOrder.push(k);
+      const on = el.querySelector('[data-col-on]').checked;
+      if(!on) newHidden.push(k);
+    });
+    S.awardColumns = { order:newOrder, hidden:newHidden };
+    save(); renderAward(); closeModal();
+    toast('已保存列设置');
+  };
+}
+/* 重置列顺序 = 回到 AWARD_COLS 的默认顺序，全显 */
+function resetAwardColumns(){
+  S.awardColumns = { order:AWARD_COLS.map(c=>c.key), hidden:[] };
+  save(); renderAward(); closeModal();
+}
+/* HTML5 drag/drop 排序绑定。
+   ⚠️ 单一 dragstart/dragover/drop 委托就够了，不需要每行单独绑。 */
+function bindColDnD(){
+  const list = document.getElementById('awColList');
+  if(!list) return;
+  let dragEl = null;
+  list.addEventListener('dragstart', function(e){
+    const item = e.target.closest('.aw-col-item');
+    if(!item) return;
+    dragEl = item;
+    item.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    /* Firefox 要求 setData 才能 drag，否则报「dragstart event」的拒绝 */
+    try { e.dataTransfer.setData('text/plain', item.getAttribute('data-col-k')); } catch(_){}
+  });
+  list.addEventListener('dragend', function(){
+    if(dragEl) dragEl.classList.remove('dragging');
+    dragEl = null;
+    list.querySelectorAll('.aw-col-item.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  });
+  list.addEventListener('dragover', function(e){
+    if(!dragEl) return;
+    e.preventDefault();
+    const over = e.target.closest('.aw-col-item');
+    if(!over || over === dragEl) return;
+    list.querySelectorAll('.aw-col-item.drag-over').forEach(el=>el.classList.remove('drag-over'));
+    over.classList.add('drag-over');
+    const rect = over.getBoundingClientRect();
+    const after = (e.clientY - rect.top) > rect.height / 2;
+    over.parentNode.insertBefore(dragEl, after ? over.nextSibling : over);
+  });
+  list.addEventListener('drop', function(e){
+    e.preventDefault();
+    /* 实际排序已经在 dragover 里完成；drop 只是收尾 */
+    list.querySelectorAll('.aw-col-item.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  });
 }
 
 /* 导出（用户 2026-10-03：「导出的信息就是姓名、学号、专业、你推荐奖学金名称、

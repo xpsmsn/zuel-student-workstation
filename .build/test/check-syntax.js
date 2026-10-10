@@ -26,8 +26,10 @@ console.log(bad ? `\n==> ${bad} 个 script 块有语法错误` : `\n==> 全部 $
 
 /* ---- 静态检查：按钮上的类名是否有 CSS 定义 ----
    判定规则：`.btn.X` 或独立 `.X` 任一存在即算合法。
-   （`.btn.memo-add` 那种辅助类是独立定义的，不能要求必须是 .btn 前缀。） */
-const cssSrc = html.slice(0, html.indexOf('</style>'));
+   （`.btn.memo-add` 那种辅助类是独立定义的，不能要求必须是 .btn 前缀。）
+   本文件有多个 <style> 块，设计规范要求新增样式放在末尾覆盖层，
+   所以必须汇总所有 style 内容，不能只读第一个 </style> 之前。 */
+const cssSrc = [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map(m => m[1]).join('\n');
 const defined = new Set();
 for (const mm of cssSrc.matchAll(/\.([A-Za-z_][\w-]*)/g)) defined.add(mm[1]);
 let badBtn = 0;
