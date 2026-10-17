@@ -19,10 +19,10 @@
 
 | 附件（下载得到的名字） | 改名成 | 适合谁 |
 |---|---|---|
-| `ZUEL-StudentWorkstation-v2.4.5-Setup.exe` | `ZUEL 辅导员工作台-v2.4.5-安装程序.exe` | **多数人选这个**：双击按向导装，装完桌面 / 开始菜单可启动，不需要管理员权限 |
-| `ZUEL-StudentWorkstation-v2.4.5-Portable.exe` | `ZUEL 辅导员工作台-v2.4.5-绿色版.exe` | 免安装：复制到任意文件夹双击即可 |
-| `ZUEL-StudentWorkstation-v2.4.5-Deploy.msi` | `ZUEL 辅导员工作台-v2.4.5-单位部署.msi` | 学校信息办统一推送，通常需要管理员权限 |
-| `ZUEL-StudentWorkstation-v2.4.5-macOS.dmg` | `ZUEL 辅导员工作台-v2.4.5-macOS.dmg` | **Mac**：把程序拖进「应用程序」。Intel 与 Apple 芯片（M 系列）通用 |
+| `ZUEL-StudentWorkstation-v2.5.0-Setup.exe` | `ZUEL 辅导员工作台-v2.5.0-安装程序.exe` | **多数人选这个**：双击按向导装，装完桌面 / 开始菜单可启动，不需要管理员权限 |
+| `ZUEL-StudentWorkstation-v2.5.0-Portable.exe` | `ZUEL 辅导员工作台-v2.5.0-绿色版.exe` | 免安装：复制到任意文件夹双击即可 |
+| `ZUEL-StudentWorkstation-v2.5.0-Deploy.msi` | `ZUEL 辅导员工作台-v2.5.0-单位部署.msi` | 学校信息办统一推送，通常需要管理员权限 |
+| `ZUEL-StudentWorkstation-v2.5.0-macOS.dmg` | `ZUEL 辅导员工作台-v2.5.0-macOS.dmg` | **Mac**：把程序拖进「应用程序」。Intel 与 Apple 芯片（M 系列）通用 |
 | `install-notes.txt` | `安装说明.txt` | 打印版说明 |
 
 **运行环境**：Windows 10 / 11（64 位）；macOS 用 .dmg。程序自带界面运行环境，无需另外安装。
@@ -59,6 +59,12 @@
 - **备份与恢复**：一键导出 / 恢复数据文件
 - **批次管理**：每学期一批，互不干扰，可随时切换
 
+### 无障碍与可用性（v2.5.0 起）
+- **键盘可用**：每个输入框、按钮、表格行都有可见焦点环，Tab / Enter / 空格能走完全流程
+- **对比度达标**：亮色 / 暗色 / 护眼三套主题的正文与按钮均达 WCAG AA（≥4.5:1）
+- **屏幕阅读器友好**：撤销提示与 toast 带 `aria-live`，确认框是标准模态对话框（焦点不跑出框）
+- **窄屏可用**：卡片模式下有「全选 + 排序」工具条，触控命中区 44×44
+
 ---
 
 ## 🏗 仓库结构
@@ -68,7 +74,8 @@
 app/                         ← 桌面版（Tauri 套壳）
   src/index.html               自动生成，不要手改
   src-tauri/tauri.conf.json    产品名、identifier、图标、打包配置
-docs/design/                 ← 视觉设计规范
+docs/design/                 ← 视觉设计规范 + UI 评审报告与逐轮整改核验
+ 视觉设计规范.md              ← 改界面前必读（字阶 / 圆角 / 色彩 / 焦点 / 排序等硬约束）
 .build/                      ← 构建与测试脚本（[目录说明](.build/README.md)）
 发布/                         ← 打好包的安装程序
 CHANGELOG.md                 ← 更新日志

@@ -50,6 +50,19 @@ app/src/index.html
 # ---- 本机会话数据 ----
 .workbuddy/
 
+# ---- 整改过程留档 / 核验临时产物（2026-10-17 加入）----
+# .backup/：每轮整改前的原型与产物快照，仅本机用于回滚，合计约 10 MB
+.backup/
+# .verify/ 下的核验脚本本身可以入库，但跑出来的临时文件不入
+.verify/probe.html
+.verify/probe-dom.html
+.verify/prof/
+.verify/prof-*/
+.verify/*.err
+.verify/*.log
+.verify/shot-*.png
+.verify/*.patch
+
 # ---- 文档生成流水线的中间产物（可重新生成，且数量庞大）----
 output/
 

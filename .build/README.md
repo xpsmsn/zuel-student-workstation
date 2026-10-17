@@ -45,6 +45,8 @@ test/test-import.js
 test/test-v196.js
 test/test-delete-backup.js
 test/test-desktop.js
+test/test-award-filter.js
+test/test-multisort.js
 ```
 
 ## 关键约定
